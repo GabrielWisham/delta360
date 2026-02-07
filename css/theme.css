@@ -1,0 +1,97 @@
+/* ============================
+   DELTA 360 — THEME & BASE
+   ============================ */
+
+/* --- DARK THEME (DEFAULT) --- */
+:root {
+  --a: #ff5c00;
+  --ad: rgba(255, 92, 0, 0.15);
+  --dm: #00bcd4;
+  --dmd: rgba(0, 188, 212, 0.1);
+  --bg: #0e1117;
+  --bg2: #161b22;
+  --bg3: #13161d;
+  --card: rgba(255, 255, 255, 0.04);
+  --cardh: rgba(255, 255, 255, 0.07);
+  --t: #e6e8eb;
+  --t2: #a0a8b4;
+  --t3: #6b7280;
+  --t4: #3d4450;
+  --bd: rgba(255, 255, 255, 0.1);
+  --bd2: rgba(255, 255, 255, 0.05);
+  --dg: #ff3b3b;
+  --ok: #00d26a;
+  --warn: #ffcc00;
+  --sw: 300px;
+  --hh: 56px;
+}
+
+/* --- LIGHT THEME --- */
+.light {
+  --a: #c43800;
+  --ad: rgba(196, 56, 0, 0.12);
+  --dm: #006d75;
+  --dmd: rgba(0, 109, 117, 0.1);
+  --bg: #9ea2ad;
+  --bg2: #b0b4be;
+  --bg3: #a8acb6;
+  --card: rgba(255, 255, 255, 0.82);
+  --cardh: rgba(255, 255, 255, 0.92);
+  --t: #0e1117;
+  --t2: #2a2e38;
+  --t3: #505560;
+  --t4: #7a7f8a;
+  --bd: rgba(0, 0, 0, 0.18);
+  --bd2: rgba(0, 0, 0, 0.08);
+}
+
+/* --- BASE RESET --- */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(128, 128, 128, 0.15) transparent;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+*::-webkit-scrollbar { width: 4px }
+*::-webkit-scrollbar-track { background: transparent }
+*::-webkit-scrollbar-thumb { background: rgba(128, 128, 128, 0.15); border-radius: 4px }
+
+/* --- TYPOGRAPHY --- */
+body {
+  font-family: 'Outfit', sans-serif;
+  background: var(--bg);
+  color: var(--t);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: background 0.3s, color 0.3s;
+}
+
+/* --- ANIMATIONS --- */
+@keyframes cIn { from { opacity: 0; transform: translateY(-4px) } to { opacity: 1; transform: translateY(0) } }
+@keyframes pglow { 0% { box-shadow: 0 0 0 var(--a) } 50% { box-shadow: 0 0 12px rgba(255,92,0,.25) } 100% { box-shadow: 0 0 0 var(--a) } }
+@keyframes p2 { 0%, 100% { opacity: 1 } 50% { opacity: 0.25 } }
+@keyframes sp { to { transform: rotate(360deg) } }
+@keyframes tIn { from { opacity: 0; transform: translateX(30px) } to { opacity: 1; transform: translateX(0) } }
+@keyframes tOut { to { opacity: 0; transform: translateX(30px) } }
+@keyframes searchBlink {
+  0% { background: var(--card) } 10% { background: rgba(255,92,0,.25) }
+  20% { background: var(--card) } 30% { background: rgba(255,92,0,.25) }
+  40% { background: var(--card) } 50% { background: rgba(255,92,0,.25) }
+  60% { background: var(--card) } 70% { background: rgba(255,92,0,.2) }
+  80% { background: var(--card) } 90% { background: rgba(255,92,0,.12) }
+  100% { background: var(--card) }
+}
+
+.spin {
+  width: 14px; height: 14px;
+  border: 2px solid var(--t4);
+  border-top-color: var(--a);
+  border-radius: 50%;
+  animation: sp 0.7s linear infinite;
+  margin: 12px auto;
+}
+.pulse { animation: pglow 0.5s ease-in-out 2 }
+.search-highlight { animation: searchBlink 2.5s ease-in-out; border-color: var(--a) !important; box-shadow: 0 0 12px rgba(255,92,0,.3) }

@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Delta 360 | Dispatch Command</title>
+  <meta name="description" content="Delta 360 — Professional GroupMe dispatch command center for real-time team communications.">
+  <meta name="theme-color" content="#ff5c00">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>Δ</text></svg>">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/theme.css">
+  <link rel="stylesheet" href="/css/layout.css">
+  <link rel="stylesheet" href="/css/components.css">
+</head>
+<body>
+<div id="login"><div class="lb">Δ</div><div class="sub">Delta 360 Dispatch</div><input type="password" id="tok" placeholder="GroupMe API token" onkeydown="if(event.key==='Enter')doLogin()"><button class="lbtn" onclick="doLogin()">Connect</button><div id="lerr">Invalid token</div><div style="font-size:14px;color:var(--t4);margin-top:6px">Get token at <a href="https://dev.groupme.com" target="_blank" style="color:var(--a)">dev.groupme.com</a></div></div>
+
+<header style="display:none" id="hdr">
+<div style="display:flex;align-items:center;gap:8px">
+<button id="sb-toggle" onclick="tglSidebar()">☰</button>
+<div class="lm">Δ</div>
+<div><div class="hs">Delta 360</div><div class="hm" id="htitle">Dispatch</div></div>
+<span id="stat-disp"></span>
+</div>
+<div style="display:flex;gap:5px;align-items:center">
+<div id="cs"><span class="sd off"></span>Off</div>
+<button class="ib" id="searchBtn" onclick="toggleSearch()" title="Search (/)">🔍</button>
+<button class="ib" id="vb" onclick="toggleMute()" title="Sound">🔊</button>
+<select id="statSel" onchange="setStat(this.value,true)" style="font-size:15px;font-family:'JetBrains Mono';background:var(--bg);color:var(--t2);border:1px solid var(--bd);border-radius:3px;padding:2px 4px;outline:0"><option value="avl">🟢 Avail</option><option value="bsy">🔴 Busy</option><option value="awy">🟡 Away</option></select>
+<div class="tray-w"><button class="tbtn" onclick="tglTray('toolsTray',this)">⚡ Tools</button><div class="tray" id="toolsTray">
+<button class="tray-i" onclick="showContacts();closeTray()"><span class="ico">👥</span>Contacts</button>
+<button class="tray-i" onclick="showAdhoc();closeTray()"><span class="ico">📢</span>Broadcast</button>
+<button class="tray-i" onclick="toggleCB();closeTray()"><span class="ico">📋</span>Clipboard</button>
+<button class="tray-i" onclick="toggleCfg();closeTray()" id="cfgBtn"><span class="ico">⚙️</span>Config</button>
+</div></div>
+<div class="tray-w"><button class="tbtn" onclick="tglTray('viewTray',this)">◎ View</button><div class="tray" id="viewTray">
+<button class="tray-i" onclick="toggleTheme();closeTray()" id="thb"><span class="ico">🌙</span>Theme</button>
+<button class="tray-i" onclick="toggleCompact();closeTray()"><span class="ico">▤</span>Compact</button>
+<button class="tray-i" onclick="toggleLayout();closeTray()" id="layBtn"><span class="ico">⬒</span>Layout</button>
+<div class="tray-sep"></div>
+<button class="tray-i" onclick="toggleInputBottom();closeTray()" id="ibBtn"><span class="ico">⇩</span>Input Bottom</button>
+<button class="tray-i" onclick="toggleOldestFirst();closeTray()" id="ofBtn"><span class="ico">↑</span>Oldest First</button>
+</div></div>
+<div class="tray-w"><button class="tbtn" onclick="tglTray('actionsTray',this)">▾ Actions</button><div class="tray" id="actionsTray">
+<button class="tray-i" onclick="exportChat();closeTray()"><span class="ico">📤</span>Export Chat</button>
+<button class="tray-i" onclick="logShift();closeTray()"><span class="ico">📋</span>Shift Log</button>
+<button class="tray-i" onclick="showShiftChange();closeTray()"><span class="ico">🔄</span>Shift Change</button>
+<div class="tray-sep"></div>
+<button class="tray-i danger" onclick="doLogout()"><span class="ico">⏻</span>Logout</button>
+</div></div>
+</div>
+</header>
+
+<div id="dboard"><span class="db-title">Dispatch Board</span></div>
+<div id="toast-zone"></div>
+
+<div id="main" style="display:none">
+<div id="sidebar">
+<div class="ss">Command</div>
+<div class="ci" id="nAll" onclick="handleNav('all',null,event)">⬡ Universal Feed</div>
+<div class="ci" id="nDms" onclick="handleNav('all_dms',null,event)" style="color:var(--dm)">◈ Direct Comms</div>
+<div class="ss">Streams <span id="sCn" class="cn"></span></div>
+<div id="sL"></div>
+<div class="ci" onclick="toggleCfg();document.getElementById('snIn').focus()" style="color:var(--t3);font-size:12px;justify-content:center;gap:4px;opacity:.7"><span style="color:var(--a)">+</span> Add Stream</div>
+<div class="ss" id="pSec" style="display:none">Pending <span id="pCn" class="cn"></span></div>
+<div id="pL"></div>
+<div class="ss" id="pcSec" style="display:none">Pinned <span id="pcCn" class="cn"></span></div>
+<div id="pcL"></div>
+<div class="ss">Active <span id="aCn" class="cn"></span><button class="dl" id="sortBtn" onclick="event.stopPropagation();toggleSort()" title="Sort by heatmap" style="font-size:10px;font-family:'JetBrains Mono';color:var(--t3);letter-spacing:0;text-transform:none">⏱ Recent</button></div>
+<div id="aL"></div>
+<div class="ss isec" id="iSec" onclick="toggleIA()" style="cursor:pointer;display:none"><span>Inactive <span id="iCn" class="cn"></span></span><span id="iArr" style="font-size:14px;transition:transform .2s">▸</span></div>
+<div id="iL" style="display:none"></div>
+</div>
+<div id="feed">
+<div class="ov" id="searchOv"><button class="oclose" onclick="toggleSearch()">✕</button><div class="ot">Search Messages</div><input id="searchIn" placeholder="Search..." oninput="doSearch(this.value)" style="width:100%;margin-bottom:10px"><div id="searchRes"></div></div>
+<div class="ov" id="contactOv"><button class="oclose" onclick="hideContacts()">✕</button><div class="ot">Contact Directory</div><input id="conSearch" placeholder="Filter..." oninput="filterCon(this.value)" style="width:100%;margin-bottom:10px"><div id="conList"></div></div>
+<div id="cfg" style="display:none">
+<div class="cfg-grid">
+<div class="cfg-col">
+<div class="ot">▸ Stream Builder</div>
+<input type="text" id="snIn" class="rin" style="width:100%;margin-bottom:6px" placeholder="Stream name (required)...">
+<div class="ot" style="margin-top:6px">Sound</div>
+<div class="so" id="snOpts">
+<div class="sop sel" data-sound="radar" onclick="selSnd(this)"><span>📡 Radar</span><button class="pb" onclick="event.stopPropagation();prevSnd('radar')">▶</button></div>
+<div class="sop" data-sound="chime" onclick="selSnd(this)"><span>🔔 Chime</span><button class="pb" onclick="event.stopPropagation();prevSnd('chime')">▶</button></div>
+<div class="sop" data-sound="click" onclick="selSnd(this)"><span>🔘 Click</span><button class="pb" onclick="event.stopPropagation();prevSnd('click')">▶</button></div>
+<div class="sop" data-sound="alert" onclick="selSnd(this)"><span>🚨 Alert</span><button class="pb" onclick="event.stopPropagation();prevSnd('alert')">▶</button></div>
+<div class="sop" data-sound="sonar" onclick="selSnd(this)"><span>🎯 Sonar</span><button class="pb" onclick="event.stopPropagation();prevSnd('sonar')">▶</button></div>
+<div class="sop" data-sound="drop" onclick="selSnd(this)"><span>💧 Drop</span><button class="pb" onclick="event.stopPropagation();prevSnd('drop')">▶</button></div>
+</div>
+<div class="ot" style="margin-top:8px">Groups</div>
+<div id="gPick" style="height:120px;overflow-y:auto;background:rgba(128,128,128,.1);border:1px solid var(--bd);padding:6px;border-radius:4px"></div>
+<button class="hb p" style="width:100%;margin-top:10px;padding:7px" onclick="saveStream()">Save Stream</button>
+</div>
+<div class="cfg-col">
+<div class="ot">▸ Message Templates</div>
+<div id="tplMgr" style="margin-top:4px"></div>
+<div style="display:flex;gap:4px;margin-top:6px"><input id="tplNew" class="rin" placeholder="New template..." style="flex:1"><button class="hb p" onclick="addTpl()">+ Add</button></div>
+<div class="ot" style="margin-top:14px">▸ Priority Alert Words</div>
+<div id="alertMgr" style="margin-top:4px"></div>
+<div style="display:flex;gap:4px;margin-top:6px"><input id="alertNew" class="rin" placeholder='e.g. "urgent", "help", "@dispatch"' style="flex:1"><button class="hb p" onclick="addAlert()">+ Add</button></div>
+</div>
+<div class="cfg-col">
+<div class="ot">▸ Feed &amp; DM Audio</div>
+<div style="margin:6px 0;display:flex;align-items:center;gap:6px">
+<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;color:var(--t)"><input type="checkbox" id="allNotifChk" onchange="allNotif=this.checked;localStorage.setItem('gm_v3_allnotif',allNotif?'1':'0')" style="accent-color:var(--a);width:14px;height:14px"> <strong>All Notifications</strong></label>
+</div>
+<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px">
+<div style="flex:1;min-width:120px">
+<div style="font-size:12px;color:var(--t2);margin-bottom:3px;display:flex;justify-content:space-between;align-items:center">Feed <label style="font-size:12px;display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="feedMutChk" onchange="feedMuted=this.checked;localStorage.setItem('gm_v3_feedmut',feedMuted?'1':'0')" style="accent-color:var(--dg)"> Mute</label></div>
+<select id="feedSndSel" onchange="feedSound=this.value;localStorage.setItem('gm_v3_feedsnd',this.value)" style="width:100%;font-size:12px;font-family:'JetBrains Mono';background:var(--bg);color:var(--t2);border:1px solid var(--bd);border-radius:3px;padding:3px 6px;outline:0"><option value="radar">📡 Radar</option><option value="chime">🔔 Chime</option><option value="click">🔘 Click</option><option value="alert">🚨 Alert</option><option value="sonar">🎯 Sonar</option><option value="drop">💧 Drop</option></select>
+</div>
+<div style="flex:1;min-width:120px">
+<div style="font-size:12px;color:var(--dm);margin-bottom:3px;display:flex;justify-content:space-between;align-items:center">DMs <label style="font-size:12px;display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="dmMutChk" onchange="dmMuted=this.checked;localStorage.setItem('gm_v3_dmmut',dmMuted?'1':'0')" style="accent-color:var(--dg)"> Mute</label></div>
+<select id="dmSndSel" onchange="dmSound=this.value;localStorage.setItem('gm_v3_dmsnd',this.value)" style="width:100%;font-size:12px;font-family:'JetBrains Mono';background:var(--bg);color:var(--dm);border:1px solid var(--bd);border-radius:3px;padding:3px 6px;outline:0"><option value="chime">🔔 Chime</option><option value="radar">📡 Radar</option><option value="click">🔘 Click</option><option value="alert">🚨 Alert</option><option value="sonar">🎯 Sonar</option><option value="drop">💧 Drop</option></select>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div id="panels-wrap">
+<div class="panel" id="panel-0">
+<div class="panel-hdr"><span class="panel-title" id="ptitle-0">—</span><button class="panel-close" onclick="closePanel(0)" title="Close" style="display:none">✕</button></div>
+<div id="sticky-bar"><span class="stl">📒 NOTE</span><textarea id="sticky-text" placeholder="Sticky note..."></textarea><button class="abtn" onclick="saveSticky()" style="font-size:10px;background:rgba(255,204,0,.1);border-color:rgba(255,204,0,.25);color:var(--warn);font-weight:600">Save</button><span class="st-exp"><select id="sticky-exp" onchange="setStickyExp()"><option value="0">No expiry</option><option value="1">1 hour</option><option value="4">4 hours</option><option value="8">8 hours</option><option value="24">24 hours</option></select></span><button class="abtn" onclick="toggleStickyHist()" style="font-size:10px">History</button></div>
+<div id="sticky-hist"></div>
+<div id="tpl-bar"></div>
+<div id="bb">
+<button class="imb" onclick="document.getElementById('imgUp').click()" title="Image">📎</button>
+<button class="imb" id="stickyTogBtn" onclick="toggleStickyBar()" title="Sticky Note" style="display:none">📒</button>
+<input type="file" id="imgUp" accept="image/*" style="display:none" onchange="handleImg(this)">
+<textarea id="gIn" class="rin" placeholder="Broadcast..." oninput="autoX(this)" onkeydown="bKey(event)"></textarea>
+<div style="position:relative"><button class="et" onclick="toggleEP('bEp')">😀</button><div class="ep" id="bEp"></div></div>
+<button class="sb" onclick="sendBcast()">Send</button>
+</div>
+<div class="fs" id="log"><div id="pin-zone"></div><div class="empty"><div class="ei">Δ</div><div class="el">Connecting...</div></div></div>
+<button id="sctop" onclick="document.getElementById('log').scrollTop=0">↑</button>
+<div id="day-cue"><div class="dc-day"></div><div class="dc-date"></div></div>
+</div><!-- end panel-0 -->
+<div class="panel" id="panel-1" style="display:none">
+<div class="panel-hdr"><span class="panel-title" id="ptitle-1">—</span><button class="panel-close" onclick="closePanel(1)">✕</button></div>
+<div class="p-bb"><textarea class="rin" id="pIn-1" placeholder="Message..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendPanel(1)}"></textarea><button class="sb" onclick="sendPanel(1)">↑</button></div>
+<div class="fs p-log" id="plog-1"><div class="empty"><div class="ei">◇</div><div class="el">Shift+click a chat</div></div></div>
+</div>
+<div class="panel" id="panel-2" style="display:none">
+<div class="panel-hdr"><span class="panel-title" id="ptitle-2">—</span><button class="panel-close" onclick="closePanel(2)">✕</button></div>
+<div class="p-bb"><textarea class="rin" id="pIn-2" placeholder="Message..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendPanel(2)}"></textarea><button class="sb" onclick="sendPanel(2)">↑</button></div>
+<div class="fs p-log" id="plog-2"><div class="empty"><div class="ei">◇</div><div class="el">Shift+click a chat</div></div></div>
+</div>
+</div><!-- end panels-wrap -->
+</div><!-- end feed -->
+</div><!-- end main -->
+
+<div id="cb"><div id="cbh" onmousedown="startDrag(event)"><span>📋 Clipboard</span><div><button onclick="clearCB()">🗑</button><button onclick="toggleCB()">✕</button></div></div><textarea id="cbb" placeholder="Notes between chats..." oninput="saveCBD()"></textarea><div id="cbf"><span id="cbc">0</span><span>Saved</span></div></div>
+<div class="modal" id="fwdM" onclick="if(event.target===this)this.classList.remove('show')"><div class="mbox"><div class="ot">Forward to...</div><div id="fwdL"></div></div></div>
+<div class="modal" id="adhocM" onclick="if(event.target===this)this.classList.remove('show')"><div class="mbox" style="width:400px"><div class="ot">Ad-Hoc Broadcast</div><div id="adhocG" style="max-height:180px;overflow-y:auto;margin-bottom:8px"></div><textarea id="adhocMsg" class="rin" style="width:100%;margin-bottom:6px" placeholder="Message..."></textarea><button class="hb p" style="width:100%;padding:8px" onclick="sendAdhoc()">Broadcast</button></div></div>
+<div class="modal" id="shiftM" onclick="if(event.target===this)this.classList.remove('show')"><div class="mbox" style="width:420px"><div class="ot">Shift Change Broadcast</div><p style="font-size:14px;color:var(--t3);margin-bottom:8px">Notify groups of your shift change.</p><div style="display:flex;gap:6px;margin-bottom:6px"><input id="shiftOff" class="rin" placeholder="Going off (your name)" style="flex:1;min-width:0"><input id="shiftOn" class="rin" placeholder="Coming on (name)" style="flex:1;min-width:0"></div><input id="shiftPhone" class="rin" placeholder="New dispatcher phone #" style="width:100%;box-sizing:border-box;margin-bottom:6px"><div id="shiftGroups" style="max-height:150px;overflow-y:auto;margin-bottom:8px"></div><button class="hb p" style="width:100%;padding:8px" onclick="sendShiftChange()">Send Shift Change</button></div></div>
+<div id="lightbox" onclick="this.style.display='none'"><img id="lbImg" src=""></div>
+<script src="/js/app.js"></script>
+</body>
+</html>

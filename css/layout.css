@@ -1,0 +1,188 @@
+/* ============================
+   DELTA 360 — LAYOUT
+   ============================ */
+
+/* --- LOGIN SCREEN --- */
+#login {
+  position: fixed; inset: 0; background: var(--bg); z-index: 9999;
+  display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 16px;
+}
+#login .lb { font-size: 44px; color: var(--a); font-family: 'JetBrains Mono'; font-weight: 700 }
+#login .sub { font-size: 11px; color: var(--t3); letter-spacing: 3px; text-transform: uppercase }
+#login input {
+  background: rgba(128,128,128,.1); border: 1px solid var(--bd); color: var(--t);
+  padding: 12px 18px; border-radius: 8px; width: 340px; max-width: 90vw;
+  font-size: 15px; font-family: 'Outfit'; outline: 0; text-align: center;
+}
+#login input:focus { border-color: var(--a) }
+.lbtn {
+  background: var(--a); color: #fff; border: 0; padding: 10px 36px; border-radius: 8px;
+  font-family: 'JetBrains Mono'; font-weight: 700; font-size: 15px;
+  letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+}
+#lerr { color: var(--dg); font-size: 14px; display: none }
+
+/* --- HEADER --- */
+header {
+  background: var(--bg3); border-bottom: 1px solid var(--bd);
+  padding: 0 14px; height: var(--hh);
+  display: flex; justify-content: space-between; align-items: center;
+  z-index: 3000; flex-shrink: 0;
+}
+.lm {
+  width: 26px; height: 26px; background: var(--a); border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'JetBrains Mono'; font-weight: 700; font-size: 14px; color: #fff;
+}
+.hs { font-size: 9px; letter-spacing: 2.5px; color: var(--a); font-weight: 800; text-transform: uppercase }
+.hm { font-size: 18px; font-weight: 700; color: var(--t); letter-spacing: 0.3px }
+.sd { width: 6px; height: 6px; border-radius: 50%; display: inline-block; margin-right: 3px }
+.sd.on { background: var(--ok); box-shadow: 0 0 4px var(--ok) }
+.sd.off { background: var(--t4) }
+#cs { font-size: 10px; color: var(--t3); display: flex; align-items: center; gap: 2px }
+
+/* --- MAIN LAYOUT --- */
+#main { display: flex; flex-direction: row; flex-grow: 1; overflow: hidden; position: relative }
+
+/* --- SIDEBAR --- */
+#sidebar {
+  width: var(--sw); min-width: 0; max-width: var(--sw);
+  background: var(--bg2); border-right: 1px solid var(--bd);
+  display: flex; flex-direction: column; flex-shrink: 0; z-index: 1000;
+  transition: width 0.25s ease, min-width 0.25s ease;
+  overflow-y: auto; overflow-x: hidden;
+}
+#sidebar.collapsed { width: 0; min-width: 0; overflow: hidden; border-right: 0; padding: 0 }
+#sidebar.collapsed ~ #feed .card,
+#sidebar.collapsed ~ #feed #pin-zone,
+#sidebar.collapsed ~ #feed .day-div { max-width: 900px; width: 98% }
+#sb-toggle { background: transparent; border: 0; color: var(--t2); font-size: 16px; cursor: pointer }
+
+/* Sidebar section headers */
+.ss {
+  padding: 8px 14px; font-size: 9px; color: var(--a);
+  font-family: 'JetBrains Mono'; font-weight: 800;
+  border-bottom: 2px solid var(--bd); letter-spacing: 2.5px; text-transform: uppercase;
+  display: flex; justify-content: space-between; align-items: center;
+  background: rgba(128,128,128,.06); margin-top: 2px;
+}
+.ss .cn { color: var(--a); font-size: 10px }
+
+/* Sidebar chat items */
+.ci {
+  padding: 8px 14px; border-bottom: 1px solid var(--bd2); cursor: pointer;
+  font-size: 13px; display: flex; justify-content: space-between; align-items: center;
+  transition: 0.12s; color: var(--t2); gap: 4px; user-select: none;
+}
+.ci:hover { background: rgba(128,128,128,.1); color: var(--t) }
+.ci:active { background: rgba(128,128,128,.08) }
+.ci.ac { background: var(--ad); color: var(--a); font-weight: 600; border-left: 3px solid var(--a) }
+.ci.acd { background: var(--dmd); color: var(--dm); font-weight: 600; border-left: 3px solid var(--dm) }
+.ci.dm-item { color: var(--dm) }
+.ci .ta { font-size: 9px; color: var(--t4); font-family: 'JetBrains Mono' }
+.ci .dl { background: transparent; border: 0; color: var(--t4); cursor: pointer; font-size: 14px; padding: 1px 3px; border-radius: 3px; transition: 0.12s }
+.ci .dl:hover { color: var(--dg) }
+.ud { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; background: var(--a); box-shadow: 0 0 4px rgba(255,92,0,.3); animation: p2 2s infinite }
+.ud.dm { background: var(--dm) }
+.heatbar { height: 2px; border-radius: 1px; margin-top: 2px; transition: width 0.5s }
+
+/* Toggle switch */
+.sw { position: relative; display: inline-block; width: 28px; height: 13px; flex-shrink: 0 }
+.sw input { opacity: 0; width: 0; height: 0 }
+.sl { position: absolute; cursor: pointer; inset: 0; background: #222; transition: 0.3s; border-radius: 13px; border: 1px solid #333 }
+.sl:before { position: absolute; content: ""; height: 7px; width: 7px; left: 2px; bottom: 2px; background: #888; transition: 0.3s; border-radius: 50% }
+input:checked + .sl { background: rgba(255,92,0,.25); border-color: var(--a) }
+input:checked + .sl:before { transform: translateX(13px); background: var(--a) }
+
+/* Pending DM items */
+.pi { padding: 8px 14px; border-bottom: 1px solid var(--bd2); font-size: 14px; display: flex; justify-content: space-between; align-items: center }
+.pn { color: var(--dm); font-weight: 600 }
+.pp { font-size: 10px; color: var(--t3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 90px }
+.ppulse { width: 4px; height: 4px; border-radius: 50%; background: var(--dm); animation: p2 2s infinite; flex-shrink: 0; margin-right: 4px }
+.ab { border: 0; border-radius: 3px; cursor: pointer; font-family: 'JetBrains Mono'; font-size: 10px; font-weight: 700; padding: 3px 6px; transition: 0.15s }
+.ab.ok { background: rgba(0,210,106,.12); color: var(--ok); border: 1px solid rgba(0,210,106,.2) }
+.ab.no { background: rgba(255,59,59,.08); color: #ff6b6b; border: 1px solid rgba(255,59,59,.15) }
+.isec:hover { background: var(--card) }
+.isec .cn { color: var(--t4) }
+.ia-o { transform: rotate(90deg) }
+
+/* --- FEED AREA --- */
+#feed { flex-grow: 1; position: relative; overflow: hidden; display: flex; flex-direction: column }
+.fs {
+  padding: 14px; display: flex; flex-direction: column; align-items: center;
+  width: 100%; flex-grow: 1; overflow-y: auto; scroll-behavior: smooth;
+}
+.empty { display: flex; flex-direction: column; align-items: center; justify-content: center; flex-grow: 1; color: var(--t4); text-align: center; padding: 30px }
+.empty .ei { font-size: 32px; margin-bottom: 8px; opacity: 0.25 }
+.empty .el { font-size: 14px; font-family: 'JetBrains Mono'; letter-spacing: 2px; text-transform: uppercase }
+
+/* --- INPUT BOTTOM MODE --- */
+body.input-bottom #feed { flex-direction: column }
+body.input-bottom #sticky-bar { order: 10 }
+body.input-bottom #sticky-hist { order: 11 }
+body.input-bottom #tpl-bar { order: 12 }
+body.input-bottom #bb { order: 13 }
+body.input-bottom #log { order: 5 }
+body.input-bottom #cfg { order: 1 }
+
+/* --- OLDEST FIRST MODE --- */
+body.oldest-first #log { display: flex; flex-direction: column }
+
+/* --- MULTI-PANEL --- */
+#panels-wrap { display: flex; flex: 1; overflow: hidden; gap: 1px }
+.panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; border-left: 1px solid var(--bd) }
+.panel:first-child { border-left: 0 }
+.panel-hdr {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 3px 10px; background: var(--card); border-bottom: 1px solid var(--bd);
+  flex-shrink: 0; min-height: 24px;
+}
+.panel-title {
+  font-size: 11px; font-family: 'JetBrains Mono'; font-weight: 700;
+  color: var(--a); letter-spacing: 1px; text-transform: uppercase;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.panel-close {
+  background: transparent; border: 1px solid var(--bd); color: var(--t3);
+  width: 20px; height: 20px; border-radius: 3px; cursor: pointer; font-size: 11px;
+  display: flex; align-items: center; justify-content: center; transition: 0.15s;
+}
+.panel-close:hover { border-color: var(--dg); color: var(--dg) }
+.p-bb { padding: 5px 8px; background: var(--card); border-bottom: 1px solid var(--bd); display: flex; align-items: flex-end; gap: 4px; flex-shrink: 0 }
+.p-log { flex: 1; overflow-y: auto }
+
+/* --- CONFIG PANEL --- */
+#cfg {
+  background: var(--bg3); position: absolute; top: 0; left: 0; right: 0;
+  display: none; padding: 14px 20px; border-bottom: 2px solid var(--a);
+  z-index: 2500; overflow-y: auto; max-height: 70vh;
+}
+.cfg-grid { display: flex; gap: 20px; flex-wrap: wrap }
+.cfg-col { flex: 1; min-width: 200px; max-width: 400px }
+
+/* --- LAYOUT MODES --- */
+body.landscape #sidebar { width: var(--sw); height: 100%; max-width: var(--sw) }
+body.portrait #sidebar { width: var(--sw); height: 100%; max-width: var(--sw) }
+
+/* --- RESPONSIVE --- */
+@media (max-width: 600px) {
+  #sidebar {
+    position: absolute; top: 0; bottom: 0; left: 0; width: var(--sw);
+    transform: translateX(-100%); z-index: 2000;
+  }
+  #sidebar.open { transform: translateX(0) }
+  #sidebar.collapsed { transform: translateX(-100%) }
+  .card { width: 100% }
+  #cfg { padding: 10px; flex-direction: column }
+  header { padding: 0 8px; flex-wrap: wrap; height: auto; min-height: var(--hh) }
+  #dboard { padding: 3px 8px }
+  #bb { padding: 6px 8px }
+}
+@media (min-width: 601px) and (max-width: 900px) {
+  :root { --sw: 240px }
+  .card { max-width: 100% }
+  header .hb { padding: 3px 6px; font-size: 14px }
+}
+@media (min-width: 901px) and (max-width: 1200px) { :root { --sw: 270px } }
+@media (min-width: 1201px) and (max-width: 1600px) { :root { --sw: 300px } .card { max-width: 700px } }
+@media (min-width: 1601px) { :root { --sw: 340px } .card { max-width: 800px; font-size: 15px } .cb { font-size: 15px } .ch { font-size: 14px } }
