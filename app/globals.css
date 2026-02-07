@@ -1,0 +1,137 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --background: 228 14% 93%;
+    --foreground: 222 47% 8%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 8%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 8%;
+    --primary: 18 100% 50%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 14% 92%;
+    --secondary-foreground: 222 47% 15%;
+    --muted: 220 14% 92%;
+    --muted-foreground: 220 8% 46%;
+    --accent: 187 100% 42%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 13% 86%;
+    --input: 220 13% 86%;
+    --ring: 18 100% 50%;
+    --radius: 0.625rem;
+
+    /* Delta 360 custom tokens */
+    --d360-orange: #ff5c00;
+    --d360-orange-dark: #c43800;
+    --d360-cyan: #00bcd4;
+    --d360-purple: #a78bfa;
+    --d360-yellow: #ffcc00;
+    --d360-red: #ff3b3b;
+    --d360-green: #00d26a;
+    --d360-gradient: linear-gradient(135deg, #ff5c00, #ff8c40);
+    --d360-glass: rgba(255, 255, 255, 0.7);
+    --d360-glass-border: rgba(255, 255, 255, 0.3);
+    --d360-card: rgba(255, 255, 255, 0.7);
+    --d360-sidebar-bg: rgba(255, 255, 255, 0.5);
+    --d360-noise-opacity: 0.025;
+  }
+
+  [data-theme="dark"] {
+    --background: 225 33% 5%;
+    --foreground: 216 12% 92%;
+    --card: 0 0% 100%;
+    --card-foreground: 216 12% 92%;
+    --popover: 225 33% 7%;
+    --popover-foreground: 216 12% 92%;
+    --primary: 18 100% 50%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 224 20% 12%;
+    --secondary-foreground: 216 12% 84%;
+    --muted: 224 20% 12%;
+    --muted-foreground: 220 8% 56%;
+    --accent: 187 100% 42%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 224 20% 16%;
+    --input: 224 20% 16%;
+    --ring: 18 100% 50%;
+
+    --d360-glass: rgba(255, 255, 255, 0.035);
+    --d360-glass-border: rgba(255, 255, 255, 0.06);
+    --d360-card: rgba(255, 255, 255, 0.035);
+    --d360-sidebar-bg: rgba(255, 255, 255, 0.02);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-outfit), system-ui, sans-serif;
+  }
+}
+
+/* Film-grain noise texture */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: var(--d360-noise-opacity);
+  background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+}
+
+/* Glass morphism utility */
+.glass {
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  background: var(--d360-glass);
+  border: 1px solid var(--d360-glass-border);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}
+
+/* Glowing animation for unread dots */
+@keyframes pulse-glow {
+  0%, 100% { opacity: 1; box-shadow: 0 0 4px currentColor; }
+  50% { opacity: 0.6; box-shadow: 0 0 8px currentColor; }
+}
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Toast slide-in */
+@keyframes slide-in-right {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s ease-out;
+}
+
+/* Heat bar */
+.heat-bar {
+  height: 2px;
+  border-radius: 1px;
+  transition: width 0.3s ease;
+}
