@@ -66,8 +66,7 @@ async function doLogin() {
         
         // UI Switch
         el('login').style.display = 'none';
-        el('hdr').style.display = 'flex';
-        el('main').style.display = 'flex';
+        el('app-root').style.display = 'flex';
         
         await initData();
         startPoll();
