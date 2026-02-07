@@ -3,12 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Delta 360 | Dispatch Command</title>
-  <meta name="description" content="Delta 360 — Professional dispatch command center.">
+  <title>Delta 360 | Dispatch Command Center</title>
+  <meta name="description" content="Professional team dispatch command center powered by GroupMe.">
   <meta name="theme-color" content="#f97316">
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>Δ</text></svg>">
-  
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90' fill='%23f97316'>Δ</text></svg>">
   
   <link rel="stylesheet" href="css/theme.css">
   <link rel="stylesheet" href="css/layout.css">
@@ -16,144 +14,174 @@
 </head>
 <body>
 
+  <!-- LOGIN SCREEN -->
   <div id="login">
     <div class="login-card">
       <div class="lb">Δ</div>
-      <div class="sub">Dispatch Command</div>
+      <div class="sub">Delta 360</div>
       <div class="input-group">
         <input type="password" id="tok" placeholder="GroupMe API Token" onkeydown="if(event.key==='Enter')doLogin()">
-        <button class="lbtn" onclick="doLogin()">Initialize System</button>
+        <button class="lbtn" onclick="doLogin()">Connect</button>
       </div>
-      <div id="lerr">Connection Failed: Invalid Token</div>
+      <div id="lerr">Connection failed. Please check your token.</div>
       <div class="meta-link">
-        <a href="https://dev.groupme.com" target="_blank">Get Access Token ↗</a>
+        <a href="https://dev.groupme.com" target="_blank">Get API Token →</a>
       </div>
     </div>
   </div>
 
-  <header id="hdr" style="display:none">
-    <div class="brand-section">
-      <button id="sb-toggle" onclick="tglSidebar()" title="Toggle Menu">☰</button>
-      <div class="lm">Δ</div>
-      <div class="brand-text">
-        <div class="hm" id="htitle">Dashboard</div>
-        <div class="hs">Delta 360 System</div>
-      </div>
-    </div>
-
-    <div class="tools-section">
-      <div class="status-pill" id="stat-pill">
-        <span class="dot"></span>
-        <span id="stat-text">OFFLINE</span>
-        <select id="statSel" onchange="setStat(this.value, true)">
-          <option value="avl">Available</option>
-          <option value="bsy">Busy</option>
-          <option value="awy">Away</option>
-        </select>
-      </div>
-
-      <div class="divider-v"></div>
-
-      <button class="ib" onclick="toggleSearch()" title="Search (/)">
-        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-      </button>
-      
-      <button class="ib" onclick="showMembers()" title="Members">
-        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
-      </button>
-
-      <button class="ib" id="vb" onclick="toggleMute()" title="Toggle Sound">
-        <span id="vb-icon">🔊</span>
-      </button>
-
-      <div class="tray-w">
-        <button class="tbtn" onclick="tglTray('toolsTray',this)">Tools ▾</button>
-        <div class="tray" id="toolsTray">
-          <button class="tray-i" onclick="showContacts();closeTray()">Contacts Directory</button>
-          <button class="tray-i" onclick="showAdhoc();closeTray()">Ad-Hoc Broadcast</button>
-          <button class="tray-i" onclick="toggleCB();closeTray()">Clipboard</button>
-          <div class="tray-sep"></div>
-          <button class="tray-i" onclick="toggleCfg();closeTray()">System Config</button>
-        </div>
-      </div>
-
-      <div class="tray-w">
-        <button class="tbtn" onclick="tglTray('viewTray',this)">View ▾</button>
-        <div class="tray" id="viewTray">
-          <button class="tray-i" onclick="toggleTheme();closeTray()" id="thb">Toggle Theme</button>
-          <button class="tray-i" onclick="toggleCompact();closeTray()">Compact Mode</button>
-          <div class="tray-sep"></div>
-          <button class="tray-i" onclick="doLogout()">Log Out</button>
-        </div>
-      </div>
-    </div>
-  </header>
-
-  <div id="dboard"></div>
-
-  <div id="main" style="display:none">
+  <!-- MAIN APPLICATION -->
+  <div id="app-root" style="display:none; flex: 1; display: flex; flex-direction: column;">
     
-    <div id="sidebar">
-      <div class="sb-section-hdr">FEEDS</div>
-      <div id="sL"></div> <div class="sb-section-hdr">ACTIVE</div>
-      <div id="aL"></div>
-    </div>
-
-    <div id="feed">
-      <div class="ov" id="searchOv">
-        <div class="ov-hdr">
-          <div class="ot">Search Archives</div>
-          <button class="oclose" onclick="toggleSearch()">✕</button>
-        </div>
-        <input id="searchIn" class="rin large" placeholder="Type keywords or order numbers..." oninput="doSearch(this.value)">
-        <div id="searchRes"></div>
-      </div>
-
-      <div id="cfg" style="display:none">
-        <div class="cfg-grid">
-          <div class="cfg-col">
-            <div class="ot">Audio Routing</div>
-            <div class="cfg-row">
-              <label>Feed Audio</label>
-              <select id="feedSndSel" onchange="feedSound=this.value;localStorage.setItem('gm_v3_feedsnd',this.value)">
-                <option value="radar">Radar</option>
-                <option value="chime">Chime</option>
-                <option value="click">Click</option>
-              </select>
-            </div>
-          </div>
+    <!-- HEADER -->
+    <header>
+      <div class="brand-section">
+        <button id="sb-toggle" onclick="tglSidebar()" title="Toggle Menu">☰</button>
+        <div class="brand-icon">Δ</div>
+        <div class="brand-text">
+          <div class="hm" id="htitle">Dashboard</div>
+          <div class="hs">Delta 360</div>
         </div>
       </div>
 
-      <div id="panels-wrap">
-        <div class="panel" id="panel-0">
-          <div id="sticky-bar">
-            <span class="stl">NOTE</span>
-            <input id="sticky-text" placeholder="Add a sticky note for this chat..." onblur="saveSticky()">
+      <div class="tools-section">
+        <div class="status-pill" id="stat-pill">
+          <span class="dot"></span>
+          <span id="stat-text">Offline</span>
+          <select id="statSel" onchange="setStat(this.value, true)">
+            <option value="avl">Available</option>
+            <option value="bsy">Busy</option>
+            <option value="awy">Away</option>
+          </select>
+        </div>
+
+        <div class="divider-v"></div>
+
+        <button class="ib" onclick="toggleSearch()" title="Search">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <circle cx="11" cy="11" r="8"/>
+            <path d="M21 21l-4.35-4.35"/>
+          </svg>
+        </button>
+        
+        <button class="ib" onclick="showMembers()" title="Members">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 00-3-3.87"/>
+            <path d="M16 3.13a4 4 0 010 7.75"/>
+          </svg>
+        </button>
+
+        <button class="ib" id="vb" onclick="toggleMute()" title="Sound">
+          <span id="vb-icon">🔊</span>
+        </button>
+
+        <div class="tray-w">
+          <button class="tbtn" onclick="tglTray('toolsTray',this)">Tools</button>
+          <div class="tray" id="toolsTray">
+            <button class="tray-i" onclick="showContacts();closeTray()">Contacts</button>
+            <button class="tray-i" onclick="showAdhoc();closeTray()">Broadcast</button>
+            <button class="tray-i" onclick="toggleCB();closeTray()">Clipboard</button>
+            <div class="tray-sep"></div>
+            <button class="tray-i" onclick="toggleCfg();closeTray()">Settings</button>
           </div>
-          
-          <div class="fs" id="log">
-            <div class="empty">
-              <div class="ei">Δ</div>
-              <div class="el">System Ready</div>
+        </div>
+
+        <div class="tray-w">
+          <button class="tbtn" onclick="tglTray('viewTray',this)">View</button>
+          <div class="tray" id="viewTray">
+            <button class="tray-i" onclick="toggleTheme();closeTray()">Theme</button>
+            <button class="tray-i" onclick="toggleCompact();closeTray()">Compact</button>
+            <div class="tray-sep"></div>
+            <button class="tray-i" onclick="doLogout()">Log Out</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- DISPATCH BOARD -->
+    <div id="dboard"></div>
+
+    <!-- MAIN CONTENT -->
+    <div id="main">
+      
+      <!-- SIDEBAR -->
+      <div id="sidebar">
+        <div class="sb-section-hdr">Feeds</div>
+        <div id="sL"></div>
+        
+        <div class="sb-section-hdr">Active</div>
+        <div id="aL"></div>
+      </div>
+
+      <!-- FEED PANEL -->
+      <div id="feed">
+        
+        <!-- SEARCH OVERLAY -->
+        <div class="ov" id="searchOv">
+          <div class="ov-hdr">
+            <div class="ot">Search Archives</div>
+            <button class="oclose" onclick="toggleSearch()">✕</button>
+          </div>
+          <input id="searchIn" class="rin large" placeholder="Search messages..." oninput="doSearch(this.value)">
+          <div id="searchRes"></div>
+        </div>
+
+        <!-- CONFIG OVERLAY -->
+        <div id="cfg" style="display:none">
+          <div class="cfg-grid">
+            <div class="cfg-col">
+              <div class="ot" style="margin-bottom: 16px;">Audio Settings</div>
+              <div class="cfg-row">
+                <label>Feed Sound</label>
+                <select id="feedSndSel" onchange="feedSound=this.value;localStorage.setItem('gm_v3_feedsnd',this.value)">
+                  <option value="radar">Radar</option>
+                  <option value="chime">Chime</option>
+                  <option value="click">Click</option>
+                </select>
+              </div>
             </div>
           </div>
-          
-          <div id="bb">
-            <button class="att-btn" onclick="document.getElementById('imgUp').click()" title="Upload Image">+</button>
-            <input type="file" id="imgUp" accept="image/*" style="display:none" onchange="handleImg(this)">
+        </div>
+
+        <!-- PANELS -->
+        <div id="panels-wrap">
+          <div class="panel" id="panel-0">
             
-            <textarea id="gIn" class="rin" placeholder="Transmit message..." oninput="autoX(this)" onkeydown="bKey(event)"></textarea>
+            <!-- STICKY NOTES -->
+            <div id="sticky-bar">
+              <span class="stl">Note</span>
+              <input id="sticky-text" placeholder="Add a note..." onblur="saveSticky()">
+            </div>
             
-            <button class="sb" onclick="sendBcast()">SEND</button>
+            <!-- MESSAGE LOG -->
+            <div class="fs" id="log">
+              <div class="empty">
+                <div class="ei">Δ</div>
+                <div class="el">Ready</div>
+              </div>
+            </div>
+            
+            <!-- MESSAGE INPUT -->
+            <div id="bb">
+              <button class="att-btn" onclick="document.getElementById('imgUp').click()" title="Attach Image">+</button>
+              <input type="file" id="imgUp" accept="image/*" style="display:none" onchange="handleImg(this)">
+              
+              <textarea id="gIn" class="rin" placeholder="Type message..." oninput="autoX(this)" onkeydown="bKey(event)"></textarea>
+              
+              <button class="sb" onclick="sendBcast()">Send</button>
+            </div>
           </div>
         </div>
       </div>
     </div>
   </div>
 
+  <!-- NOTIFICATIONS -->
   <div id="toast-zone"></div>
 
+  <!-- APPLICATION SCRIPT -->
   <script src="js/app.js"></script>
 </body>
 </html>
