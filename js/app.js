@@ -3,6 +3,7 @@ let G=[],D=[],known=new Map(),myId='',myName='';
 let WF=JSON.parse(localStorage.getItem('gm_v3_royal'))||{};
 let cur={type:'all',id:null};
 let aToggles=new Set(),pollTmr=null,isOn=false,isMut=false,selSd='radar';
+let isLoggingIn=false;
 let seen=JSON.parse(localStorage.getItem('gm_v3_lastseen'))||{};
 let vAt=0;
 let appr=JSON.parse(localStorage.getItem('gm_v3_approved'))||{};
@@ -42,11 +43,13 @@ async function doLogin(){const t=document.getElementById('tok').value.trim();if(
 try{const r=await fetch(`https://api.groupme.com/v3/users/me?token=${t}`);const d=await r.json();if(!d.response)throw 0;
 TK=t;myId=d.response.id;myName=d.response.name;localStorage.setItem('gm_v3_token',t);
 document.getElementById('login').style.display='none';document.getElementById('hdr').style.display='flex';document.getElementById('main').style.display='flex';
+isLoggingIn=true;
 setCon(true);await rfData();findSyncGroup();renderGP();initEP();setStat(myStat,false);renderTplMgr();renderAlertMgr();
 // Restore feed/DM sound prefs
 document.getElementById('feedSndSel').value=feedSound;document.getElementById('dmSndSel').value=dmSound;
 document.getElementById('feedMutChk').checked=feedMuted;document.getElementById('dmMutChk').checked=dmMuted;
 document.getElementById('allNotifChk').checked=allNotif;
+isLoggingIn=false;
 if(inputBottom){const ib=document.getElementById('ibBtn');if(ib)ib.style.color='var(--a)';}
 if(oldestFirst){const ob=document.getElementById('ofBtn');if(ob){ob.style.color='var(--a)';ob.querySelector('.ico').textContent='↓';}}
 if(sortMode==='heat'){const sb=document.getElementById('sortBtn');if(sb){sb.textContent='🔥 Heat';sb.style.color='var(--warn)';}}
@@ -130,7 +133,7 @@ document.getElementById('stat-disp').innerHTML=`<span class="stat-b ${cls}">${tx
 teamStatus[myName]={status:s,ts:Date.now()};
 renderDBoard();
 // Broadcast to sync channel
-if(broadcast!==false&&syncGid){const emoji=s==='avl'?'🟢':s==='bsy'?'🔴':'🟡';const label=s==='avl'?'AVAILABLE':s==='bsy'?'BUSY':'AWAY';
+if(broadcast!==false&&!isLoggingIn&&syncGid){const emoji=s==='avl'?'🟢':s==='bsy'?'🔴':'🟡';const label=s==='avl'?'AVAILABLE':s==='bsy'?'BUSY':'AWAY';
 // Post readable message to group, with hidden tag at end for parsing
 const visMsg=`${emoji} ${myName} — ${label}`;
 try{fetch(`https://api.groupme.com/v3/groups/${syncGid}/messages?token=${TK}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:{text:visMsg,source_guid:'d360stat'+Date.now()+Math.random()}})});}catch(e){}}}
@@ -288,9 +291,12 @@ switchView(type,id);}
 function maxPanels(){const sb=document.getElementById('sidebar');return sb.classList.contains('collapsed')?3:2;}
 function setActivePanel(slot){
 activePanel=slot;
-document.querySelectorAll('.panel-hdr').forEach((h,i)=>{
-h.style.borderBottom=i===slot?'2px solid var(--warn)':'1px solid var(--bd)';
-h.style.background=i===slot?'rgba(255,204,0,.08)':'var(--card)';});}
+[0,1,2].forEach(i=>{
+const ph=document.querySelector(`#panel-${i} .panel-hdr`);
+if(!ph)return;
+if(i===slot){ph.style.borderBottom='2px solid var(--warn)';ph.style.background='rgba(255,204,0,.12)';}
+else{ph.style.borderBottom='1px solid var(--bd)';ph.style.background='var(--bg3)';}
+});}
 function openPanel(type,id){
 // Fill slots sequentially: 1 first, then 2
 let slot=null;
@@ -383,7 +389,7 @@ res.sort((a,b)=>b.created_at-a.created_at);
 r.innerHTML=res.length?renderSR(res.slice(0,40),q):'<div style="color:var(--t3);text-align:center;padding:20px;font-size:15px">No results</div>';}
 function renderSR(res,q){const re=new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`,'gi');
 return res.map(m=>{const hl=(m.text||'').substring(0,100).replace(re,'<mark style="background:var(--ad);color:var(--a);border-radius:2px;padding:0 1px">$1</mark>');
-return`<div style="padding:8px;border-bottom:1px solid var(--bd2);cursor:pointer;transition:.12s" onmouseover="this.style.background='rgba(128,128,128,.1)'" onmouseout="this.style.background=''" onclick="toggleSearch();switchView('${m._type||'group'}','${m._tid||m.group_id}')"><div style="font-size:14px;color:var(--a);font-family:ui-monospace,monospace">${esc(m.name)} · ${esc(m._gn||'')}</div><div style="font-size:14px;margin-top:2px">${hl}</div><div style="font-size:15px;color:var(--t3);margin-top:2px">${fT(m.created_at)}</div></div>`;}).join('');}
+return`<div style="padding:8px;border-bottom:1px solid var(--bd2);cursor:pointer;transition:.12s" onmouseover="this.style.background='rgba(128,128,128,.1)'" onmouseout="this.style.background=''" onclick="toggleSearch();switchView('${m._type||'group'}','${m._tid||m.group_id}')"><div style="font-size:14px;color:var(--a);font-family:'JetBrains Mono',monospace">${esc(m.name)} · ${esc(m._gn||'')}</div><div style="font-size:14px;margin-top:2px">${hl}</div><div style="font-size:15px;color:var(--t3);margin-top:2px">${fT(m.created_at)}</div></div>`;}).join('');}
 function idxMsg(m){if(m.text&&!searchIdx.find(x=>x.id===m.id)){const gn=G.find(g=>g.id===m.group_id)?.name||'DM';searchIdx.push({...m,_gn:gn,_type:m.group_id?'group':'dm',_tid:m.group_id||(m.user_id===myId?m.recipient_id:m.user_id)});if(searchIdx.length>2000)searchIdx=searchIdx.slice(-1500);}}
 
 // ========== CONTACTS ==========
@@ -442,11 +448,11 @@ return`<div class="mem-item"><div class="mem-av"${m.avatar?' style="padding:0;ov
 function showAdhoc(){document.getElementById('adhocM').classList.add('show');document.getElementById('adhocG').innerHTML=G.sort((a,b)=>a.name.localeCompare(b.name)).map(g=>`<label style="display:flex;align-items:center;gap:4px;margin-bottom:4px;font-size:14px;color:var(--t2);cursor:pointer"><input type="checkbox" value="${g.id}" style="accent-color:var(--a)"> ${esc(g.name)}</label>`).join('');}
 async function sendAdhoc(){const ids=Array.from(document.querySelectorAll('#adhocG input:checked')).map(i=>i.value);const txt=document.getElementById('adhocMsg').value.trim();if(!ids.length||!txt)return;for(const gid of ids)await sendTo('group',gid,txt);document.getElementById('adhocMsg').value='';document.getElementById('adhocM').classList.remove('show');setTimeout(poll,500);}
 function showShiftChange(){document.getElementById('shiftM').classList.add('show');document.getElementById('shiftOff').value=myName;
-let html='<div style="font-size:14px;color:var(--a);font-family:ui-monospace,monospace;font-weight:700;margin-bottom:4px;letter-spacing:1px">GROUPS</div>';
+let html=`<div style="font-size:14px;color:var(--a);font-weight:700;letter-spacing:1px">GROUPS</div>`;
 html+=G.sort((a,b)=>a.name.localeCompare(b.name)).map(g=>`<label style="display:flex;align-items:center;gap:4px;margin-bottom:3px;font-size:14px;color:var(--t2);cursor:pointer"><input type="checkbox" value="g:${g.id}" style="accent-color:var(--a)"> ${esc(g.name)}</label>`).join('');
-const sk=Object.keys(WF).sort();if(sk.length){html+='<div style="font-size:14px;color:var(--a);font-family:ui-monospace,monospace;font-weight:700;margin:6px 0 4px;letter-spacing:1px">STREAMS</div>';
+const sk=Object.keys(WF).sort();if(sk.length){html+='<div style="font-size:14px;color:var(--a);font-weight:700;letter-spacing:1px">STREAMS</div>';
 html+=sk.map(n=>`<label style="display:flex;align-items:center;gap:4px;margin-bottom:3px;font-size:14px;color:var(--t2);cursor:pointer"><input type="checkbox" value="s:${n}" style="accent-color:var(--a)"> ▸ ${esc(n.toUpperCase())}</label>`).join('');}
-const dmOk=D.filter(c=>isOk(c.other_user?.id));if(dmOk.length){html+='<div style="font-size:14px;color:var(--dm);font-family:ui-monospace,monospace;font-weight:700;margin:6px 0 4px;letter-spacing:1px">DMs</div>';
+const dmOk=D.filter(c=>isOk(c.other_user?.id));if(dmOk.length){html+='<div style="font-size:14px;color:var(--dm);font-weight:700;letter-spacing:1px">DMs</div>';
 html+=dmOk.map(c=>`<label style="display:flex;align-items:center;gap:4px;margin-bottom:3px;font-size:14px;color:var(--dm);cursor:pointer"><input type="checkbox" value="d:${c.other_user.id}" style="accent-color:var(--dm)"> ${esc(c.other_user.name)}</label>`).join('');}
 document.getElementById('shiftGroups').innerHTML=html;}
 async function sendShiftChange(){const checks=Array.from(document.querySelectorAll('#shiftGroups input:checked')).map(i=>i.value);const off=document.getElementById('shiftOff').value.trim();const on=document.getElementById('shiftOn').value.trim();const ph=document.getElementById('shiftPhone').value.trim();if(!checks.length||!on){showAlert('Please select targets and enter incoming dispatcher name.');return;}
