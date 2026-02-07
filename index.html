@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Delta 360 | Dispatch Command Center</title>
+  <meta name="description" content="Professional team dispatch command center powered by GroupMe.">
+  <meta name="theme-color" content="#f97316">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90' fill='%23f97316'>Δ</text></svg>">
+  
+  <link rel="stylesheet" href="css/theme.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+</head>
+<body>
+
+  <!-- LOGIN SCREEN -->
+  <div id="login" role="dialog" aria-label="Login">
+    <div class="login-card">
+      <div class="lb" aria-hidden="true">Δ</div>
+      <div class="sub">Delta 360</div>
+      <div class="input-group">
+        <input type="password" id="tok" placeholder="GroupMe API Token" aria-label="GroupMe API Token" onkeydown="if(event.key==='Enter')doLogin()">
+        <button class="lbtn" onclick="doLogin()"><span>Connect</span></button>
+      </div>
+      <div id="lerr"></div>
+      <div class="meta-link">
+        <a href="https://dev.groupme.com" target="_blank">Get API Token →</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN APPLICATION -->
+  <div id="app-root" style="display:none;">
+    
+    <!-- HEADER -->
+    <header role="banner">
+      <div class="header-left">
+        <button id="menu-btn" class="icon-btn" onclick="tglSidebar()" title="Toggle sidebar" aria-label="Toggle sidebar">
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M3 6h18M3 12h18M3 18h18"/>
+          </svg>
+        </button>
+        <div class="brand">
+          <div class="brand-icon">Δ</div>
+          <div>
+            <div class="brand-title" id="htitle">Dashboard</div>
+            <div class="brand-subtitle">Delta 360</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <div class="status-control">
+          <button class="status-btn" id="status-btn" onclick="cycleStatus()" title="Your status">
+            <span class="status-dot" id="status-dot"></span>
+            <span id="status-text">Away</span>
+          </button>
+        </div>
+
+        <div class="header-divider"></div>
+
+        <button class="icon-btn" onclick="toggleSearch()" title="Search">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <circle cx="11" cy="11" r="8"/>
+            <path d="M21 21l-4.35-4.35"/>
+          </svg>
+        </button>
+
+        <button class="icon-btn" id="sound-btn" onclick="toggleSound()" title="Sound">
+          <span id="sound-icon">🔊</span>
+        </button>
+
+        <div class="menu-wrapper">
+          <button class="icon-btn" onclick="tglMenu()" title="More">
+            <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24">
+              <circle cx="12" cy="5" r="2"/>
+              <circle cx="12" cy="12" r="2"/>
+              <circle cx="12" cy="19" r="2"/>
+            </svg>
+          </button>
+          <div class="dropdown-menu" id="main-menu">
+            <button class="menu-item" onclick="showSettings()">Settings</button>
+            <button class="menu-item" onclick="toggleTheme()">Theme</button>
+            <div class="menu-divider"></div>
+            <button class="menu-item" onclick="doLogout()">Log Out</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- DISPATCH BOARD -->
+    <div id="dboard"></div>
+
+    <!-- MAIN CONTENT -->
+    <div id="main">
+      
+      <!-- SIDEBAR -->
+      <nav id="sidebar" aria-label="Main navigation">
+
+        <!-- COMMAND SECTION -->
+        <div class="sidebar-section">
+          <div class="section-label">Command</div>
+          <div class="sidebar-item" data-chat-action="all" data-chat-id="null">
+            📡 Universal Feed
+          </div>
+          <div class="sidebar-item" data-chat-action="dms" data-chat-id="null">
+            💬 Direct Comms
+          </div>
+        </div>
+
+        <!-- STREAMS SECTION -->
+        <div class="sidebar-section" id="streams-section">
+          <div class="section-label">Streams</div>
+          <div id="streams-list"></div>
+          <div class="sidebar-item add-stream-btn" onclick="openStreamConfig()">
+            + Add Stream
+          </div>
+        </div>
+
+        <!-- PENDING DMS SECTION -->
+        <div class="sidebar-section" id="pending-section" style="display:none;">
+          <div class="section-label">Pending DMs</div>
+          <div id="pending-list"></div>
+        </div>
+
+        <!-- PINNED CHATS SECTION -->
+        <div class="sidebar-section" id="pinned-section" style="display:none;">
+          <div class="section-label">📌 Pinned</div>
+          <div id="pinned-list"></div>
+        </div>
+
+        <!-- ACTIVE SECTION -->
+        <div class="sidebar-section">
+          <div class="section-header">
+            <span class="section-label">Active (6h)</span>
+            <button class="sort-toggle" id="sort-btn" data-action="toggle-sort" title="Sort by Recent or Heat">
+              <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M3 4h4v2H3V4m7 0h10v2H10V4m-7 7h4v2H3v-2m7 0h10v2H10v-2m-7 7h4v2H3v-2m7 0h10v2H10v-2"/>
+              </svg>
+            </button>
+          </div>
+          <div id="active-list"></div>
+        </div>
+
+        <!-- INACTIVE SECTION -->
+        <div class="sidebar-section">
+          <div class="section-header">
+            <button class="collapse-toggle" id="inactive-toggle" data-action="toggle-inactive" title="Toggle inactive chats">
+              ▶
+            </button>
+            <span class="section-label">Inactive (6h+)</span>
+          </div>
+          <div id="inactive-list" style="display:none;"></div>
+        </div>
+
+      </nav>
+
+      <!-- CHAT PANELS -->
+      <main id="feed" role="main" aria-label="Chat content">
+        
+        <!-- SEARCH OVERLAY -->
+        <div class="modal-overlay" id="searchOv">
+          <div class="modal-header">
+            <h3>Search Messages</h3>
+            <button class="close-btn" onclick="toggleSearch()">✕</button>
+          </div>
+          <input id="searchIn" class="modal-input" placeholder="Search messages..." oninput="doSearch(this.value)">
+          <div id="searchRes" class="search-results"></div>
+        </div>
+
+        <!-- SETTINGS OVERLAY -->
+        <div class="modal-overlay" id="settingsOv">
+          <div class="modal-header">
+            <h3>Settings</h3>
+            <button class="close-btn" onclick="toggleSettings()">✕</button>
+          </div>
+          <div class="settings-content">
+            <div class="setting-group">
+              <label>Notification Sound</label>
+              <select id="soundSel" onchange="setSoundPreference(this.value)">
+                <option value="radar">Radar</option>
+                <option value="chime">Chime</option>
+                <option value="click">Click</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- PANELS CONTAINER -->
+        <div id="panels-wrap"></div>
+      </main>
+    </div>
+  </div>
+
+  <!-- NOTIFICATIONS -->
+  <div id="toast-zone" role="status" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- APPLICATION SCRIPT -->
+  <script src="js/app.js"></script>
+</body>
+</html>
