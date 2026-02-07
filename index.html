@@ -7,7 +7,6 @@
   <meta name="description" content="Professional team dispatch command center powered by GroupMe.">
   <meta name="theme-color" content="#f97316">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90' fill='%23f97316'>Δ</text></svg>">
-  
   <link rel="stylesheet" href="css/theme.css">
   <link rel="stylesheet" href="css/layout.css">
   <link rel="stylesheet" href="css/components.css">
@@ -37,9 +36,7 @@
     <header role="banner">
       <div class="header-left">
         <button id="menu-btn" class="icon-btn" onclick="tglSidebar()" title="Toggle sidebar" aria-label="Toggle sidebar">
-          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path d="M3 6h18M3 12h18M3 18h18"/>
-          </svg>
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
         </button>
         <div class="brand">
           <div class="brand-icon">Δ</div>
@@ -57,33 +54,44 @@
             <span id="status-text">Away</span>
           </button>
         </div>
-
         <div class="header-divider"></div>
 
-        <button class="icon-btn" onclick="toggleSearch()" title="Search">
-          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <circle cx="11" cy="11" r="8"/>
-            <path d="M21 21l-4.35-4.35"/>
-          </svg>
-        </button>
+        <button class="icon-btn" onclick="toggleSearch()" title="Search (/)">🔍</button>
+        <button class="icon-btn" id="membersBtn" onclick="showMembers()" title="Members">👥</button>
+        <button class="icon-btn" id="sound-btn" onclick="toggleSound()" title="Sound"><span id="sound-icon">🔊</span></button>
 
-        <button class="icon-btn" id="sound-btn" onclick="toggleSound()" title="Sound">
-          <span id="sound-icon">🔊</span>
-        </button>
-
+        <!-- Tools Tray -->
         <div class="menu-wrapper">
-          <button class="icon-btn" onclick="tglMenu()" title="More">
-            <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24">
-              <circle cx="12" cy="5" r="2"/>
-              <circle cx="12" cy="12" r="2"/>
-              <circle cx="12" cy="19" r="2"/>
-            </svg>
-          </button>
+          <button class="icon-btn" onclick="tglTray('toolsTray')" title="Tools">⚡</button>
+          <div class="dropdown-menu tray" id="toolsTray">
+            <button class="menu-item" onclick="showContacts();closeTray()">👥 Contacts</button>
+            <button class="menu-item" onclick="toggleCB();closeTray()">📋 Clipboard</button>
+            <button class="menu-item" onclick="toggleStickyUI();closeTray()">📒 Sticky Note</button>
+            <button class="menu-item" onclick="openCfg();closeTray()">⚙️ Config</button>
+          </div>
+        </div>
+
+        <!-- Actions Tray -->
+        <div class="menu-wrapper">
+          <button class="icon-btn" onclick="tglTray('actionsTray')" title="Actions">📡</button>
+          <div class="dropdown-menu tray" id="actionsTray">
+            <button class="menu-item" onclick="showAdhoc();closeTray()">📢 Broadcast</button>
+            <button class="menu-item" onclick="showShiftChange();closeTray()">📋 Shift Change</button>
+            <button class="menu-item" onclick="exportChat();closeTray()">💾 Export Chat</button>
+            <button class="menu-item" onclick="exportShiftLog();closeTray()">📄 Shift Log</button>
+          </div>
+        </div>
+
+        <!-- Settings Menu -->
+        <div class="menu-wrapper">
+          <button class="icon-btn" onclick="tglMenu()" title="More">⋮</button>
           <div class="dropdown-menu" id="main-menu">
-            <button class="menu-item" onclick="showSettings()">Settings</button>
-            <button class="menu-item" onclick="toggleTheme()">Theme</button>
+            <button class="menu-item" onclick="toggleTheme();tglMenu()">🌙 Theme</button>
+            <button class="menu-item" onclick="toggleCompact();tglMenu()">📐 Compact</button>
+            <button class="menu-item" onclick="toggleInputBottom();tglMenu()">⬇️ Input Bottom</button>
+            <button class="menu-item" onclick="toggleOldestFirst();tglMenu()">↕️ Oldest First</button>
             <div class="menu-divider"></div>
-            <button class="menu-item" onclick="doLogout()">Log Out</button>
+            <button class="menu-item" onclick="doLogout()">🚪 Log Out</button>
           </div>
         </div>
       </div>
@@ -92,105 +100,203 @@
     <!-- DISPATCH BOARD -->
     <div id="dboard"></div>
 
+    <!-- TEMPLATE BAR -->
+    <div id="tpl-bar" class="tpl-bar"></div>
+
+    <!-- STICKY NOTE BAR -->
+    <div id="sticky-bar" class="sticky-bar" style="display:none;">
+      <div class="sticky-header">
+        <span>📒 Sticky Note</span>
+        <div class="sticky-controls">
+          <select id="stickyExp" title="Expiry">
+            <option value="0">No expiry</option>
+            <option value="1">1 hour</option>
+            <option value="4">4 hours</option>
+            <option value="8">8 hours</option>
+            <option value="24">24 hours</option>
+          </select>
+          <button class="icon-btn-sm" onclick="showStickyHistory()" title="History">📜</button>
+          <button class="icon-btn-sm" onclick="toggleStickyUI()" title="Close">✕</button>
+        </div>
+      </div>
+      <textarea id="stickyText" placeholder="Write a note for this channel..."></textarea>
+      <button class="sticky-save-btn" onclick="saveSticky()">Save</button>
+    </div>
+
     <!-- MAIN CONTENT -->
     <div id="main">
       
       <!-- SIDEBAR -->
       <nav id="sidebar" aria-label="Main navigation">
-
-        <!-- COMMAND SECTION -->
         <div class="sidebar-section">
           <div class="section-label">Command</div>
-          <div class="sidebar-item" data-chat-action="all" data-chat-id="null">
-            📡 Universal Feed
-          </div>
-          <div class="sidebar-item" data-chat-action="dms" data-chat-id="null">
-            💬 Direct Comms
-          </div>
+          <div class="sidebar-item" data-chat-action="all" data-chat-id="null">📡 Universal Feed</div>
+          <div class="sidebar-item" data-chat-action="dms" data-chat-id="null">💬 Direct Comms</div>
         </div>
-
-        <!-- STREAMS SECTION -->
         <div class="sidebar-section" id="streams-section">
           <div class="section-label">Streams</div>
           <div id="streams-list"></div>
-          <div class="sidebar-item add-stream-btn" onclick="openStreamConfig()">
-            + Add Stream
-          </div>
+          <div class="sidebar-item add-stream-btn" onclick="openCfg()">+ Add Stream</div>
         </div>
-
-        <!-- PENDING DMS SECTION -->
         <div class="sidebar-section" id="pending-section" style="display:none;">
           <div class="section-label">Pending DMs</div>
           <div id="pending-list"></div>
         </div>
-
-        <!-- PINNED CHATS SECTION -->
         <div class="sidebar-section" id="pinned-section" style="display:none;">
           <div class="section-label">📌 Pinned</div>
           <div id="pinned-list"></div>
         </div>
-
-        <!-- ACTIVE SECTION -->
         <div class="sidebar-section">
           <div class="section-header">
             <span class="section-label">Active (6h)</span>
-            <button class="sort-toggle" id="sort-btn" data-action="toggle-sort" title="Sort by Recent or Heat">
-              <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M3 4h4v2H3V4m7 0h10v2H10V4m-7 7h4v2H3v-2m7 0h10v2H10v-2m-7 7h4v2H3v-2m7 0h10v2H10v-2"/>
-              </svg>
-            </button>
+            <button class="sort-toggle" id="sort-btn" data-action="toggle-sort" title="Sort">📊</button>
           </div>
           <div id="active-list"></div>
         </div>
-
-        <!-- INACTIVE SECTION -->
         <div class="sidebar-section">
           <div class="section-header">
-            <button class="collapse-toggle" id="inactive-toggle" data-action="toggle-inactive" title="Toggle inactive chats">
-              ▶
-            </button>
+            <button class="collapse-toggle" id="inactive-toggle" data-action="toggle-inactive" title="Toggle">▶</button>
             <span class="section-label">Inactive (6h+)</span>
           </div>
           <div id="inactive-list" style="display:none;"></div>
         </div>
-
       </nav>
 
       <!-- CHAT PANELS -->
       <main id="feed" role="main" aria-label="Chat content">
-        
-        <!-- SEARCH OVERLAY -->
-        <div class="modal-overlay" id="searchOv">
-          <div class="modal-header">
-            <h3>Search Messages</h3>
-            <button class="close-btn" onclick="toggleSearch()">✕</button>
-          </div>
-          <input id="searchIn" class="modal-input" placeholder="Search messages..." oninput="doSearch(this.value)">
-          <div id="searchRes" class="search-results"></div>
-        </div>
-
-        <!-- SETTINGS OVERLAY -->
-        <div class="modal-overlay" id="settingsOv">
-          <div class="modal-header">
-            <h3>Settings</h3>
-            <button class="close-btn" onclick="toggleSettings()">✕</button>
-          </div>
-          <div class="settings-content">
-            <div class="setting-group">
-              <label>Notification Sound</label>
-              <select id="soundSel" onchange="setSoundPreference(this.value)">
-                <option value="radar">Radar</option>
-                <option value="chime">Chime</option>
-                <option value="click">Click</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <!-- PANELS CONTAINER -->
         <div id="panels-wrap"></div>
       </main>
     </div>
+  </div>
+
+  <!-- ====== OVERLAYS & MODALS ====== -->
+
+  <!-- SEARCH -->
+  <div class="modal-overlay" id="searchOv">
+    <div class="modal-header"><h3>Search Messages</h3><button class="close-btn" onclick="toggleSearch()">✕</button></div>
+    <input id="searchIn" class="modal-input" placeholder="Search messages..." oninput="doSearch(this.value)">
+    <div id="searchRes" class="search-results"></div>
+  </div>
+
+  <!-- CONFIG PANEL -->
+  <div class="modal-overlay config-panel" id="cfgPanel" style="display:none;">
+    <div class="modal-header"><h3>⚙️ Configuration</h3><button class="close-btn" onclick="closeCfg()">✕</button></div>
+    <div class="cfg-grid">
+      <!-- Column 1: Stream Builder -->
+      <div class="cfg-col">
+        <h4>Create Stream</h4>
+        <input id="cfgStreamName" class="cfg-input" placeholder="Stream name">
+        <div class="cfg-label">Sound</div>
+        <div id="cfgSoundPicker" class="sound-picker">
+          <button class="snd-opt sel" data-sound="radar" onclick="selCfgSnd(this)">Radar ▶</button>
+          <button class="snd-opt" data-sound="chime" onclick="selCfgSnd(this)">Chime ▶</button>
+          <button class="snd-opt" data-sound="click" onclick="selCfgSnd(this)">Click ▶</button>
+          <button class="snd-opt" data-sound="alert" onclick="selCfgSnd(this)">Alert ▶</button>
+          <button class="snd-opt" data-sound="sonar" onclick="selCfgSnd(this)">Sonar ▶</button>
+          <button class="snd-opt" data-sound="drop" onclick="selCfgSnd(this)">Drop ▶</button>
+        </div>
+        <div class="cfg-label">Groups</div>
+        <div id="cfgGroupList" class="cfg-checklist"></div>
+        <button class="cfg-save-btn" onclick="saveStream()">Save Stream</button>
+      </div>
+      <!-- Column 2: Templates & Alerts -->
+      <div class="cfg-col">
+        <h4>Message Templates</h4>
+        <div id="tplMgr"></div>
+        <div class="cfg-add-row"><input id="tplNew" class="cfg-input" placeholder="New template"><button class="cfg-add-btn" onclick="addTpl()">+</button></div>
+        <h4>Alert Words</h4>
+        <div id="alertMgr"></div>
+        <div class="cfg-add-row"><input id="alertNew" class="cfg-input" placeholder="New alert word"><button class="cfg-add-btn" onclick="addAlert()">+</button></div>
+      </div>
+      <!-- Column 3: Audio Settings -->
+      <div class="cfg-col">
+        <h4>Audio Settings</h4>
+        <label class="cfg-chk"><input type="checkbox" id="allNotifChk" onchange="toggleAllNotif(this.checked)"> All Notifications</label>
+        <div class="cfg-label">Feed Sound</div>
+        <select id="feedSndSel" onchange="setFeedSnd(this.value)">
+          <option value="radar">Radar</option><option value="chime">Chime</option><option value="click">Click</option>
+          <option value="alert">Alert</option><option value="sonar">Sonar</option><option value="drop">Drop</option>
+        </select>
+        <label class="cfg-chk"><input type="checkbox" id="feedMutChk" onchange="setFeedMut(this.checked)"> Mute Feed</label>
+        <div class="cfg-label">DM Sound</div>
+        <select id="dmSndSel" onchange="setDmSnd(this.value)">
+          <option value="chime" selected>Chime</option><option value="radar">Radar</option><option value="click">Click</option>
+          <option value="alert">Alert</option><option value="sonar">Sonar</option><option value="drop">Drop</option>
+        </select>
+        <label class="cfg-chk"><input type="checkbox" id="dmMutChk" onchange="setDmMut(this.checked)"> Mute DMs</label>
+      </div>
+    </div>
+  </div>
+
+  <!-- MEMBERS VIEWER -->
+  <div class="modal-overlay" id="membersOv">
+    <div class="modal-header">
+      <div><h3 id="membersTitle">Members</h3><div id="membersSub" class="modal-subtitle"></div></div>
+      <button class="close-btn" onclick="hideMembers()">✕</button>
+    </div>
+    <input id="memSearch" class="modal-input" placeholder="Search members..." oninput="filterMembers(this.value)">
+    <div id="memList" class="member-list"></div>
+  </div>
+
+  <!-- CONTACTS -->
+  <div class="modal-overlay" id="contactOv">
+    <div class="modal-header"><h3>Contact Directory</h3><button class="close-btn" onclick="hideContacts()">✕</button></div>
+    <input id="conSearch" class="modal-input" placeholder="Search contacts..." oninput="filterCon(this.value)">
+    <div id="conList" class="contact-list"></div>
+  </div>
+
+  <!-- AD-HOC BROADCAST -->
+  <div class="modal-overlay" id="adhocModal" style="display:none;">
+    <div class="modal-header"><h3>📢 Broadcast</h3><button class="close-btn" onclick="hideAdhoc()">✕</button></div>
+    <textarea id="adhocMsg" class="modal-textarea" placeholder="Broadcast message..."></textarea>
+    <div class="cfg-label">Select groups:</div>
+    <div id="adhocGroups" class="cfg-checklist"></div>
+    <button class="cfg-save-btn" onclick="sendAdhoc()">Send Broadcast</button>
+  </div>
+
+  <!-- SHIFT CHANGE -->
+  <div class="modal-overlay" id="shiftModal" style="display:none;">
+    <div class="modal-header"><h3>📋 Shift Change</h3><button class="close-btn" onclick="hideShiftChange()">✕</button></div>
+    <div class="shift-form">
+      <label>Outgoing:</label><input id="shiftOff" class="cfg-input" placeholder="Name going off">
+      <label>Incoming:</label><input id="shiftOn" class="cfg-input" placeholder="Name coming on">
+      <label>Phone:</label><input id="shiftPhone" class="cfg-input" placeholder="Phone number">
+    </div>
+    <div class="cfg-label">Send to:</div>
+    <div id="shiftTargets" class="cfg-checklist"></div>
+    <button class="cfg-save-btn" onclick="sendShiftChange()">Send Shift Change</button>
+  </div>
+
+  <!-- FORWARD MODAL -->
+  <div class="modal-overlay" id="fwdModal" style="display:none;">
+    <div class="modal-header"><h3>Forward Message</h3><button class="close-btn" onclick="hideFwd()">✕</button></div>
+    <div id="fwdPreview" class="fwd-preview"></div>
+    <div class="cfg-label">Send to:</div>
+    <div id="fwdTargets" class="fwd-targets"></div>
+  </div>
+
+  <!-- FLOATING CLIPBOARD -->
+  <div id="clipboard" class="clipboard" style="display:none;">
+    <div class="cb-header" id="cbDrag">
+      <span>📋 Clipboard</span>
+      <div>
+        <span id="cbCount" class="cb-count">0</span>
+        <button class="icon-btn-sm" onclick="clearCB()" title="Clear">🗑️</button>
+        <button class="icon-btn-sm" onclick="toggleCB()" title="Close">✕</button>
+      </div>
+    </div>
+    <textarea id="cbText" class="cb-textarea" placeholder="Paste notes here..." oninput="saveCBContent()"></textarea>
+  </div>
+
+  <!-- LIGHTBOX -->
+  <div id="lightbox" class="lightbox" style="display:none;" onclick="this.style.display='none'">
+    <img id="lbImg" src="" alt="Preview">
+  </div>
+
+  <!-- STICKY HISTORY -->
+  <div class="modal-overlay" id="stickyHistOv" style="display:none;">
+    <div class="modal-header"><h3>📜 Sticky History</h3><button class="close-btn" onclick="hideStickyHistory()">✕</button></div>
+    <div id="stickyHistList"></div>
   </div>
 
   <!-- NOTIFICATIONS -->
