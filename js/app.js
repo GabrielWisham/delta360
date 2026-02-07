@@ -195,8 +195,8 @@ function renderPanel(panelId) {
                 </div>
             </div>
             <div class="input-area">
-                <textarea class="msg-input" id="input-${panelId}" placeholder="Type message..." onkeydown="if(event.key==='Enter'&&!event.shiftKey)sendMsg('${panelId}')"></textarea>
-                <button class="send-btn" onclick="sendMsg('${panelId}')">Send</button>
+                <textarea class="msg-input" id="input-${panelId}" placeholder="Type message..." aria-label="Message input" onkeydown="if(event.key==='Enter'&&!event.shiftKey)sendMsg('${panelId}')"></textarea>
+                <button class="send-btn" onclick="sendMsg('${panelId}')" aria-label="Send message"><span>Send</span></button>
             </div>
         </div>
     `;
