@@ -42,7 +42,7 @@ async function doLogin(){const t=document.getElementById('tok').value.trim();if(
 try{const r=await fetch(`https://api.groupme.com/v3/users/me?token=${t}`);const d=await r.json();if(!d.response)throw 0;
 TK=t;myId=d.response.id;myName=d.response.name;localStorage.setItem('gm_v3_token',t);
 document.getElementById('login').style.display='none';document.getElementById('hdr').style.display='flex';document.getElementById('main').style.display='flex';
-setCon(true);await rfData();findSyncGroup();renderGP();initEP();setStat(myStat,true);renderTplMgr();renderAlertMgr();
+setCon(true);await rfData();findSyncGroup();renderGP();initEP();setStat(myStat,false);renderTplMgr();renderAlertMgr();
 // Restore feed/DM sound prefs
 document.getElementById('feedSndSel').value=feedSound;document.getElementById('dmSndSel').value=dmSound;
 document.getElementById('feedMutChk').checked=feedMuted;document.getElementById('dmMutChk').checked=dmMuted;
@@ -66,9 +66,19 @@ if(above&&!anyVisible){const dk=above.dataset.day;const ts=new Date(dk).getTime(
 }else{cue.classList.remove('show');}
 });
 document.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA')return;if(e.key==='/')e.preventDefault(),toggleSearch();if(e.key==='c'||e.key==='C')e.preventDefault(),toggleCB();});
-// Close config and search when clicking feed area
-document.getElementById('log').addEventListener('click',()=>{if(document.getElementById('cfg').style.display==='flex')toggleCfg();
-const so=document.getElementById('searchOv');if(so.classList.contains('show')){so.classList.remove('show');document.getElementById('searchBtn').classList.remove('active-panel');document.getElementById('searchIn').value='';document.getElementById('searchRes').innerHTML='';}});});
+// Close config when clicking outside sidebar & config
+document.addEventListener('click',e=>{const cfg=document.getElementById('cfg');if(cfg.style.display==='flex'&&!e.target.closest('#cfg')&&!e.target.closest('#sidebar')&&!e.target.closest('.tray')&&!e.target.closest('.tbtn')){cfg.style.display='none';}});
+// Close search when clicking feed area
+document.getElementById('log').addEventListener('click',()=>{
+const so=document.getElementById('searchOv');if(so.classList.contains('show')){so.classList.remove('show');document.getElementById('searchBtn').classList.remove('active-panel');document.getElementById('searchIn').value='';document.getElementById('searchRes').innerHTML='';}});
+// Panel scroll-to-top buttons
+[1,2].forEach(s=>{const log=document.getElementById(`plog-${s}`);const btn=document.querySelector(`#panel-${s} .p-sctop`);if(log&&btn)log.addEventListener('scroll',()=>{btn.style.display=log.scrollTop>150?'block':'none';});});
+// Day divider hover tooltip
+document.addEventListener('mouseover',e=>{const dd=e.target.closest('.dd-label');if(!dd)return;const par=dd.closest('.day-div');if(!par||par._tip)return;const dk=par.dataset.day;if(!dk)return;const d=new Date(dk);const full=d.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+const tip=document.createElement('div');tip.className='dd-tip';tip.textContent=full;
+const r=dd.getBoundingClientRect();tip.style.left=(r.left+r.width/2)+'px';tip.style.top=(r.top-32)+'px';
+document.body.appendChild(tip);par._tip=tip;
+dd.addEventListener('mouseleave',()=>{tip.remove();par._tip=null;},{once:true});});});
 
 function tglSidebar(){const sb=document.getElementById('sidebar');const isMobile=window.innerWidth<=600;if(isMobile){sb.classList.toggle('open');sb.classList.remove('collapsed');}else{sb.classList.toggle('collapsed');}}
 // ========== UI HELPERS ==========
@@ -271,30 +281,49 @@ const ob=document.getElementById('ofBtn');if(ob){ob.style.color=oldestFirst?'var
 switchView(cur.type,cur.id);}
 
 // ========== MULTI-PANEL ==========
+let activePanel=0;
 function handleNav(type,id,e){
 if(e&&e.shiftKey){openPanel(type,id);return;}
 switchView(type,id);}
 function maxPanels(){const sb=document.getElementById('sidebar');return sb.classList.contains('collapsed')?3:2;}
+function setActivePanel(slot){
+activePanel=slot;
+document.querySelectorAll('.panel-hdr').forEach((h,i)=>{
+h.style.borderBottom=i===slot?'2px solid var(--warn)':'1px solid var(--bd)';
+h.style.background=i===slot?'rgba(255,204,0,.08)':'var(--card)';});}
 function openPanel(type,id){
-// Find next empty slot (1 or 2)
-let slot=panels[1]?2:1;
-if(slot===2&&maxPanels()<3){slot=panels[1]?1:1;} // overwrite slot 1 if only 2 allowed
-if(slot>maxPanels()-1){slot=maxPanels()-1;}
+// Fill slots sequentially: 1 first, then 2
+let slot=null;
+if(!panels[1])slot=1;
+else if(!panels[2]&&maxPanels()>=3)slot=2;
+else{// All slots full — replace the non-active secondary panel, or slot 1
+slot=panels[2]&&activePanel!==2?2:1;}
 panels[slot]={type,id};panelKnown[slot]=new Map();panelVAt[slot]=0;
 const p=document.getElementById(`panel-${slot}`);p.style.display='flex';
-let t='';if(type==='group')t=G.find(g=>g.id===id)?.name||'Group';else if(type==='dm'){const dm=D.find(d=>d.other_user?.id===id);t=dm?.other_user?.name||resN(id)||'DM';}else if(type==='stream')t=id;else if(type==='all')t='Universal Feed';else if(type==='all_dms')t='Direct Comms';
+const t=getPanelTitle(type,id);
 document.getElementById(`ptitle-${slot}`).textContent=t;
 loadPanelHist(slot);
+setActivePanel(slot);
 // Show close on panel-0 if multi
-document.querySelector('#panel-0 .panel-close').style.display=panels[1]||panels[2]?'flex':'none';}
+document.querySelector('#panel-0 .panel-close').style.display='flex';
+// Update panel-0 title too
+document.getElementById('ptitle-0').textContent=getPanelTitle(cur.type,cur.id);}
+function getPanelTitle(type,id){
+if(type==='group')return G.find(g=>g.id===id)?.name||'Group';
+if(type==='dm'){const dm=D.find(d=>d.other_user?.id===id);return dm?.other_user?.name||resN(id)||'DM';}
+if(type==='stream')return id;
+if(type==='all')return'Universal Feed';
+if(type==='all_dms')return'Direct Comms';
+return'—';}
 function closePanel(slot){
-if(slot===0){// closing main panel means go single-panel mode, close all extras
-panels[1]=null;panels[2]=null;
+if(slot===0){panels[1]=null;panels[2]=null;
 document.getElementById('panel-1').style.display='none';
 document.getElementById('panel-2').style.display='none';
-document.querySelector('#panel-0 .panel-close').style.display='none';return;}
+document.querySelector('#panel-0 .panel-close').style.display='none';
+setActivePanel(0);return;}
 panels[slot]=null;document.getElementById(`panel-${slot}`).style.display='none';
-if(!panels[1]&&!panels[2])document.querySelector('#panel-0 .panel-close').style.display='none';}
+if(!panels[1]&&!panels[2]){document.querySelector('#panel-0 .panel-close').style.display='none';setActivePanel(0);}
+else setActivePanel(panels[1]?1:0);}
 async function loadPanelHist(slot){const p=panels[slot];if(!p)return;const log=document.getElementById(`plog-${slot}`);log.innerHTML='<div class="spin"></div>';
 let pool=[];try{
 if(p.type==='group'){const r=await fetch(`https://api.groupme.com/v3/groups/${p.id}/messages?token=${TK}&limit=30`);const d=await r.json();pool=d.response?.messages||[];}
@@ -354,7 +383,7 @@ res.sort((a,b)=>b.created_at-a.created_at);
 r.innerHTML=res.length?renderSR(res.slice(0,40),q):'<div style="color:var(--t3);text-align:center;padding:20px;font-size:15px">No results</div>';}
 function renderSR(res,q){const re=new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`,'gi');
 return res.map(m=>{const hl=(m.text||'').substring(0,100).replace(re,'<mark style="background:var(--ad);color:var(--a);border-radius:2px;padding:0 1px">$1</mark>');
-return`<div style="padding:8px;border-bottom:1px solid var(--bd2);cursor:pointer;transition:.12s" onmouseover="this.style.background='rgba(128,128,128,.1)'" onmouseout="this.style.background=''" onclick="toggleSearch();switchView('${m._type||'group'}','${m._tid||m.group_id}')"><div style="font-size:14px;color:var(--a);font-family:'JetBrains Mono'">${esc(m.name)} · ${esc(m._gn||'')}</div><div style="font-size:14px;margin-top:2px">${hl}</div><div style="font-size:15px;color:var(--t3);margin-top:2px">${fT(m.created_at)}</div></div>`;}).join('');}
+return`<div style="padding:8px;border-bottom:1px solid var(--bd2);cursor:pointer;transition:.12s" onmouseover="this.style.background='rgba(128,128,128,.1)'" onmouseout="this.style.background=''" onclick="toggleSearch();switchView('${m._type||'group'}','${m._tid||m.group_id}')"><div style="font-size:14px;color:var(--a);font-family:ui-monospace,monospace">${esc(m.name)} · ${esc(m._gn||'')}</div><div style="font-size:14px;margin-top:2px">${hl}</div><div style="font-size:15px;color:var(--t3);margin-top:2px">${fT(m.created_at)}</div></div>`;}).join('');}
 function idxMsg(m){if(m.text&&!searchIdx.find(x=>x.id===m.id)){const gn=G.find(g=>g.id===m.group_id)?.name||'DM';searchIdx.push({...m,_gn:gn,_type:m.group_id?'group':'dm',_tid:m.group_id||(m.user_id===myId?m.recipient_id:m.user_id)});if(searchIdx.length>2000)searchIdx=searchIdx.slice(-1500);}}
 
 // ========== CONTACTS ==========
@@ -363,17 +392,61 @@ function hideContacts(){document.getElementById('contactOv').classList.remove('s
 function filterCon(q){buildCon(q);}
 function buildCon(q){const mb={};G.forEach(g=>{(g.members||[]).forEach(m=>{if(!mb[m.user_id])mb[m.user_id]={name:m.nickname,groups:[],uid:m.user_id};mb[m.user_id].groups.push(g.name);});});
 let list=Object.values(mb);if(q)list=list.filter(m=>m.name.toLowerCase().includes(q.toLowerCase()));list.sort((a,b)=>a.name.localeCompare(b.name));
-document.getElementById('conList').innerHTML=list.map(m=>{const gShown=m.groups.slice(0,4).map(g=>esc(g)).join(', ');const extra=m.groups.length>4?` <span style="color:var(--a);cursor:pointer" onclick="event.stopPropagation();this.textContent=', ${m.groups.slice(4).map(g=>esc(g)).join(', ')}'" title="Show all">+${m.groups.length-4} more</span>`:'';return`<div class="cd-i" onclick="hideContacts();openDM('${m.uid}')"><div style="flex:1;min-width:0"><div class="cd-n">${esc(m.name)}</div><div class="cd-g">${gShown}${extra}</div></div><div style="display:flex;align-items:center;gap:4px"><span style="font-size:15px;color:var(--t3)">${m.groups.length}g</span><span style="font-size:14px;color:var(--dm)" title="DM">💬</span></div></div>`;}).join('')||'<div style="color:var(--t3);text-align:center;padding:16px;font-size:15px">No contacts</div>';}
+document.getElementById('conList').innerHTML=list.map(m=>{const gShown=m.groups.slice(0,4).map(g=>esc(g)).join(', ');const extra=m.groups.length>4?` <span style="color:var(--a);cursor:pointer" onclick="event.stopPropagation();this.textContent=', ${m.groups.slice(4).map(g=>esc(g)).join(', ')}'" title="Show all">+${m.groups.length-4} more</span>`:'';return`<div class="cd-i" onclick="hideContacts();openDM('${m.uid}')"><div style="flex:1;min-width:0"><div class="cd-n">${esc(m.name)}</div><div class="cd-g">${gShown}${extra}</div></div><div style="display:flex;align-items:center;gap:4px"><span style="font-size:12px;color:var(--t3)">${m.groups.length}g</span><span style="font-size:14px;color:var(--dm)" title="DM">💬</span></div></div>`;}).join('')||'<div style="color:var(--t3);text-align:center;padding:16px;font-size:14px">No contacts</div>';}
+
+// ========== MEMBERS VIEWER ==========
+let currentMembers=[];
+function showMembers(){
+const ov=document.getElementById('membersOv');ov.classList.add('show');document.getElementById('membersBtn').classList.add('active-panel');
+document.getElementById('memSearch').value='';
+currentMembers=[];
+// Determine context: group, stream, or all
+if(cur.type==='group'){
+const g=G.find(x=>x.id===cur.id);
+document.getElementById('membersTitle').textContent=`Members — ${g?.name||'Group'}`;
+document.getElementById('membersSub').textContent=`${g?.members?.length||0} members`;
+currentMembers=(g?.members||[]).map(m=>({name:m.nickname,uid:m.user_id,avatar:m.image_url,roles:m.roles||[]}));
+}else if(cur.type==='stream'){
+const s=WF[cur.id];if(!s){document.getElementById('membersTitle').textContent='No stream selected';return;}
+document.getElementById('membersTitle').textContent=`Stream — ${cur.id.toUpperCase()}`;
+const gNames=s.ids.map(gid=>G.find(g=>g.id===gid)?.name).filter(Boolean);
+document.getElementById('membersSub').textContent=`Groups: ${gNames.join(', ')}`;
+const seen=new Set();
+s.ids.forEach(gid=>{const g=G.find(x=>x.id===gid);(g?.members||[]).forEach(m=>{if(!seen.has(m.user_id)){seen.add(m.user_id);currentMembers.push({name:m.nickname,uid:m.user_id,avatar:m.image_url,roles:m.roles||[],group:g.name});}});});
+}else if(cur.type==='dm'){
+const dm=D.find(d=>d.other_user?.id===cur.id);
+document.getElementById('membersTitle').textContent='Direct Message';
+document.getElementById('membersSub').textContent='';
+if(dm)currentMembers=[{name:dm.other_user.name,uid:dm.other_user.id,avatar:dm.other_user.avatar_url,roles:[]}];
+}else{
+document.getElementById('membersTitle').textContent='All Members';
+const mb={};G.forEach(g=>{(g.members||[]).forEach(m=>{if(!mb[m.user_id])mb[m.user_id]={name:m.nickname,uid:m.user_id,avatar:m.image_url,roles:m.roles||[]};});});
+currentMembers=Object.values(mb);
+document.getElementById('membersSub').textContent=`${currentMembers.length} across all groups`;
+}
+currentMembers.sort((a,b)=>a.name.localeCompare(b.name));
+renderMembers(currentMembers);}
+function hideMembers(){document.getElementById('membersOv').classList.remove('show');document.getElementById('membersBtn').classList.remove('active-panel');}
+function filterMembers(q){const ql=q.toLowerCase();const filtered=currentMembers.filter(m=>m.name.toLowerCase().includes(ql));renderMembers(filtered);}
+function renderMembers(list){
+document.getElementById('memList').innerHTML=list.map(m=>{
+const av=m.avatar?`<img src="${m.avatar}.avatar" onerror="this.style.display='none';this.nextSibling.style.display='flex'">`:'';
+const initFallback=`<div class="mem-av" style="${m.avatar?'display:none':''}">${esc((m.name||'?')[0])}</div>`;
+const avHtml=m.avatar?`<div class="mem-av" style="padding:0;overflow:hidden">${av}${initFallback}</div>`:initFallback;
+const isSelf=m.uid===myId;
+const role=m.roles?.includes('admin')?'Admin':m.group?m.group:'Member';
+return`<div class="mem-item"><div class="mem-av"${m.avatar?' style="padding:0;overflow:hidden"':''}>${m.avatar?`<img src="${m.avatar}.avatar" onerror="this.parentElement.innerHTML='${esc((m.name||'?')[0])}'">`:esc((m.name||'?')[0])}</div><div class="mem-info"><div class="mem-name">${esc(m.name)}${isSelf?' <span style="color:var(--a);font-size:10px">YOU</span>':''}</div><div class="mem-role">${role}</div></div>${!isSelf?`<button class="mem-action" onclick="hideMembers();openDM('${m.uid}')">Message</button>`:''}</div>`;
+}).join('')||'<div style="color:var(--t3);text-align:center;padding:20px">No members found</div>';}
 
 // ========== AD-HOC & SHIFT CHANGE ==========
 function showAdhoc(){document.getElementById('adhocM').classList.add('show');document.getElementById('adhocG').innerHTML=G.sort((a,b)=>a.name.localeCompare(b.name)).map(g=>`<label style="display:flex;align-items:center;gap:4px;margin-bottom:4px;font-size:14px;color:var(--t2);cursor:pointer"><input type="checkbox" value="${g.id}" style="accent-color:var(--a)"> ${esc(g.name)}</label>`).join('');}
 async function sendAdhoc(){const ids=Array.from(document.querySelectorAll('#adhocG input:checked')).map(i=>i.value);const txt=document.getElementById('adhocMsg').value.trim();if(!ids.length||!txt)return;for(const gid of ids)await sendTo('group',gid,txt);document.getElementById('adhocMsg').value='';document.getElementById('adhocM').classList.remove('show');setTimeout(poll,500);}
 function showShiftChange(){document.getElementById('shiftM').classList.add('show');document.getElementById('shiftOff').value=myName;
-let html='<div style="font-size:14px;color:var(--a);font-family:JetBrains Mono;font-weight:700;margin-bottom:4px;letter-spacing:1px">GROUPS</div>';
+let html='<div style="font-size:14px;color:var(--a);font-family:ui-monospace,monospace;font-weight:700;margin-bottom:4px;letter-spacing:1px">GROUPS</div>';
 html+=G.sort((a,b)=>a.name.localeCompare(b.name)).map(g=>`<label style="display:flex;align-items:center;gap:4px;margin-bottom:3px;font-size:14px;color:var(--t2);cursor:pointer"><input type="checkbox" value="g:${g.id}" style="accent-color:var(--a)"> ${esc(g.name)}</label>`).join('');
-const sk=Object.keys(WF).sort();if(sk.length){html+='<div style="font-size:14px;color:var(--a);font-family:JetBrains Mono;font-weight:700;margin:6px 0 4px;letter-spacing:1px">STREAMS</div>';
+const sk=Object.keys(WF).sort();if(sk.length){html+='<div style="font-size:14px;color:var(--a);font-family:ui-monospace,monospace;font-weight:700;margin:6px 0 4px;letter-spacing:1px">STREAMS</div>';
 html+=sk.map(n=>`<label style="display:flex;align-items:center;gap:4px;margin-bottom:3px;font-size:14px;color:var(--t2);cursor:pointer"><input type="checkbox" value="s:${n}" style="accent-color:var(--a)"> ▸ ${esc(n.toUpperCase())}</label>`).join('');}
-const dmOk=D.filter(c=>isOk(c.other_user?.id));if(dmOk.length){html+='<div style="font-size:14px;color:var(--dm);font-family:JetBrains Mono;font-weight:700;margin:6px 0 4px;letter-spacing:1px">DMs</div>';
+const dmOk=D.filter(c=>isOk(c.other_user?.id));if(dmOk.length){html+='<div style="font-size:14px;color:var(--dm);font-family:ui-monospace,monospace;font-weight:700;margin:6px 0 4px;letter-spacing:1px">DMs</div>';
 html+=dmOk.map(c=>`<label style="display:flex;align-items:center;gap:4px;margin-bottom:3px;font-size:14px;color:var(--dm);cursor:pointer"><input type="checkbox" value="d:${c.other_user.id}" style="accent-color:var(--dm)"> ${esc(c.other_user.name)}</label>`).join('');}
 document.getElementById('shiftGroups').innerHTML=html;}
 async function sendShiftChange(){const checks=Array.from(document.querySelectorAll('#shiftGroups input:checked')).map(i=>i.value);const off=document.getElementById('shiftOff').value.trim();const on=document.getElementById('shiftOn').value.trim();const ph=document.getElementById('shiftPhone').value.trim();if(!checks.length||!on){showAlert('Please select targets and enter incoming dispatcher name.');return;}
@@ -457,6 +530,8 @@ let t='Dispatch';let isDmView=false;
 if(type==='all')t='Universal Feed';else if(type==='all_dms')t='Direct Comms',isDmView=true;else if(type==='stream')t=`Stream: ${id}`;else if(type==='group')t=G.find(g=>g.id===id)?.name||'Group';else if(type==='dm'){const dmC=D.find(d=>d.other_user?.id===id);t=dmC?.other_user?.name||resN(id)||'DM';isDmView=true;}
 const htEl=document.getElementById('htitle');
 if(isDmView){htEl.innerHTML=`<span style="color:var(--dm)">💬 ${esc(t)}</span>`;}else{htEl.textContent=t;}
+document.getElementById('ptitle-0').textContent=t;
+setActivePanel(0);
 const bi=document.getElementById('gIn');if(type==='group'||type==='dm'){bi.placeholder=`Message ${t}...`;bi.disabled=false;}else if(type==='stream'){bi.placeholder='Broadcast to stream...';bi.disabled=false;}else{bi.placeholder='Select a chat';bi.disabled=true;}
 await loadHist();loadSticky();renderTplBar();renderSB();reorderPins();document.getElementById('sidebar').classList.remove('open');}
 
@@ -474,7 +549,7 @@ lastDayKey=null;
 const sorted=pool.sort((a,b)=>oldestFirst?(a.created_at-b.created_at):(b.created_at-a.created_at));
 sorted.forEach(m=>{const dk=dayKey(m.created_at);if(lastDayKey&&dk!==lastDayKey)insertDayDiv(document.getElementById('log'),m.created_at,false);lastDayKey=dk;handleMsg(m,false);});
 vAt=pool.length?Math.max(...pool.map(m=>m.created_at)):Math.floor(Date.now()/1e3);
-if(oldestFirst){const log=document.getElementById('log');setTimeout(()=>log.scrollTop=log.scrollHeight,50);}
+if(oldestFirst){const log=document.getElementById('log');setTimeout(()=>{log.scrollTop=log.scrollHeight;setTimeout(()=>log.scrollTop=log.scrollHeight,100);},50);}
 if(!pool.length){const em=document.createElement('div');em.className='empty';em.innerHTML='<div class="ei">◇</div><div class="el">No messages</div>';document.getElementById('log').appendChild(em);}}
 
 // ========== RENDER ==========

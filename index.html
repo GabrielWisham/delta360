@@ -4,10 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Delta 360 | Dispatch Command</title>
-  <meta name="description" content="Delta 360 — Professional GroupMe dispatch command center for real-time team communications.">
+  <meta name="description" content="Delta 360 — Professional dispatch command center.">
   <meta name="theme-color" content="#ff5c00">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>Δ</text></svg>">
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/theme.css">
   <link rel="stylesheet" href="/css/layout.css">
   <link rel="stylesheet" href="/css/components.css">
@@ -25,6 +24,7 @@
 <div style="display:flex;gap:5px;align-items:center">
 <div id="cs"><span class="sd off"></span>Off</div>
 <button class="ib" id="searchBtn" onclick="toggleSearch()" title="Search (/)">🔍</button>
+<button class="ib" id="membersBtn" onclick="showMembers()" title="Members">👥</button>
 <button class="ib" id="vb" onclick="toggleMute()" title="Sound">🔊</button>
 <select id="statSel" onchange="setStat(this.value,true)" style="font-size:15px;font-family:'JetBrains Mono';background:var(--bg);color:var(--t2);border:1px solid var(--bd);border-radius:3px;padding:2px 4px;outline:0"><option value="avl">🟢 Avail</option><option value="bsy">🔴 Busy</option><option value="awy">🟡 Away</option></select>
 <div class="tray-w"><button class="tbtn" onclick="tglTray('toolsTray',this)">⚡ Tools</button><div class="tray" id="toolsTray">
@@ -74,6 +74,7 @@
 <div id="feed">
 <div class="ov" id="searchOv"><button class="oclose" onclick="toggleSearch()">✕</button><div class="ot">Search Messages</div><input id="searchIn" placeholder="Search..." oninput="doSearch(this.value)" style="width:100%;margin-bottom:10px"><div id="searchRes"></div></div>
 <div class="ov" id="contactOv"><button class="oclose" onclick="hideContacts()">✕</button><div class="ot">Contact Directory</div><input id="conSearch" placeholder="Filter..." oninput="filterCon(this.value)" style="width:100%;margin-bottom:10px"><div id="conList"></div></div>
+<div class="members-ov" id="membersOv"><button class="oclose" onclick="hideMembers()">✕</button><div class="ot" id="membersTitle">Members</div><div style="font-size:12px;color:var(--t3);margin-bottom:12px" id="membersSub"></div><input id="memSearch" placeholder="Search members..." oninput="filterMembers(this.value)" style="width:100%;margin-bottom:12px;padding:10px 14px;background:var(--card);border:1px solid var(--bd);color:var(--t);border-radius:var(--rs);font-size:14px;font-family:inherit;outline:0"><div id="memList"></div></div>
 <div id="cfg" style="display:none">
 <div class="cfg-grid">
 <div class="cfg-col">
@@ -120,7 +121,7 @@
 </div>
 <div id="panels-wrap">
 <div class="panel" id="panel-0">
-<div class="panel-hdr"><span class="panel-title" id="ptitle-0">—</span><button class="panel-close" onclick="closePanel(0)" title="Close" style="display:none">✕</button></div>
+<div class="panel-hdr" onclick="setActivePanel(0)"><span class="panel-title" id="ptitle-0">—</span><button class="panel-close" onclick="event.stopPropagation();closePanel(0)" title="Close" style="display:none">✕</button></div>
 <div id="sticky-bar"><span class="stl">📒 NOTE</span><textarea id="sticky-text" placeholder="Sticky note..."></textarea><button class="abtn" onclick="saveSticky()" style="font-size:10px;background:rgba(255,204,0,.1);border-color:rgba(255,204,0,.25);color:var(--warn);font-weight:600">Save</button><span class="st-exp"><select id="sticky-exp" onchange="setStickyExp()"><option value="0">No expiry</option><option value="1">1 hour</option><option value="4">4 hours</option><option value="8">8 hours</option><option value="24">24 hours</option></select></span><button class="abtn" onclick="toggleStickyHist()" style="font-size:10px">History</button></div>
 <div id="sticky-hist"></div>
 <div id="tpl-bar"></div>
@@ -137,14 +138,16 @@
 <div id="day-cue"><div class="dc-day"></div><div class="dc-date"></div></div>
 </div><!-- end panel-0 -->
 <div class="panel" id="panel-1" style="display:none">
-<div class="panel-hdr"><span class="panel-title" id="ptitle-1">—</span><button class="panel-close" onclick="closePanel(1)">✕</button></div>
+<div class="panel-hdr" onclick="setActivePanel(1)"><span class="panel-title" id="ptitle-1">—</span><button class="panel-close" onclick="event.stopPropagation();closePanel(1)">✕</button></div>
 <div class="p-bb"><textarea class="rin" id="pIn-1" placeholder="Message..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendPanel(1)}"></textarea><button class="sb" onclick="sendPanel(1)">↑</button></div>
 <div class="fs p-log" id="plog-1"><div class="empty"><div class="ei">◇</div><div class="el">Shift+click a chat</div></div></div>
+<button class="p-sctop" onclick="document.getElementById('plog-1').scrollTop=0">↑</button>
 </div>
 <div class="panel" id="panel-2" style="display:none">
-<div class="panel-hdr"><span class="panel-title" id="ptitle-2">—</span><button class="panel-close" onclick="closePanel(2)">✕</button></div>
+<div class="panel-hdr" onclick="setActivePanel(2)"><span class="panel-title" id="ptitle-2">—</span><button class="panel-close" onclick="event.stopPropagation();closePanel(2)">✕</button></div>
 <div class="p-bb"><textarea class="rin" id="pIn-2" placeholder="Message..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendPanel(2)}"></textarea><button class="sb" onclick="sendPanel(2)">↑</button></div>
 <div class="fs p-log" id="plog-2"><div class="empty"><div class="ei">◇</div><div class="el">Shift+click a chat</div></div></div>
+<button class="p-sctop" onclick="document.getElementById('plog-2').scrollTop=0">↑</button>
 </div>
 </div><!-- end panels-wrap -->
 </div><!-- end feed -->
