@@ -96,7 +96,7 @@
     <div id="main">
       
       <!-- SIDEBAR -->
-      <div id="sidebar">
+      <nav id="sidebar" aria-label="Main navigation">
         <div class="sidebar-section">
           <div class="section-label">Feeds</div>
           <div id="sL"></div>
@@ -106,10 +106,10 @@
           <div class="section-label">Direct Messages</div>
           <div id="aL"></div>
         </div>
-      </div>
+      </nav>
 
       <!-- CHAT PANELS -->
-      <div id="feed">
+      <main id="feed" role="main" aria-label="Chat content">
         
         <!-- SEARCH OVERLAY -->
         <div class="modal-overlay" id="searchOv">
@@ -141,7 +141,7 @@
 
         <!-- PANELS CONTAINER -->
         <div id="panels-wrap"></div>
-      </div>
+      </main>
     </div>
   </div>
 
