@@ -23,7 +23,7 @@
         <input type="password" id="tok" placeholder="GroupMe API Token" onkeydown="if(event.key==='Enter')doLogin()">
         <button class="lbtn" onclick="doLogin()">Connect</button>
       </div>
-      <div id="lerr">Connection failed. Please check your token.</div>
+      <div id="lerr"></div>
       <div class="meta-link">
         <a href="https://dev.groupme.com" target="_blank">Get API Token →</a>
       </div>
@@ -35,66 +35,55 @@
     
     <!-- HEADER -->
     <header>
-      <div class="brand-section">
-        <button id="sb-toggle" onclick="tglSidebar()" title="Toggle Menu">☰</button>
-        <div class="brand-icon">Δ</div>
-        <div class="brand-text">
-          <div class="hm" id="htitle">Dashboard</div>
-          <div class="hs">Delta 360</div>
+      <div class="header-left">
+        <button id="menu-btn" class="icon-btn" onclick="tglSidebar()" title="Toggle sidebar">
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M3 6h18M3 12h18M3 18h18"/>
+          </svg>
+        </button>
+        <div class="brand">
+          <div class="brand-icon">Δ</div>
+          <div>
+            <div class="brand-title" id="htitle">Dashboard</div>
+            <div class="brand-subtitle">Delta 360</div>
+          </div>
         </div>
       </div>
 
-      <div class="tools-section">
-        <div class="status-pill" id="stat-pill">
-          <span class="dot"></span>
-          <span id="stat-text">Offline</span>
-          <select id="statSel" onchange="setStat(this.value, true)">
-            <option value="avl">Available</option>
-            <option value="bsy">Busy</option>
-            <option value="awy">Away</option>
-          </select>
+      <div class="header-right">
+        <div class="status-control">
+          <button class="status-btn" id="status-btn" onclick="cycleStatus()" title="Your status">
+            <span class="status-dot" id="status-dot"></span>
+            <span id="status-text">Away</span>
+          </button>
         </div>
 
-        <div class="divider-v"></div>
+        <div class="header-divider"></div>
 
-        <button class="ib" onclick="toggleSearch()" title="Search">
+        <button class="icon-btn" onclick="toggleSearch()" title="Search">
           <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <circle cx="11" cy="11" r="8"/>
             <path d="M21 21l-4.35-4.35"/>
           </svg>
         </button>
-        
-        <button class="ib" onclick="showMembers()" title="Members">
-          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
-            <circle cx="9" cy="7" r="4"/>
-            <path d="M23 21v-2a4 4 0 00-3-3.87"/>
-            <path d="M16 3.13a4 4 0 010 7.75"/>
-          </svg>
+
+        <button class="icon-btn" id="sound-btn" onclick="toggleSound()" title="Sound">
+          <span id="sound-icon">🔊</span>
         </button>
 
-        <button class="ib" id="vb" onclick="toggleMute()" title="Sound">
-          <span id="vb-icon">🔊</span>
-        </button>
-
-        <div class="tray-w">
-          <button class="tbtn" onclick="tglTray('toolsTray',this)">Tools</button>
-          <div class="tray" id="toolsTray">
-            <button class="tray-i" onclick="showContacts();closeTray()">Contacts</button>
-            <button class="tray-i" onclick="showAdhoc();closeTray()">Broadcast</button>
-            <button class="tray-i" onclick="toggleCB();closeTray()">Clipboard</button>
-            <div class="tray-sep"></div>
-            <button class="tray-i" onclick="toggleCfg();closeTray()">Settings</button>
-          </div>
-        </div>
-
-        <div class="tray-w">
-          <button class="tbtn" onclick="tglTray('viewTray',this)">View</button>
-          <div class="tray" id="viewTray">
-            <button class="tray-i" onclick="toggleTheme();closeTray()">Theme</button>
-            <button class="tray-i" onclick="toggleCompact();closeTray()">Compact</button>
-            <div class="tray-sep"></div>
-            <button class="tray-i" onclick="doLogout()">Log Out</button>
+        <div class="menu-wrapper">
+          <button class="icon-btn" onclick="tglMenu()" title="More">
+            <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24">
+              <circle cx="12" cy="5" r="2"/>
+              <circle cx="12" cy="12" r="2"/>
+              <circle cx="12" cy="19" r="2"/>
+            </svg>
+          </button>
+          <div class="dropdown-menu" id="main-menu">
+            <button class="menu-item" onclick="showSettings()">Settings</button>
+            <button class="menu-item" onclick="toggleTheme()">Theme</button>
+            <div class="menu-divider"></div>
+            <button class="menu-item" onclick="doLogout()">Log Out</button>
           </div>
         </div>
       </div>
@@ -108,72 +97,50 @@
       
       <!-- SIDEBAR -->
       <div id="sidebar">
-        <div class="sb-section-hdr">Feeds</div>
-        <div id="sL"></div>
+        <div class="sidebar-section">
+          <div class="section-label">Feeds</div>
+          <div id="sL"></div>
+        </div>
         
-        <div class="sb-section-hdr">Active</div>
-        <div id="aL"></div>
+        <div class="sidebar-section">
+          <div class="section-label">Direct Messages</div>
+          <div id="aL"></div>
+        </div>
       </div>
 
-      <!-- FEED PANEL -->
+      <!-- CHAT PANELS -->
       <div id="feed">
         
         <!-- SEARCH OVERLAY -->
-        <div class="ov" id="searchOv">
-          <div class="ov-hdr">
-            <div class="ot">Search Archives</div>
-            <button class="oclose" onclick="toggleSearch()">✕</button>
+        <div class="modal-overlay" id="searchOv">
+          <div class="modal-header">
+            <h3>Search Messages</h3>
+            <button class="close-btn" onclick="toggleSearch()">✕</button>
           </div>
-          <input id="searchIn" class="rin large" placeholder="Search messages..." oninput="doSearch(this.value)">
-          <div id="searchRes"></div>
+          <input id="searchIn" class="modal-input" placeholder="Search messages..." oninput="doSearch(this.value)">
+          <div id="searchRes" class="search-results"></div>
         </div>
 
-        <!-- CONFIG OVERLAY -->
-        <div id="cfg" style="display:none">
-          <div class="cfg-grid">
-            <div class="cfg-col">
-              <div class="ot" style="margin-bottom: 16px;">Audio Settings</div>
-              <div class="cfg-row">
-                <label>Feed Sound</label>
-                <select id="feedSndSel" onchange="feedSound=this.value;localStorage.setItem('gm_v3_feedsnd',this.value)">
-                  <option value="radar">Radar</option>
-                  <option value="chime">Chime</option>
-                  <option value="click">Click</option>
-                </select>
-              </div>
+        <!-- SETTINGS OVERLAY -->
+        <div class="modal-overlay" id="settingsOv">
+          <div class="modal-header">
+            <h3>Settings</h3>
+            <button class="close-btn" onclick="toggleSettings()">✕</button>
+          </div>
+          <div class="settings-content">
+            <div class="setting-group">
+              <label>Notification Sound</label>
+              <select id="soundSel" onchange="setSoundPreference(this.value)">
+                <option value="radar">Radar</option>
+                <option value="chime">Chime</option>
+                <option value="click">Click</option>
+              </select>
             </div>
           </div>
         </div>
 
-        <!-- PANELS -->
-        <div id="panels-wrap">
-          <div class="panel" id="panel-0">
-            
-            <!-- STICKY NOTES -->
-            <div id="sticky-bar">
-              <span class="stl">Note</span>
-              <input id="sticky-text" placeholder="Add a note..." onblur="saveSticky()">
-            </div>
-            
-            <!-- MESSAGE LOG -->
-            <div class="fs" id="log">
-              <div class="empty">
-                <div class="ei">Δ</div>
-                <div class="el">Ready</div>
-              </div>
-            </div>
-            
-            <!-- MESSAGE INPUT -->
-            <div id="bb">
-              <button class="att-btn" onclick="document.getElementById('imgUp').click()" title="Attach Image">+</button>
-              <input type="file" id="imgUp" accept="image/*" style="display:none" onchange="handleImg(this)">
-              
-              <textarea id="gIn" class="rin" placeholder="Type message..." oninput="autoX(this)" onkeydown="bKey(event)"></textarea>
-              
-              <button class="sb" onclick="sendBcast()">Send</button>
-            </div>
-          </div>
-        </div>
+        <!-- PANELS CONTAINER -->
+        <div id="panels-wrap"></div>
       </div>
     </div>
   </div>
