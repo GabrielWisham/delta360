@@ -1,96 +1,89 @@
 /* ============================
-   Δ DELTA 360 — THEME
-   Tactical Operations · Premium Dashboard
+   Δ DELTA 360 — THEME (Modern Slate)
    ============================ */
 
 :root {
-  --a: #ff5c00;
-  --ag: linear-gradient(135deg, #ff5c00, #ff8c40);
-  --ad: rgba(255, 92, 0, .15);
-  --ah: rgba(255, 92, 0, .06);
-  --glow: 0 0 20px rgba(255, 92, 0, .15);
-  --dm: #00bcd4;
-  --dmg: linear-gradient(135deg, #00bcd4, #26c6da);
-  --dmd: rgba(0, 188, 212, .1);
-  --bg: #0a0c10;
-  --bg2: #12151c;
-  --bg3: #0e1117;
-  --bg-glass: rgba(18, 21, 28, .85);
-  --card: rgba(255, 255, 255, .035);
-  --cardh: rgba(255, 255, 255, .065);
-  --t: #e6e8eb;
-  --t2: #a0a8b4;
-  --t3: #6b7280;
-  --t4: #3d4450;
-  --bd: rgba(255, 255, 255, .08);
-  --bd2: rgba(255, 255, 255, .04);
-  --dg: #ff3b3b;
-  --ok: #00d26a;
-  --warn: #ffcc00;
-  --self: #a78bfa;
-  --sw: 290px;
-  --hh: 54px;
-  --r: 8px;
-  --rs: 5px;
+  /* Brand Colors */
+  --a: #f97316; /* Orange-500 */
+  --ag: linear-gradient(135deg, #f97316, #fb923c);
+  --ad: rgba(249, 115, 22, 0.15);
+  --ah: rgba(249, 115, 22, 0.08);
+  --glow: 0 0 20px rgba(249, 115, 22, 0.2);
+
+  /* Functional Colors */
+  --dm: #06b6d4; /* Cyan-500 */
+  --ok: #10b981; /* Emerald-500 */
+  --warn: #f59e0b; /* Amber-500 */
+  --dg: #ef4444; /* Red-500 */
+  --self: #8b5cf6; /* Violet-500 */
+
+  /* Dark Theme (Default - Slate) */
+  --bg: #0f172a;   /* Slate-900 */
+  --bg2: #1e293b;  /* Slate-800 */
+  --bg3: #334155;  /* Slate-700 (Hover state) */
+  --bg-glass: rgba(15, 23, 42, 0.85);
+  
+  --card: #1e293b;
+  --card-border: rgba(255, 255, 255, 0.08);
+  
+  --t: #f8fafc;    /* Text Primary */
+  --t2: #cbd5e1;   /* Text Secondary */
+  --t3: #94a3b8;   /* Text Muted */
+  --t4: #64748b;   /* Text Disabled */
+  
+  --bd: rgba(255, 255, 255, 0.08);
+  
+  /* Dimensions & Radius */
+  --sw: 260px;     /* Sidebar Width */
+  --hh: 60px;      /* Header Height */
+  --r: 12px;       /* Radius Standard */
+  --rs: 6px;       /* Radius Small */
 }
 
+/* Light Theme Overrides */
 .light {
-  --a: #c43800; --ag: linear-gradient(135deg, #c43800, #e85d26);
-  --ad: rgba(196,56,0,.12); --ah: rgba(196,56,0,.04); --glow: 0 0 15px rgba(196,56,0,.1);
-  --dm: #006d75; --dmg: linear-gradient(135deg, #006d75, #0891b2); --dmd: rgba(0,109,117,.1);
-  --bg: #e8e9ed; --bg2: #f0f1f4; --bg3: #eaebed;
-  --bg-glass: rgba(240, 241, 244, .9);
-  --card: rgba(255,255,255,.7); --cardh: rgba(255,255,255,.85);
-  --t: #0e1117; --t2: #2a2e38; --t3: #505560; --t4: #7a7f8a;
-  --bd: rgba(0,0,0,.1); --bd2: rgba(0,0,0,.05);
+  --bg: #f1f5f9;
+  --bg2: #ffffff;
+  --bg3: #e2e8f0;
+  --bg-glass: rgba(255, 255, 255, 0.9);
+  
+  --card: #ffffff;
+  --card-border: rgba(0, 0, 0, 0.06);
+  
+  --t: #0f172a;
+  --t2: #334155;
+  --t3: #64748b;
+  --t4: #94a3b8;
+  
+  --bd: rgba(0, 0, 0, 0.08);
 }
 
-/* --- RESET --- */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
-* { scrollbar-width: thin; scrollbar-color: rgba(128,128,128,.15) transparent }
-::-webkit-scrollbar { width: 5px }
-::-webkit-scrollbar-track { background: transparent }
-::-webkit-scrollbar-thumb { background: rgba(128,128,128,.18); border-radius: 5px }
-
-/* --- BASE --- */
+/* Base Reset */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 body {
   font-family: 'Outfit', sans-serif;
   background: var(--bg);
   color: var(--t);
   height: 100vh;
   display: flex; flex-direction: column; overflow: hidden;
-  transition: background .3s, color .3s;
-  font-size: 14px; line-height: 1.5;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Subtle noise texture overlay */
-body::before {
-  content: '';
-  position: fixed; inset: 0; z-index: 0; pointer-events: none;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.025'/%3E%3C/svg%3E");
-  background-repeat: repeat;
-  opacity: .4;
-}
-body > * { position: relative; z-index: 1; }
+/* Scrollbars */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--bg3); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: var(--t4); }
 
-/* --- ANIMATIONS --- */
-@keyframes cIn { from { opacity: 0; transform: translateY(-4px) } to { opacity: 1; transform: translateY(0) } }
-@keyframes fadeUp { from { opacity: 0; transform: translateY(6px) } to { opacity: 1; transform: translateY(0) } }
-@keyframes p2 { 0%, 100% { opacity: 1 } 50% { opacity: .25 } }
-@keyframes sp { to { transform: rotate(360deg) } }
-@keyframes tIn { from { opacity: 0; transform: translateX(24px) } to { opacity: 1; transform: translateX(0) } }
-@keyframes tOut { to { opacity: 0; transform: translateX(24px) } }
-@keyframes glowPulse { 0% { box-shadow: 0 0 4px var(--a) } 50% { box-shadow: 0 0 16px rgba(255,92,0,.3) } 100% { box-shadow: 0 0 4px var(--a) } }
-@keyframes searchBlink {
-  0%, 100% { background: var(--card) }
-  15%, 45% { background: rgba(255,92,0,.18) }
-  30%, 60% { background: var(--card) }
+/* Utilities */
+.spin { 
+  width: 20px; height: 20px; 
+  border: 2px solid var(--bd); 
+  border-top-color: var(--a); 
+  border-radius: 50%; 
+  animation: spin .8s linear infinite; 
+  margin: 20px auto; 
 }
-@keyframes shimmer {
-  0% { background-position: -200% center }
-  100% { background-position: 200% center }
-}
-
-.spin { width: 16px; height: 16px; border: 2px solid var(--t4); border-top-color: var(--a); border-radius: 50%; animation: sp .7s linear infinite; margin: 16px auto }
-.pulse { animation: glowPulse .5s ease-in-out 2 }
-.search-highlight { animation: searchBlink 2.5s ease-in-out; border-color: var(--a) !important; box-shadow: var(--glow) }
+@keyframes spin { to { transform: rotate(360deg); } }
