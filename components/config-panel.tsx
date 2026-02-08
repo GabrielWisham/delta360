@@ -16,6 +16,7 @@ import {
   Trash2,
   Check,
   VolumeOff,
+  Search,
 } from 'lucide-react'
 
 type Tab = 'streams' | 'templates' | 'alerts' | 'audio'
@@ -227,8 +228,15 @@ function StreamsTab({
   isEditing: boolean
   onSave: () => void
 }) {
+  const [groupFilter, setGroupFilter] = useState('')
+
+  const sortedGroups = groups
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .filter(g => g.name.toLowerCase().includes(groupFilter.toLowerCase()))
+
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       <SectionLabel>Stream Name</SectionLabel>
       <input
         value={streamName}
@@ -266,33 +274,55 @@ function StreamsTab({
       </div>
 
       <SectionLabel>Groups ({selectedGroups.size} selected)</SectionLabel>
-      <div className="max-h-[180px] overflow-y-auto rounded-lg border border-border bg-secondary/20 divide-y divide-border/50">
-        {groups.map(g => {
-          const checked = selectedGroups.has(g.id)
-          return (
-            <label
-              key={g.id}
-              className={`flex items-center gap-2.5 px-3 py-2 text-xs cursor-pointer transition-colors ${
-                checked ? 'bg-[var(--d360-orange-glow)]' : 'hover:bg-secondary/40'
-              }`}
-            >
-              <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors shrink-0 ${
-                checked
-                  ? 'bg-[var(--d360-orange)] border-[var(--d360-orange)]'
-                  : 'border-muted-foreground/40'
-              }`}>
-                {checked && <Check className="w-3 h-3 text-white" />}
-              </div>
-              <input
-                type="checkbox"
-                checked={checked}
-                onChange={() => toggleGroup(g.id)}
-                className="sr-only"
-              />
-              <span className="truncate text-foreground">{g.name}</span>
-            </label>
-          )
-        })}
+
+      {/* Search bar */}
+      <div className="relative">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+        <input
+          value={groupFilter}
+          onChange={e => setGroupFilter(e.target.value)}
+          placeholder="Search groups..."
+          className="w-full text-xs bg-secondary/30 border border-border rounded-lg pl-8 pr-3 py-2 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)]"
+          style={{ fontFamily: 'var(--font-mono)' }}
+        />
+      </div>
+
+      {/* Fixed-height group list */}
+      <div className="h-[200px] overflow-y-auto rounded-lg border border-border bg-secondary/20">
+        {sortedGroups.length === 0 ? (
+          <div className="flex items-center justify-center h-full text-xs text-muted-foreground">
+            No groups match your search.
+          </div>
+        ) : (
+          <div className="divide-y divide-border/50">
+            {sortedGroups.map(g => {
+              const checked = selectedGroups.has(g.id)
+              return (
+                <label
+                  key={g.id}
+                  className={`flex items-center gap-2.5 px-3 py-2 text-xs cursor-pointer transition-colors ${
+                    checked ? 'bg-[var(--d360-orange-glow)]' : 'hover:bg-secondary/40'
+                  }`}
+                >
+                  <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors shrink-0 ${
+                    checked
+                      ? 'bg-[var(--d360-orange)] border-[var(--d360-orange)]'
+                      : 'border-muted-foreground/40'
+                  }`}>
+                    {checked && <Check className="w-3 h-3 text-white" />}
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggleGroup(g.id)}
+                    className="sr-only"
+                  />
+                  <span className="truncate text-foreground">{g.name}</span>
+                </label>
+              )
+            })}
+          </div>
+        )}
       </div>
 
       <button
