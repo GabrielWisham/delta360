@@ -26,9 +26,9 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   const loadMsgRef = useRef(store.loadMessages)
   loadMsgRef.current = store.loadMessages
 
-  // Load messages on view change
+  // Load messages on view change (skip unified_streams - store's buffered effect handles it)
   useEffect(() => {
-    if (view) loadMsgRef.current(panelIdx)
+    if (view && view.type !== 'unified_streams') loadMsgRef.current(panelIdx)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view?.type, view?.id, panelIdx])
 
@@ -40,7 +40,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     if (!view) return
     if (pollRef.current) clearInterval(pollRef.current)
     pollRef.current = setInterval(() => {
-      if (unifiedLoadingRef.current) return
+      if (view.type === 'unified_streams' && unifiedLoadingRef.current) return
       loadMsgRef.current(panelIdx)
     }, 4000)
     return () => { if (pollRef.current) clearInterval(pollRef.current) }
