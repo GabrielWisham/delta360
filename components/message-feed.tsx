@@ -22,11 +22,9 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   const title = view ? store.getPanelTitle(view.type, view.id) : '--'
   const showGroupTag = view?.type === 'all' || view?.type === 'dms' || view?.type === 'stream' || view?.type === 'unified_streams'
 
-  // Keep refs to load functions so polling always calls the latest version
+  // Keep ref to loadMessages so polling always calls the latest version
   const loadMsgRef = useRef(store.loadMessages)
   loadMsgRef.current = store.loadMessages
-  const loadUnifiedRef = useRef(store.loadUnifiedStreams)
-  loadUnifiedRef.current = store.loadUnifiedStreams
 
   // Load messages on view change (skip unified_streams - store's buffered effect handles it)
   useEffect(() => {
@@ -34,19 +32,12 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view?.type, view?.id, panelIdx])
 
-  // Polling
-  const unifiedLoadingRef = useRef(store.unifiedLoading)
-  unifiedLoadingRef.current = store.unifiedLoading
+  // Polling (unified_streams is excluded - its own effect handles loading)
   useEffect(() => {
-    if (!view) return
+    if (!view || view.type === 'unified_streams') return
     if (pollRef.current) clearInterval(pollRef.current)
     pollRef.current = setInterval(() => {
-      if (view.type === 'unified_streams') {
-        // For unified_streams: skip if loading, otherwise use dedicated loader
-        if (!unifiedLoadingRef.current) loadUnifiedRef.current()
-      } else {
-        loadMsgRef.current(panelIdx)
-      }
+      loadMsgRef.current(panelIdx)
     }, 4000)
     return () => { if (pollRef.current) clearInterval(pollRef.current) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -297,14 +288,6 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
         onScroll={handleScroll}
         className="flex-1 overflow-y-auto px-3 py-2 flex flex-col gap-2 min-h-0"
       >
-        {/* DEBUG overlay */}
-        {view?.type === 'unified_streams' && (
-          <div className="bg-yellow-500/20 text-yellow-300 text-[10px] font-mono px-2 py-1 rounded mb-1">
-            loading={String(store.unifiedLoading)} | msgs={messages.length} | gate={String(store.unifiedLoading && view?.type === 'unified_streams')}
-            {messages.length > 0 && ` | first=${new Date(messages[0].created_at * 1000).toLocaleTimeString()} last=${new Date(messages[messages.length-1].created_at * 1000).toLocaleTimeString()}`}
-          </div>
-        )}
-
         {/* Unified streams loading gate: show ONLY spinner while syncing */}
         {store.unifiedLoading && view?.type === 'unified_streams' ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-3 py-10">

@@ -584,6 +584,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const streamToggleCount = streamToggles.size
   useEffect(() => {
     if (currentView.type !== 'unified_streams' || !isLoggedIn) return
+    // Immediately invalidate any in-flight loadUnifiedStreams calls
+    ++unifiedVersion.current
     // Show spinner and clear feed immediately
     setUnifiedLoading(true)
     setPanelMessages(prev => { const n = [...prev]; n[0] = []; return n })
@@ -597,6 +599,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [streamToggleCount, currentView.type, isLoggedIn, loadUnifiedStreams])
+
+  // Background refresh for unified_streams (silent swap, no spinner, every 10s)
+  useEffect(() => {
+    if (currentView.type !== 'unified_streams' || !isLoggedIn) return
+    const interval = setInterval(() => {
+      if (!unifiedLoading) loadUnifiedStreams()
+    }, 10000)
+    return () => clearInterval(interval)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentView.type, isLoggedIn, loadUnifiedStreams, unifiedLoading])
 
   const switchView = useCallback((type: ViewState['type'], id: string | null) => {
     setCurrentView({ type, id })
