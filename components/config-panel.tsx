@@ -128,7 +128,7 @@ export function ConfigPanel() {
       {/* Modal */}
       <div
         ref={panelRef}
-        className="relative w-full max-w-[560px] max-h-[80vh] mx-4 rounded-xl bg-card border border-border shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+        className="relative w-full max-w-[560px] h-[min(80vh,640px)] mx-4 rounded-xl bg-card border border-border shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200"
       >
         {/* Header */}
         <div className="flex items-center justify-between px-5 pt-4 pb-0">
