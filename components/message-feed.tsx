@@ -79,20 +79,8 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   // Order messages
   const ordered = useMemo(() => {
     const sorted = [...messages].sort((a, b) => a.created_at - b.created_at)
-    const result = store.oldestFirst ? sorted : [...sorted].reverse()
-    if (view?.type === 'unified_streams' && result.length > 0) {
-      console.log('[v0] unified ordered:', {
-        oldestFirst: store.oldestFirst,
-        count: result.length,
-        firstText: result[0]?.text?.slice(0, 30),
-        firstTs: result[0]?.created_at,
-        lastText: result[result.length-1]?.text?.slice(0, 30),
-        lastTs: result[result.length-1]?.created_at,
-        topIsNewest: result[0]?.created_at > result[result.length-1]?.created_at
-      })
-    }
-    return result
-  }, [messages, store.oldestFirst, view?.type])
+    return store.oldestFirst ? sorted : [...sorted].reverse()
+  }, [messages, store.oldestFirst])
 
   // Pinned messages zone
   const pinned = useMemo(() => {
@@ -309,59 +297,8 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
         onScroll={handleScroll}
         className="flex-1 overflow-y-auto px-3 py-2 flex flex-col gap-2 min-h-0"
       >
-        {/* Pinned zone */}
-        {pinned.length > 0 && (
-          <div className="mb-2">
-            <div
-              className="text-[9px] uppercase tracking-widest text-[var(--d360-yellow)] mb-1 px-1"
-              style={{ fontFamily: 'var(--font-jetbrains)' }}
-            >
-              {'\u{1F4CC}'} Pinned
-            </div>
-            <div className="flex flex-col gap-1.5">
-              {pinned.map(m => (
-                <MessageCard key={m.id} msg={m} panelIdx={panelIdx} showGroupTag={showGroupTag} onScrollToMsg={scrollToMsg} />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Messages with day dividers */}
-        {msgsWithDividers.map((item, i) => {
-          if (item.type === 'divider') {
-            return (
-              <div
-                key={`div-${item.ts}`}
-                data-day-label={item.label}
-                className="flex items-center gap-3 py-2 group"
-              >
-                <div className="flex-1 h-px" style={{ background: 'linear-gradient(90deg, transparent, var(--color-border), transparent)' }} />
-                <span
-                  className="text-[10px] uppercase tracking-widest text-muted-foreground cursor-help relative"
-                  style={{ fontFamily: 'var(--font-jetbrains)' }}
-                  title={item.fullDate}
-                >
-                  {item.label}
-                  <span className="glass hidden group-hover:block absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap text-[9px] px-2 py-1 rounded z-10">
-                    {item.fullDate}
-                  </span>
-                </span>
-                <div className="flex-1 h-px" style={{ background: 'linear-gradient(90deg, transparent, var(--color-border), transparent)' }} />
-              </div>
-            )
-          }
-          return (
-            <MessageCard
-              key={item.msg.id}
-              msg={item.msg}
-              panelIdx={panelIdx}
-              showGroupTag={showGroupTag}
-              onScrollToMsg={scrollToMsg}
-            />
-          )
-        })}
-
-        {store.unifiedLoading && view?.type === 'unified_streams' && (
+        {/* Unified streams loading gate: show ONLY spinner while syncing */}
+        {store.unifiedLoading && view?.type === 'unified_streams' ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-3 py-10">
             <div className="relative w-10 h-10">
               <div className="absolute inset-0 rounded-full border-2 border-border" />
@@ -369,14 +306,68 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
             </div>
             <p className="text-xs text-muted-foreground font-mono uppercase tracking-widest">Syncing streams</p>
           </div>
-        )}
+        ) : (
+          <>
+            {/* Pinned zone */}
+            {pinned.length > 0 && (
+              <div className="mb-2">
+                <div
+                  className="text-[9px] uppercase tracking-widest text-[var(--d360-yellow)] mb-1 px-1"
+                  style={{ fontFamily: 'var(--font-jetbrains)' }}
+                >
+                  {'\u{1F4CC}'} Pinned
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  {pinned.map(m => (
+                    <MessageCard key={m.id} msg={m} panelIdx={panelIdx} showGroupTag={showGroupTag} onScrollToMsg={scrollToMsg} />
+                  ))}
+                </div>
+              </div>
+            )}
 
-        {messages.length === 0 && !store.unifiedLoading && (
-          <div className="flex-1 flex items-center justify-center">
-            <p className="text-xs text-muted-foreground" style={{ fontFamily: 'var(--font-jetbrains)' }}>
-              {view?.type === 'unified_streams' ? 'Toggle streams to see messages' : view ? 'Loading messages...' : 'Select a chat'}
-            </p>
-          </div>
+            {/* Messages with day dividers */}
+            {msgsWithDividers.map((item, i) => {
+              if (item.type === 'divider') {
+                return (
+                  <div
+                    key={`div-${item.ts}`}
+                    data-day-label={item.label}
+                    className="flex items-center gap-3 py-2 group"
+                  >
+                    <div className="flex-1 h-px" style={{ background: 'linear-gradient(90deg, transparent, var(--color-border), transparent)' }} />
+                    <span
+                      className="text-[10px] uppercase tracking-widest text-muted-foreground cursor-help relative"
+                      style={{ fontFamily: 'var(--font-jetbrains)' }}
+                      title={item.fullDate}
+                    >
+                      {item.label}
+                      <span className="glass hidden group-hover:block absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap text-[9px] px-2 py-1 rounded z-10">
+                        {item.fullDate}
+                      </span>
+                    </span>
+                    <div className="flex-1 h-px" style={{ background: 'linear-gradient(90deg, transparent, var(--color-border), transparent)' }} />
+                  </div>
+                )
+              }
+              return (
+                <MessageCard
+                  key={item.msg.id}
+                  msg={item.msg}
+                  panelIdx={panelIdx}
+                  showGroupTag={showGroupTag}
+                  onScrollToMsg={scrollToMsg}
+                />
+              )
+            })}
+
+            {messages.length === 0 && (
+              <div className="flex-1 flex items-center justify-center">
+                <p className="text-xs text-muted-foreground" style={{ fontFamily: 'var(--font-jetbrains)' }}>
+                  {view?.type === 'unified_streams' ? 'Toggle streams to see messages' : view ? 'Loading messages...' : 'Select a chat'}
+                </p>
+              </div>
+            )}
+          </>
         )}
       </div>
 

@@ -458,6 +458,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const view = panelIdx === 0 ? currentView : panels[panelIdx]
     if (!view) return
     const { type, id } = view
+    // unified_streams is handled exclusively by loadUnifiedStreams - never load here
+    if (type === 'unified_streams') return
     let msgs: GroupMeMessage[] = []
     try {
       if (type === 'group' && id) {
@@ -498,34 +500,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         results.forEach(r => {
           if (r && 'messages' in r) msgs.push(...(r.messages || []))
         })
-      } else if (type === 'unified_streams') {
-        // Only aggregate streams that are toggled ON
-        const toggledIds = new Set<string>()
-        Object.entries(streams).forEach(([key, s]: [string, { ids: string[] }]) => {
-          if (streamToggles.has(key)) {
-            s.ids.forEach(gid => toggledIds.add(gid))
-          }
-        })
-        if (toggledIds.size > 0) {
-          const fetches = Array.from(toggledIds).map(gid =>
-            api.getGroupMessages(gid, 15).catch(() => null)
-          )
-          const results = await Promise.all(fetches)
-          const all: GroupMeMessage[] = []
-          results.forEach(r => {
-            if (r && 'messages' in r) all.push(...(r.messages || []))
-          })
-          // Deduplicate by message ID (groups can overlap across streams)
-          const seen = new Set<string>()
-          const deduped = all.filter(m => {
-            if (seen.has(m.id)) return false
-            seen.add(m.id)
-            return true
-          })
-          // Sort newest first and keep only the 60 most recent
-          deduped.sort((a, b) => b.created_at - a.created_at)
-          msgs = deduped.slice(0, 60)
-        }
       }
     } catch { /* ignore */ }
 
@@ -548,7 +522,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       next[panelIdx] = msgs
       return next
     })
-  }, [currentView, panels, groups, dmChats, approved, streams, streamToggles])
+  }, [currentView, panels, groups, dmChats, approved, streams])
 
   // Unified streams: single dedicated loader with version counter
   const unifiedVersion = useRef(0)
