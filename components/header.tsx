@@ -38,7 +38,7 @@ export function Header() {
       {/* Hamburger / sidebar toggle */}
       <button
         onClick={() => {
-          if (window.innerWidth <= 600) store.toggleSidebarMobile()
+          if (window.innerWidth < 640) store.toggleSidebarMobile()
           else store.toggleSidebar()
         }}
         className="p-1.5 rounded hover:bg-secondary/60 text-foreground text-sm"
@@ -63,60 +63,65 @@ export function Header() {
         </span>
       </div>
 
-      {/* Tray buttons */}
-      <div className="relative flex items-center gap-1">
-        <TrayButton label="Tools" open={toolsOpen} onClick={() => { setToolsOpen(!toolsOpen); setViewOpen(false); setActionsOpen(false) }} />
-        <TrayButton label="View" open={viewOpen} onClick={() => { setViewOpen(!viewOpen); setToolsOpen(false); setActionsOpen(false) }} />
-        <TrayButton label="Actions" open={actionsOpen} onClick={() => { setActionsOpen(!actionsOpen); setToolsOpen(false); setViewOpen(false) }} />
+      {/* Tray buttons - each in own relative container for proper dropdown alignment */}
+      <div className="flex items-center gap-1">
+        {/* Tools */}
+        <div className="relative">
+          <TrayButton label="Tools" open={toolsOpen} onClick={() => { setToolsOpen(!toolsOpen); setViewOpen(false); setActionsOpen(false) }} />
+          {toolsOpen && (
+            <div className="absolute top-full left-0 mt-1 rounded-lg p-2 min-w-[180px] flex flex-col gap-1 z-50 shadow-xl bg-card border border-border" role="menu">
+              <TrayItem label="Config" icon="\u2699" onClick={() => { store.setConfigOpen(true); setToolsOpen(false) }} />
+              <TrayItem label="Search" icon="\u{1F50D}" onClick={() => { store.setSearchOpen(true); setToolsOpen(false) }} />
+              <TrayItem label="Members" icon="\u{1F465}" onClick={() => { store.setMembersOpen(true); setToolsOpen(false) }} />
+              <TrayItem label="Contacts" icon="\u{1F4D2}" onClick={() => { store.setContactsOpen(true); setToolsOpen(false) }} />
+              <TrayItem label="Clipboard" icon="\u{1F4CB}" onClick={() => { store.setClipboardOpen(!store.clipboardOpen); setToolsOpen(false) }} />
+              <TrayItem label="Sticky Notes" icon="\u{1F4D2}" onClick={() => { store.setStickyOpen(!store.stickyOpen); setToolsOpen(false) }} />
+            </div>
+          )}
+        </div>
 
-        {/* Tools tray */}
-        {toolsOpen && (
-          <div className="absolute top-full left-0 mt-1 rounded-lg p-2 min-w-[180px] flex flex-col gap-1 z-50 shadow-xl bg-card border border-border">
-            <TrayItem label="Config" icon="\u2699" onClick={() => { store.setConfigOpen(true); setToolsOpen(false) }} />
-            <TrayItem label="Search" icon="\u{1F50D}" onClick={() => { store.setSearchOpen(true); setToolsOpen(false) }} />
-            <TrayItem label="Members" icon="\u{1F465}" onClick={() => { store.setMembersOpen(true); setToolsOpen(false) }} />
-            <TrayItem label="Contacts" icon="\u{1F4D2}" onClick={() => { store.setContactsOpen(true); setToolsOpen(false) }} />
-            <TrayItem label="Clipboard" icon="\u{1F4CB}" onClick={() => { store.setClipboardOpen(!store.clipboardOpen); setToolsOpen(false) }} />
-            <TrayItem label="Sticky Notes" icon="\u{1F4D2}" onClick={() => { store.setStickyOpen(!store.stickyOpen); setToolsOpen(false) }} />
-          </div>
-        )}
+        {/* View */}
+        <div className="relative">
+          <TrayButton label="View" open={viewOpen} onClick={() => { setViewOpen(!viewOpen); setToolsOpen(false); setActionsOpen(false) }} />
+          {viewOpen && (
+            <div className="absolute top-full left-0 mt-1 rounded-lg p-2 min-w-[200px] flex flex-col gap-1 z-50 shadow-xl bg-card border border-border" role="menu">
+              <TrayItem
+                label={`Theme: ${store.theme === 'dark' ? 'Dark' : 'Light'}`}
+                icon={store.theme === 'dark' ? '\u{1F319}' : '\u2600'}
+                onClick={() => store.toggleTheme()}
+              />
+              <TrayItem
+                label={`Compact: ${store.compact ? 'ON' : 'OFF'}`}
+                icon="\u{1F5DC}"
+                onClick={() => store.toggleCompact()}
+              />
+              <TrayItem
+                label={`Input: ${store.inputBottom ? 'Bottom' : 'Top'}`}
+                icon="\u2B06"
+                onClick={() => store.toggleInputBottom()}
+              />
+              <TrayItem
+                label={`Order: ${store.oldestFirst ? 'Oldest' : 'Newest'} First`}
+                icon="\u{1F503}"
+                onClick={() => store.toggleOldestFirst()}
+              />
+            </div>
+          )}
+        </div>
 
-        {/* View tray */}
-        {viewOpen && (
-          <div className="absolute top-full left-0 mt-1 rounded-lg p-2 min-w-[200px] flex flex-col gap-1 z-50 shadow-xl bg-card border border-border">
-            <TrayItem
-              label={`Theme: ${store.theme === 'dark' ? 'Dark' : 'Light'}`}
-              icon={store.theme === 'dark' ? '\u{1F319}' : '\u2600'}
-              onClick={() => store.toggleTheme()}
-            />
-            <TrayItem
-              label={`Compact: ${store.compact ? 'ON' : 'OFF'}`}
-              icon="\u{1F5DC}"
-              onClick={() => store.toggleCompact()}
-            />
-            <TrayItem
-              label={`Input: ${store.inputBottom ? 'Bottom' : 'Top'}`}
-              icon="\u2B06"
-              onClick={() => store.toggleInputBottom()}
-            />
-            <TrayItem
-              label={`Order: ${store.oldestFirst ? 'Oldest' : 'Newest'} First`}
-              icon="\u{1F503}"
-              onClick={() => store.toggleOldestFirst()}
-            />
-          </div>
-        )}
-
-        {/* Actions tray */}
-        {actionsOpen && (
-          <div className="absolute top-full left-0 mt-1 rounded-lg p-2 min-w-[200px] flex flex-col gap-1 z-50 shadow-xl bg-card border border-border">
-            <TrayItem label="Broadcast" icon="\u{1F4E2}" onClick={() => { store.setAdhocOpen(true); setActionsOpen(false) }} />
-            <TrayItem label="Shift Change" icon="\u{1F4CB}" onClick={() => { store.setShiftChangeOpen(true); setActionsOpen(false) }} />
-            <TrayItem label="Export Chat" icon="\u{1F4BE}" onClick={() => { exportChat(store); setActionsOpen(false) }} />
-            <TrayItem label="Shift Log" icon="\u{1F4C4}" onClick={() => { exportShiftLog(store); setActionsOpen(false) }} />
-            <TrayItem label="Logout" icon="\u{1F6AA}" onClick={() => store.logout()} />
-          </div>
-        )}
+        {/* Actions */}
+        <div className="relative">
+          <TrayButton label="Actions" open={actionsOpen} onClick={() => { setActionsOpen(!actionsOpen); setToolsOpen(false); setViewOpen(false) }} />
+          {actionsOpen && (
+            <div className="absolute top-full left-0 mt-1 rounded-lg p-2 min-w-[200px] flex flex-col gap-1 z-50 shadow-xl bg-card border border-border" role="menu">
+              <TrayItem label="Broadcast" icon="\u{1F4E2}" onClick={() => { store.setAdhocOpen(true); setActionsOpen(false) }} />
+              <TrayItem label="Shift Change" icon="\u{1F4CB}" onClick={() => { store.setShiftChangeOpen(true); setActionsOpen(false) }} />
+              <TrayItem label="Export Chat" icon="\u{1F4BE}" onClick={() => { exportChat(store); setActionsOpen(false) }} />
+              <TrayItem label="Shift Log" icon="\u{1F4C4}" onClick={() => { exportShiftLog(store); setActionsOpen(false) }} />
+              <TrayItem label="Logout" icon="\u{1F6AA}" onClick={() => store.logout()} />
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="flex-1" />
@@ -187,6 +192,8 @@ function TrayButton({ label, open, onClick }: { label: string; open: boolean; on
   return (
     <button
       onClick={onClick}
+      aria-haspopup="true"
+      aria-expanded={open}
       className={`px-2.5 py-1 rounded text-[11px] uppercase tracking-widest transition-colors ${
         open
           ? 'text-[var(--d360-orange)] bg-secondary/60'
@@ -203,10 +210,11 @@ function TrayItem({ label, icon, onClick }: { label: string; icon: string; onCli
   return (
     <button
       onClick={onClick}
+      role="menuitem"
       className="flex items-center gap-2 w-full px-3 py-1.5 rounded text-xs hover:bg-secondary/60 text-foreground transition-colors"
       style={{ fontFamily: 'var(--font-jetbrains)' }}
     >
-      <span>{icon}</span>
+      <span aria-hidden="true">{icon}</span>
       <span className="uppercase tracking-wider">{label}</span>
     </button>
   )
