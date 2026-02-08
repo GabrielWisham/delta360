@@ -6,9 +6,7 @@ import { api } from '@/lib/groupme-api'
 export function ForwardModal() {
   const store = useStore()
 
-  if (!store.forwardMsg) return null
-
-  const { name, text } = store.forwardMsg
+  const { name, text } = store.forwardMsg!
   const fwdText = `[FWD from ${name}]: ${text}`
 
   async function handleForward(type: 'group' | 'dm', id: string) {

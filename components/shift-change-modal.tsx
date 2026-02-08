@@ -13,8 +13,6 @@ export function ShiftChangeModal() {
   const [selectedDMs, setSelectedDMs] = useState<Set<string>>(new Set())
   const [sending, setSending] = useState(false)
 
-  if (!store.shiftChangeOpen) return null
-
   const message = `\u{1F4CB} SHIFT CHANGE\n${outgoing} is going off shift.\n${incoming} is now on dispatch \u2014 ${phone}.`
 
   function toggleGroup(id: string) {

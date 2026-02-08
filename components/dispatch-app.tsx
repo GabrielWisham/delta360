@@ -89,12 +89,12 @@ export function DispatchApp() {
 
       {/* Floating & Modal overlays */}
       <FloatingClipboard />
-      <MembersPanel />
-      <ContactsPanel />
-      <ForwardModal />
-      <BroadcastModal />
-      <ShiftChangeModal />
-      <Lightbox />
+      {store.membersOpen && <MembersPanel />}
+      {store.contactsOpen && <ContactsPanel />}
+      {store.forwardMsg && <ForwardModal />}
+      {store.adhocOpen && <BroadcastModal />}
+      {store.shiftChangeOpen && <ShiftChangeModal />}
+      {store.lightboxUrl && <Lightbox />}
       <ToastZone />
     </div>
   )

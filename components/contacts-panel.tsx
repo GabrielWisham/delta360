@@ -32,8 +32,6 @@ export function ContactsPanel() {
       .sort((a, b) => a.name.localeCompare(b.name))
   }, [store.groups, filter])
 
-  if (!store.contactsOpen) return null
-
   return (
     <div className="glass fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
       <div className="glass w-full max-w-lg max-h-[80vh] rounded-xl flex flex-col overflow-hidden shadow-2xl m-4">

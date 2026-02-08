@@ -10,8 +10,6 @@ export function BroadcastModal() {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [sending, setSending] = useState(false)
 
-  if (!store.adhocOpen) return null
-
   function toggleGroup(id: string) {
     setSelected(prev => {
       const next = new Set(prev)
