@@ -297,6 +297,14 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
         onScroll={handleScroll}
         className="flex-1 overflow-y-auto px-3 py-2 flex flex-col gap-2 min-h-0"
       >
+        {/* DEBUG overlay */}
+        {view?.type === 'unified_streams' && (
+          <div className="bg-yellow-500/20 text-yellow-300 text-[10px] font-mono px-2 py-1 rounded mb-1">
+            loading={String(store.unifiedLoading)} | msgs={messages.length} | gate={String(store.unifiedLoading && view?.type === 'unified_streams')}
+            {messages.length > 0 && ` | first=${new Date(messages[0].created_at * 1000).toLocaleTimeString()} last=${new Date(messages[messages.length-1].created_at * 1000).toLocaleTimeString()}`}
+          </div>
+        )}
+
         {/* Unified streams loading gate: show ONLY spinner while syncing */}
         {store.unifiedLoading && view?.type === 'unified_streams' ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-3 py-10">
