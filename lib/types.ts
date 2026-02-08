@@ -104,8 +104,8 @@ export interface CustomStream {
 
 export type StreamsMap = Record<string, CustomStream>
 
-export type SoundName = 'radar' | 'chime' | 'click' | 'alert' | 'sonar' | 'drop'
-export const SOUND_NAMES: SoundName[] = ['radar', 'chime', 'click', 'alert', 'sonar', 'drop']
+export type SoundName = 'radar' | 'chime' | 'click' | 'alert' | 'sonar' | 'drop' | 'pulse' | 'beacon' | 'ripple' | 'trill' | 'blip' | 'siren'
+export const SOUND_NAMES: SoundName[] = ['radar', 'chime', 'click', 'alert', 'sonar', 'drop', 'pulse', 'beacon', 'ripple', 'trill', 'blip', 'siren']
 
 export type UserStatus = 'avl' | 'bsy' | 'awy'
 

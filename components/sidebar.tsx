@@ -401,6 +401,13 @@ export function Sidebar() {
                 <LayersIcon className="w-4 h-4 shrink-0" />
                 Unified Streams
               </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); store.toggleMuteGroup('__unified_streams__') }}
+                className={`p-1 shrink-0 transition-colors ${store.mutedGroups['__unified_streams__'] ? 'text-[var(--d360-red)]' : 'text-muted-foreground/40 hover:text-muted-foreground'}`}
+                title={store.mutedGroups['__unified_streams__'] ? 'Unmute unified streams' : 'Mute unified streams'}
+              >
+                <MuteIcon muted={!!store.mutedGroups['__unified_streams__']} className="w-4 h-4" />
+              </button>
             </div>
           )}
         </>
@@ -1062,10 +1069,10 @@ function ChatCard({ item, store, onClick, isPinned = false, isInactive = false, 
                       </button>
                       <button
                         onClick={() => playSound(s)}
-                        className="p-1.5 text-muted-foreground hover:text-[var(--d360-orange)] transition-colors rounded-full hover:bg-secondary/50"
+                        className="p-1 text-muted-foreground hover:text-[var(--d360-orange)] hover:scale-110 transition-all rounded-full hover:bg-secondary/50"
                         title="Preview"
                       >
-                        <PlayCircleIcon className="w-5 h-5" />
+                        <PlayCircleIcon className="w-7 h-7" />
                       </button>
                     </div>
                   ))}

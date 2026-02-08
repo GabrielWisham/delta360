@@ -477,15 +477,22 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           if (r && 'messages' in r) msgs.push(...(r.messages || []))
         })
       } else if (type === 'unified_streams') {
-        const allStreamIds = new Set<string>()
-        Object.values(streams).forEach((s: { ids: string[] }) => s.ids.forEach(gid => allStreamIds.add(gid)))
-        const fetches = Array.from(allStreamIds).map(gid =>
-          api.getGroupMessages(gid, 8).catch(() => null)
-        )
-        const results = await Promise.all(fetches)
-        results.forEach(r => {
-          if (r && 'messages' in r) msgs.push(...(r.messages || []))
+        // Only aggregate streams that are toggled ON
+        const toggledIds = new Set<string>()
+        Object.entries(streams).forEach(([key, s]: [string, { ids: string[] }]) => {
+          if (streamToggles.has(key)) {
+            s.ids.forEach(gid => toggledIds.add(gid))
+          }
         })
+        if (toggledIds.size > 0) {
+          const fetches = Array.from(toggledIds).map(gid =>
+            api.getGroupMessages(gid, 8).catch(() => null)
+          )
+          const results = await Promise.all(fetches)
+          results.forEach(r => {
+            if (r && 'messages' in r) msgs.push(...(r.messages || []))
+          })
+        }
       }
     } catch { /* ignore */ }
 
