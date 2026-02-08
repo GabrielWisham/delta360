@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import { DispatchApp } from '@/components/dispatch-app'
 
 export default function Home() {
-  redirect("/index.html");
+  return <DispatchApp />
 }
