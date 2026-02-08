@@ -299,9 +299,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   // Auto-refresh unified_streams when streamToggles changes
   const streamToggleCount = streamToggles.size
+  const loadMessagesRef = useRef(loadMessages)
+  loadMessagesRef.current = loadMessages
   useEffect(() => {
     if (currentView.type === 'unified_streams' && isLoggedIn) {
-      loadMessages(0)
+      loadMessagesRef.current(0)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [streamToggleCount, currentView.type, isLoggedIn])

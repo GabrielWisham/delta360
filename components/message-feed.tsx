@@ -20,20 +20,24 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   const view = panelIdx === 0 ? store.currentView : store.panels[panelIdx]
   const messages = store.panelMessages[panelIdx] || []
   const title = view ? store.getPanelTitle(view.type, view.id) : '--'
-  const showGroupTag = view?.type === 'all' || view?.type === 'dms' || view?.type === 'stream'
+  const showGroupTag = view?.type === 'all' || view?.type === 'dms' || view?.type === 'stream' || view?.type === 'unified_streams'
+
+  // Keep a ref to loadMessages so polling always calls the latest version
+  const loadMsgRef = useRef(store.loadMessages)
+  loadMsgRef.current = store.loadMessages
 
   // Load messages on view change
   useEffect(() => {
-    if (view) store.loadMessages(panelIdx)
+    if (view) loadMsgRef.current(panelIdx)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view?.type, view?.id, panelIdx])
 
-  // Polling
+  // Polling - uses ref so it always calls the latest loadMessages
   useEffect(() => {
     if (!view) return
     if (pollRef.current) clearInterval(pollRef.current)
     pollRef.current = setInterval(() => {
-      store.loadMessages(panelIdx)
+      loadMsgRef.current(panelIdx)
     }, 4000)
     return () => { if (pollRef.current) clearInterval(pollRef.current) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
