@@ -6,6 +6,7 @@ let ctx: AudioContext | null = null
 
 function getCtx(): AudioContext {
   if (!ctx) ctx = new AudioContext()
+  if (ctx.state === 'suspended') ctx.resume()
   return ctx
 }
 
@@ -219,5 +220,6 @@ export function playSound(name: SoundName) {
 }
 
 export function resumeAudio() {
-  if (ctx?.state === 'suspended') ctx.resume()
+  if (!ctx) ctx = new AudioContext()
+  if (ctx.state === 'suspended') ctx.resume()
 }
