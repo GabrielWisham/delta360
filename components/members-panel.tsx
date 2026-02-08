@@ -6,9 +6,6 @@ import { useStore } from '@/lib/store'
 export function MembersPanel() {
   const store = useStore()
   const [filter, setFilter] = useState('')
-
-  if (!store.membersOpen) return null
-
   const view = store.currentView
 
   const members = useMemo(() => {
@@ -82,6 +79,8 @@ export function MembersPanel() {
       .filter(m => !filter || m.name.toLowerCase().includes(filter.toLowerCase()))
       .sort((a, b) => a.name.localeCompare(b.name))
   }, [view, store.groups, store.dmChats, store.streams, filter])
+
+  if (!store.membersOpen) return null
 
   return (
     <div className="glass fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
