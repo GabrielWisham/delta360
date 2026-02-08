@@ -486,12 +486,23 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         })
         if (toggledIds.size > 0) {
           const fetches = Array.from(toggledIds).map(gid =>
-            api.getGroupMessages(gid, 8).catch(() => null)
+            api.getGroupMessages(gid, 15).catch(() => null)
           )
           const results = await Promise.all(fetches)
+          const all: GroupMeMessage[] = []
           results.forEach(r => {
-            if (r && 'messages' in r) msgs.push(...(r.messages || []))
+            if (r && 'messages' in r) all.push(...(r.messages || []))
           })
+          // Deduplicate by message ID (groups can overlap across streams)
+          const seen = new Set<string>()
+          const deduped = all.filter(m => {
+            if (seen.has(m.id)) return false
+            seen.add(m.id)
+            return true
+          })
+          // Sort newest first and keep only the 60 most recent
+          deduped.sort((a, b) => b.created_at - a.created_at)
+          msgs = deduped.slice(0, 60)
         }
       }
     } catch { /* ignore */ }
