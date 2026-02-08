@@ -1,4 +1,4 @@
-// Delta 360 - GroupMe API Client
+// Delta 360 - GroupMe API Client (proxied through /api/groupme to avoid CORS + rate limits)
 
 import type {
   GroupMeUser,
@@ -7,11 +7,16 @@ import type {
   GroupMeMessage,
 } from './types'
 
-const BASE = 'https://api.groupme.com/v3'
-const IMAGE_BASE = 'https://image.groupme.com/pictures'
+// All requests go through our server-side proxy
+const PROXY_BASE = '/api/groupme'
 
 class GroupMeAPI {
   private token = ''
+
+  // Client-side request queue to limit concurrency
+  private queue: (() => void)[] = []
+  private active = 0
+  private maxConcurrent = 3 // max simultaneous requests
 
   setToken(token: string) {
     this.token = token
@@ -21,18 +26,37 @@ class GroupMeAPI {
     return this.token
   }
 
+  private async enqueue<T>(fn: () => Promise<T>): Promise<T> {
+    // Wait for a slot
+    if (this.active >= this.maxConcurrent) {
+      await new Promise<void>(resolve => this.queue.push(resolve))
+    }
+    this.active++
+    try {
+      return await fn()
+    } finally {
+      this.active--
+      const next = this.queue.shift()
+      if (next) next()
+    }
+  }
+
   private async request<T>(
     endpoint: string,
     opts: RequestInit = {}
   ): Promise<T> {
     if (!this.token) throw new Error('No token set')
-    const sep = endpoint.includes('?') ? '&' : '?'
-    const url = `${BASE}${endpoint}${sep}token=${this.token}`
-    const res = await fetch(url, opts)
-    if (res.status === 401) throw new Error('Unauthorized')
-    if (!res.ok) throw new Error(`API error ${res.status}`)
-    const data = await res.json()
-    return data.response as T
+    return this.enqueue(async () => {
+      // Strip leading slash, proxy expects path segments
+      const path = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint
+      const sep = path.includes('?') ? '&' : '?'
+      const url = `${PROXY_BASE}/${path}${sep}token=${this.token}`
+      const res = await fetch(url, opts)
+      if (res.status === 401) throw new Error('Unauthorized')
+      if (!res.ok) throw new Error(`API error ${res.status}`)
+      const data = await res.json()
+      return data.response as T
+    })
   }
 
   async getMe(): Promise<GroupMeUser> {
@@ -108,11 +132,13 @@ class GroupMeAPI {
 
   async deleteMessage(groupId: string, messageId: string) {
     if (!this.token) throw new Error('No token set')
-    const res = await fetch(
-      `${BASE}/conversations/${groupId}/messages/${messageId}?token=${this.token}`,
-      { method: 'DELETE' }
-    )
-    if (!res.ok) throw new Error(`Delete failed ${res.status}`)
+    return this.enqueue(async () => {
+      const res = await fetch(
+        `${PROXY_BASE}/conversations/${groupId}/messages/${messageId}?token=${this.token}`,
+        { method: 'DELETE' }
+      )
+      if (!res.ok) throw new Error(`Delete failed ${res.status}`)
+    })
   }
 
   async addMemberToGroup(groupId: string, userId: string, nickname: string) {
@@ -131,17 +157,18 @@ class GroupMeAPI {
   }
 
   async uploadImage(file: File): Promise<string> {
-    const res = await fetch(IMAGE_BASE, {
-      method: 'POST',
-      headers: {
-        'X-Access-Token': this.token,
-        'Content-Type': file.type,
-      },
-      body: file,
+    return this.enqueue(async () => {
+      const res = await fetch(`${PROXY_BASE}/pictures?token=${this.token}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': file.type,
+        },
+        body: file,
+      })
+      if (!res.ok) throw new Error('Upload failed')
+      const data = await res.json()
+      return data.payload?.url || data.payload?.picture_url || ''
     })
-    if (!res.ok) throw new Error('Upload failed')
-    const data = await res.json()
-    return data.payload?.url || data.payload?.picture_url || ''
   }
 }
 
