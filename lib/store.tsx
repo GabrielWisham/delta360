@@ -598,6 +598,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       // Store in ascending order (message-feed handles display order)
       final.sort((a, b) => a.created_at - b.created_at)
       if (version === unifiedVersion.current) {
+        console.log('[v0] loadUnifiedStreams setting msgs:', {
+          version,
+          count: final.length,
+          firstTs: final[0]?.created_at,
+          lastTs: final[final.length-1]?.created_at,
+          ascending: final[0]?.created_at < final[final.length-1]?.created_at
+        })
         setPanelMessages(prev => { const n = [...prev]; n[0] = final; return n })
         setUnifiedLoading(false)
       }

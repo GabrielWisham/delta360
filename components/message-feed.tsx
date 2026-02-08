@@ -79,8 +79,20 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   // Order messages
   const ordered = useMemo(() => {
     const sorted = [...messages].sort((a, b) => a.created_at - b.created_at)
-    return store.oldestFirst ? sorted : sorted.reverse()
-  }, [messages, store.oldestFirst])
+    const result = store.oldestFirst ? sorted : [...sorted].reverse()
+    if (view?.type === 'unified_streams' && result.length > 0) {
+      console.log('[v0] unified ordered:', {
+        oldestFirst: store.oldestFirst,
+        count: result.length,
+        firstText: result[0]?.text?.slice(0, 30),
+        firstTs: result[0]?.created_at,
+        lastText: result[result.length-1]?.text?.slice(0, 30),
+        lastTs: result[result.length-1]?.created_at,
+        topIsNewest: result[0]?.created_at > result[result.length-1]?.created_at
+      })
+    }
+    return result
+  }, [messages, store.oldestFirst, view?.type])
 
   // Pinned messages zone
   const pinned = useMemo(() => {
