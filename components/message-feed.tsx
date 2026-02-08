@@ -70,8 +70,17 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   // Order messages
   const ordered = useMemo(() => {
     const sorted = [...messages].sort((a, b) => a.created_at - b.created_at)
-    return store.oldestFirst ? sorted : [...sorted].reverse()
-  }, [messages, store.oldestFirst])
+    const result = store.oldestFirst ? sorted : [...sorted].reverse()
+    if (view?.type === 'unified_streams' && result.length > 0) {
+      console.log('[v0] FEED ordered: count=' + result.length +
+        ' topIsNewest=' + (result[0].created_at >= result[result.length-1].created_at) +
+        ' top=' + new Date(result[0].created_at * 1000).toLocaleTimeString() +
+        ' bot=' + new Date(result[result.length-1].created_at * 1000).toLocaleTimeString() +
+        ' oldestFirst=' + store.oldestFirst +
+        ' loading=' + store.unifiedLoading)
+    }
+    return result
+  }, [messages, store.oldestFirst, view?.type, store.unifiedLoading])
 
   // Pinned messages zone
   const pinned = useMemo(() => {

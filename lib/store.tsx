@@ -581,11 +581,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   // Buffered load: shows spinner, hides all messages until fully ready
   const loadUnifiedStreams = useCallback(async () => {
     const version = ++unifiedVersion.current
-    unifiedLoadingRef.current = true // sync ref immediately to prevent races
+    console.log('[v0] loadUnifiedStreams START v=' + version)
+    unifiedLoadingRef.current = true
     setUnifiedLoading(true)
     setPanelMessages(prev => { const n = [...prev]; n[0] = []; return n })
     const ready = await fetchUnifiedMessages(version)
-    if (ready === null || version !== unifiedVersion.current) return // stale
+    if (ready === null || version !== unifiedVersion.current) {
+      console.log('[v0] loadUnifiedStreams STALE v=' + version + ' cur=' + unifiedVersion.current)
+      return
+    }
+    console.log('[v0] loadUnifiedStreams COMMIT v=' + version + ' msgs=' + ready.length +
+      (ready.length > 0 ? ' first=' + new Date(ready[0].created_at * 1000).toLocaleTimeString() +
+        ' last=' + new Date(ready[ready.length-1].created_at * 1000).toLocaleTimeString() : ''))
     setPanelMessages(prev => { const n = [...prev]; n[0] = ready; return n })
     unifiedLoadingRef.current = false
     setUnifiedLoading(false)
@@ -594,8 +601,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   // Silent refresh: no spinner, atomically swaps messages in place
   const refreshUnifiedStreams = useCallback(async () => {
     const version = ++unifiedVersion.current
+    console.log('[v0] refreshUnified START v=' + version)
     const ready = await fetchUnifiedMessages(version)
-    if (ready === null || version !== unifiedVersion.current) return // stale
+    if (ready === null || version !== unifiedVersion.current) {
+      console.log('[v0] refreshUnified STALE v=' + version)
+      return
+    }
+    console.log('[v0] refreshUnified COMMIT v=' + version + ' msgs=' + ready.length)
     setPanelMessages(prev => { const n = [...prev]; n[0] = ready; return n })
   }, [fetchUnifiedMessages])
 
