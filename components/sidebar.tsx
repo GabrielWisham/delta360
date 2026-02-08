@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react'
 import { useStore } from '@/lib/store'
-import { formatTimeAgo, getHeat, getLastMsgTs } from '@/lib/date-helpers'
+import { formatTimeAgo, getLastMsgTs } from '@/lib/date-helpers'
 import { playSound } from '@/lib/sounds'
 import type { SoundName } from '@/lib/types'
 
@@ -18,7 +18,6 @@ export function Sidebar() {
       id: g.id,
       name: g.name,
       ts: getLastMsgTs(g),
-      heat: getHeat(getLastMsgTs(g), now),
       imageUrl: g.image_url,
     }))
     const dmItems = store.dmChats
@@ -28,39 +27,51 @@ export function Sidebar() {
         id: d.other_user?.id || '',
         name: d.other_user?.name || 'DM',
         ts: d.updated_at,
-        heat: getHeat(d.updated_at, now),
         imageUrl: d.other_user?.avatar_url,
       }))
     return [...items, ...dmItems]
-  }, [store.groups, store.dmChats, store.approved, now])
+  }, [store.groups, store.dmChats, store.approved])
 
+  // Pinned items (shown separately, excluded from active/inactive)
+  const pinnedIds = useMemo(() => new Set(Object.keys(store.pinnedChats).filter(k => store.pinnedChats[k])), [store.pinnedChats])
+
+  const pinnedItems = useMemo(() => {
+    return sortedGroups.filter(i => pinnedIds.has(i.id)).sort((a, b) => b.ts - a.ts)
+  }, [sortedGroups, pinnedIds])
+
+  // Active: recent within 6h, NOT pinned, sorted by most recent first
   const active = useMemo(() => {
-    const list = sortedGroups.filter(i => (now - i.ts) < SIX_HOURS)
-    return store.sortMode === 'heat'
-      ? list.sort((a, b) => b.heat - a.heat)
-      : list.sort((a, b) => b.ts - a.ts)
-  }, [sortedGroups, store.sortMode, now])
+    return sortedGroups
+      .filter(i => (now - i.ts) < SIX_HOURS && !pinnedIds.has(i.id))
+      .sort((a, b) => b.ts - a.ts)
+  }, [sortedGroups, now, pinnedIds])
 
+  // Inactive: older than 6h, NOT pinned, sorted by most recent first
   const inactive = useMemo(() => {
-    return sortedGroups.filter(i => (now - i.ts) >= SIX_HOURS).sort((a, b) => b.ts - a.ts)
-  }, [sortedGroups, now])
+    return sortedGroups
+      .filter(i => (now - i.ts) >= SIX_HOURS && !pinnedIds.has(i.id))
+      .sort((a, b) => b.ts - a.ts)
+  }, [sortedGroups, now, pinnedIds])
 
-  // Only show DMs where user has NOT interacted (no lastSeen and not explicitly approved/blocked)
+  // Pending DMs: Only DMs that are EXPLICITLY not yet approved/blocked
+  // AND that the user has never interacted with (no lastSeen entry)
+  // AND that are NOT already in the main DM list with existing conversation
+  // Since all DMs in GroupMe's list already have conversations, we auto-approve them
   const pendingDMs = useMemo(() => {
     return store.dmChats.filter(d => {
       const uid = d.other_user?.id
       if (!uid) return false
-      // If they've been explicitly approved or blocked, not pending
+      // If explicitly approved or blocked, not pending
       if (store.approved[uid] !== undefined) return false
-      // If we've already seen / interacted with this DM, not pending
+      // If we've ever seen this DM (navigated to it), not pending
       if (store.lastSeen[uid]) return false
+      // If the DM has any message from US (user), it's not pending - we already talked
+      if (d.last_message && store.user && d.last_message.sender_id === store.user.id) return false
+      // If the chat was updated more than 24h ago, auto-approve (old conversation)
+      if (d.updated_at && (now - d.updated_at) > 86400) return false
       return true
     })
-  }, [store.dmChats, store.approved, store.lastSeen])
-
-  const pinnedItems = useMemo(() => {
-    return sortedGroups.filter(i => store.pinnedChats[i.id]).sort((a, b) => b.ts - a.ts)
-  }, [sortedGroups, store.pinnedChats])
+  }, [store.dmChats, store.approved, store.lastSeen, store.user, now])
 
   const unreadCount = active.filter(i => store.isUnread(i.id, i.ts)).length
 
@@ -167,20 +178,20 @@ export function Sidebar() {
               <button
                 onClick={() => store.setConfigOpen(true)}
                 className="text-[10px] uppercase tracking-widest text-muted-foreground hover:text-[var(--d360-orange)] mt-1 px-2"
-                style={{ fontFamily: 'var(--font-jetbrains)' }}
+                style={{ fontFamily: 'var(--font-mono)' }}
               >
                 + Add Stream
               </button>
             </div>
           )}
 
-          {/* PENDING DMs - only truly new/unknown DMs */}
+          {/* PENDING DMs - only truly new/unknown DMs the user has never interacted with */}
           {pendingDMs.length > 0 && (
             <div>
               <SectionLabel text={`Pending DMs (${pendingDMs.length})`} />
               {pendingDMs.map(d => (
-                <div key={d.other_user.id} className="flex items-center gap-2 px-2 py-1.5 rounded-md text-xs bg-secondary/30">
-                  <span className="text-foreground flex-1 truncate" style={{ fontFamily: 'var(--font-jetbrains)' }}>
+                <div key={d.other_user.id} className="flex items-center gap-2 px-2 py-1.5 rounded-md text-xs bg-secondary/50">
+                  <span className="text-foreground flex-1 truncate font-medium" style={{ fontFamily: 'var(--font-mono)' }}>
                     {d.other_user.name}
                   </span>
                   <span className="text-muted-foreground truncate max-w-[80px] text-[10px]">
@@ -205,51 +216,46 @@ export function Sidebar() {
             </div>
           )}
 
-          {/* PINNED CHATS */}
+          {/* PINNED CHATS - with unpin button */}
           {pinnedItems.length > 0 && (
             <div>
               <SectionLabel text="Pinned" />
-              {pinnedItems.map(item => (
-                <div
-                  key={item.id}
-                  className="flex items-center gap-2 px-2 py-1.5 rounded-md text-xs cursor-pointer hover:bg-secondary/40 border-l-2"
-                  style={{ borderLeftColor: 'var(--d360-yellow)' }}
-                  onClick={(e) => handleClick(item.type, item.id, e)}
-                >
-                  <span className="text-[10px]">{'\u{1F4CC}'}</span>
-                  <span className="text-foreground truncate flex-1" style={{ fontFamily: 'var(--font-jetbrains)' }}>
-                    {item.name}
-                  </span>
-                </div>
-              ))}
+              {pinnedItems.map(item => {
+                const isSelected = store.currentView.type === item.type && store.currentView.id === item.id
+                return (
+                  <div
+                    key={item.id}
+                    className={`flex items-center gap-2 px-2 py-2 rounded-md text-xs cursor-pointer transition-all group ${
+                      isSelected
+                        ? 'bg-[var(--d360-orange)]/15 border-l-[3px] text-foreground font-semibold'
+                        : 'hover:bg-secondary/60 border-l-[3px] border-l-transparent text-foreground/90'
+                    }`}
+                    style={isSelected ? { borderLeftColor: 'var(--d360-yellow)' } : {}}
+                    onClick={(e) => handleClick(item.type, item.id, e)}
+                  >
+                    <span className="text-[10px]">{'\u{1F4CC}'}</span>
+                    <span className="truncate flex-1 font-medium" style={{ fontFamily: 'var(--font-mono)' }}>
+                      {item.name}
+                    </span>
+                    <span className="text-[9px] text-muted-foreground shrink-0" style={{ fontFamily: 'var(--font-mono)' }}>
+                      {formatTimeAgo(item.ts)}
+                    </span>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); store.togglePinChat(item.id) }}
+                      className="text-[10px] p-0.5 text-[var(--d360-yellow)] hover:text-[var(--d360-red)] opacity-0 group-hover:opacity-100 transition-opacity"
+                      title="Unpin"
+                    >
+                      {'\u2715'}
+                    </button>
+                  </div>
+                )
+              })}
             </div>
           )}
 
-          {/* ACTIVE SECTION */}
+          {/* ACTIVE SECTION - recent order only, no heat */}
           <div>
-            <div className="flex items-center justify-between mb-1">
-              <SectionLabel text={`Active${unreadCount > 0 ? ` (${unreadCount})` : ''}`} />
-              <div className="flex gap-1">
-                <button
-                  onClick={() => store.setSortMode('recent')}
-                  className={`text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded transition-colors ${
-                    store.sortMode === 'recent' ? 'text-[var(--d360-orange)] bg-[var(--d360-orange-glow)]' : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                  style={{ fontFamily: 'var(--font-jetbrains)' }}
-                >
-                  Recent
-                </button>
-                <button
-                  onClick={() => store.setSortMode('heat')}
-                  className={`text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded transition-colors ${
-                    store.sortMode === 'heat' ? 'text-[var(--d360-orange)] bg-[var(--d360-orange-glow)]' : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                  style={{ fontFamily: 'var(--font-jetbrains)' }}
-                >
-                  Heat
-                </button>
-              </div>
-            </div>
+            <SectionLabel text={`Active${unreadCount > 0 ? ` (${unreadCount})` : ''}`} />
             {active.map(item => (
               <ChatItem
                 key={item.id}
@@ -260,13 +266,13 @@ export function Sidebar() {
               />
             ))}
             {active.length === 0 && (
-              <p className="text-[10px] text-muted-foreground px-2 py-2" style={{ fontFamily: 'var(--font-jetbrains)' }}>
+              <p className="text-[10px] text-muted-foreground px-2 py-2" style={{ fontFamily: 'var(--font-mono)' }}>
                 No active chats
               </p>
             )}
           </div>
 
-          {/* INACTIVE SECTION */}
+          {/* INACTIVE SECTION - readable but subdued */}
           {inactive.length > 0 && (
             <div>
               <button
@@ -275,13 +281,13 @@ export function Sidebar() {
               >
                 <span
                   className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground"
-                  style={{ fontFamily: 'var(--font-jetbrains)' }}
+                  style={{ fontFamily: 'var(--font-mono)' }}
                 >
                   {store.inactiveOpen ? '\u25BC' : '\u25B6'} Inactive ({inactive.length})
                 </span>
               </button>
               {store.inactiveOpen && (
-                <div className="opacity-50 mt-1">
+                <div className="mt-1 space-y-0.5">
                   {inactive.map(item => (
                     <ChatItem
                       key={item.id}
@@ -289,6 +295,7 @@ export function Sidebar() {
                       now={now}
                       store={store}
                       onClick={(e) => handleClick(item.type, item.id, e)}
+                      isInactive
                     />
                   ))}
                 </div>
@@ -304,8 +311,8 @@ export function Sidebar() {
 function SectionLabel({ text }: { text: string }) {
   return (
     <div
-      className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground mb-1.5 px-2"
-      style={{ fontFamily: 'var(--font-jetbrains)' }}
+      className="text-[9px] uppercase tracking-[0.2em] text-[var(--d360-orange)] font-semibold mb-1.5 px-2"
+      style={{ fontFamily: 'var(--font-mono)' }}
     >
       {text}
     </div>
@@ -321,16 +328,16 @@ function SidebarItem({
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-xs transition-all ${
+      className={`flex items-center gap-2 w-full px-2 py-2 rounded-md text-xs transition-all ${
         isActive
-          ? 'border-l-2 text-foreground'
-          : 'text-muted-foreground hover:text-foreground hover:bg-secondary/40'
+          ? 'border-l-[3px] text-foreground font-semibold'
+          : 'text-foreground/70 hover:text-foreground hover:bg-secondary/60 border-l-[3px] border-l-transparent'
       } ${className}`}
       style={isActive ? {
         borderLeftColor: accentColor,
-        background: `linear-gradient(90deg, ${accentColor}18, transparent)`,
-        fontFamily: 'var(--font-jetbrains)',
-      } : { fontFamily: 'var(--font-jetbrains)' }}
+        background: `linear-gradient(90deg, ${accentColor}22, transparent)`,
+        fontFamily: 'var(--font-mono)',
+      } : { fontFamily: 'var(--font-mono)' }}
     >
       <span>{icon}</span>
       <span className="truncate uppercase tracking-wider">{label}</span>
@@ -343,71 +350,66 @@ interface ChatItemData {
   id: string
   name: string
   ts: number
-  heat: number
-}
-
-function getHeatColor(heat: number): string {
-  if (heat >= 75) return 'var(--d360-orange)'
-  if (heat >= 40) return 'var(--d360-yellow)'
-  return 'var(--d360-green)'
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function ChatItem({ item, now, store, onClick }: { item: ChatItemData; now: number; store: any; onClick: (e: React.MouseEvent) => void }) {
-  const isActive = (store.currentView.type === item.type && store.currentView.id === item.id)
+function ChatItem({ item, now, store, onClick, isInactive = false }: { item: ChatItemData; now: number; store: any; onClick: (e: React.MouseEvent) => void; isInactive?: boolean }) {
+  const isSelected = (store.currentView.type === item.type && store.currentView.id === item.id)
   const isUnread = store.isUnread(item.id, item.ts)
   const isMuted = store.mutedGroups[item.id]
   const accentColor = item.type === 'dm' ? 'var(--d360-cyan)' : 'var(--d360-orange)'
-  const heatPct = Math.min(100, Math.max(0, item.heat))
-  void now // used in parent for recalculation
+  void now
 
   return (
     <div
       onClick={onClick}
-      className={`flex items-center gap-2 px-2 py-1.5 rounded-md text-xs cursor-pointer transition-all group ${
-        isActive ? 'border-l-2 text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-secondary/40'
+      className={`flex items-center gap-2 px-2 py-2 rounded-md text-xs cursor-pointer transition-all group ${
+        isSelected
+          ? 'border-l-[3px] font-semibold text-foreground'
+          : isInactive
+            ? 'text-foreground/50 hover:text-foreground/80 hover:bg-secondary/40 border-l-[3px] border-l-transparent'
+            : 'text-foreground/80 hover:text-foreground hover:bg-secondary/60 border-l-[3px] border-l-transparent'
       }`}
-      style={isActive ? {
+      style={isSelected ? {
         borderLeftColor: accentColor,
-        background: `linear-gradient(90deg, ${accentColor}18, transparent)`,
+        background: `linear-gradient(90deg, ${accentColor}22, transparent)`,
       } : {}}
     >
       {/* Unread dot */}
-      {isUnread && (
+      {isUnread && !isInactive && (
         <div
-          className="w-1.5 h-1.5 rounded-full shrink-0 animate-pulse-glow"
+          className="w-2 h-2 rounded-full shrink-0 animate-pulse-glow"
           style={{ background: accentColor, color: accentColor }}
         />
       )}
 
-      <span className="truncate flex-1 uppercase tracking-wider" style={{ fontFamily: 'var(--font-jetbrains)' }}>
+      <span
+        className={`truncate flex-1 ${isSelected ? 'font-semibold' : isInactive ? 'font-normal' : 'font-medium'}`}
+        style={{ fontFamily: 'var(--font-mono)', letterSpacing: '0.02em' }}
+      >
         {isMuted && <span className="opacity-40">{'\u{1F507}'} </span>}
         {item.name}
       </span>
 
-      {/* Heat bar - visible colored track */}
-      <div className="heat-bar-track w-10 shrink-0" title={`Heat: ${heatPct}%`}>
-        <div
-          className="heat-bar-fill"
-          style={{
-            width: `${heatPct}%`,
-            background: getHeatColor(heatPct),
-          }}
-        />
-      </div>
-
-      <span className="text-[9px] text-muted-foreground shrink-0 min-w-[24px] text-right" style={{ fontFamily: 'var(--font-jetbrains)' }}>
+      <span
+        className="text-[9px] shrink-0 min-w-[28px] text-right"
+        style={{
+          fontFamily: 'var(--font-mono)',
+          color: isInactive ? 'var(--color-muted-foreground)' : 'var(--d360-orange)',
+          opacity: isInactive ? 0.6 : 0.8,
+        }}
+      >
         {formatTimeAgo(item.ts)}
       </span>
 
       {/* Pin and mute buttons */}
-      <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
         <button
           onClick={(e) => { e.stopPropagation(); store.togglePinChat(item.id) }}
           className={`text-[10px] p-0.5 ${store.pinnedChats[item.id] ? 'text-[var(--d360-yellow)]' : 'text-muted-foreground hover:text-foreground'}`}
-          title="Pin chat"
+          title={store.pinnedChats[item.id] ? 'Unpin' : 'Pin'}
         >
-          {'\u2606'}
+          {store.pinnedChats[item.id] ? '\u{1F4CC}' : '\u2606'}
         </button>
         {item.type === 'group' && (
           <button
