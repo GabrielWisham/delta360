@@ -8,8 +8,6 @@ export function ContactsPanel() {
   const [filter, setFilter] = useState('')
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
-  if (!store.contactsOpen) return null
-
   const contacts = useMemo(() => {
     const map = new Map<string, { userId: string; name: string; imageUrl: string | null; groups: string[] }>()
 
@@ -33,6 +31,8 @@ export function ContactsPanel() {
       .filter(c => !filter || c.name.toLowerCase().includes(filter.toLowerCase()))
       .sort((a, b) => a.name.localeCompare(b.name))
   }, [store.groups, filter])
+
+  if (!store.contactsOpen) return null
 
   return (
     <div className="glass fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
