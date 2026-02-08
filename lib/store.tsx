@@ -104,6 +104,8 @@ interface StoreState {
   editingStream: { name: string; ids: string[]; sound: SoundName } | null
   // Per-chat alert sounds
   chatSounds: Record<string, SoundName>
+  // Unified streams loading
+  unifiedLoading: boolean
 }
 
 interface StoreActions {
@@ -242,6 +244,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [pendingImage, setPendingImage] = useState<string | null>(null)
   const [searchIndex, setSearchIndex] = useState<GroupMeMessage[]>([])
   const [chatSounds, setChatSounds] = useState<Record<string, SoundName>>({})
+  const [unifiedLoading, setUnifiedLoading] = useState(false)
   const [editingStream, setEditingStream] = useState<StoreState['editingStream']>(null)
   const [chatRenames, setChatRenames] = useState<Record<string, string>>({})
   const [streamRenames, setStreamRenames] = useState<Record<string, string>>({})
@@ -534,7 +537,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   loadMessagesRef.current = loadMessages
   useEffect(() => {
     if (currentView.type === 'unified_streams' && isLoggedIn) {
-      loadMessagesRef.current(0)
+      let cancelled = false
+      setUnifiedLoading(true)
+      const doLoad = async () => {
+        await loadMessagesRef.current(0)
+        if (!cancelled) setUnifiedLoading(false)
+      }
+      doLoad()
+      return () => { cancelled = true }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [streamToggleCount, currentView.type, isLoggedIn])
@@ -879,6 +889,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     sectionOrder,
     editingStream,
     chatSounds,
+    unifiedLoading,
     toasts,
     // Actions
     login,

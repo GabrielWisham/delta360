@@ -33,10 +33,14 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   }, [view?.type, view?.id, panelIdx])
 
   // Polling - uses ref so it always calls the latest loadMessages
+  // Skip polling ticks while unified streams is loading to prevent race conditions
+  const unifiedLoadingRef = useRef(store.unifiedLoading)
+  unifiedLoadingRef.current = store.unifiedLoading
   useEffect(() => {
     if (!view) return
     if (pollRef.current) clearInterval(pollRef.current)
     pollRef.current = setInterval(() => {
+      if (unifiedLoadingRef.current) return
       loadMsgRef.current(panelIdx)
     }, 4000)
     return () => { if (pollRef.current) clearInterval(pollRef.current) }
@@ -331,10 +335,20 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
           )
         })}
 
-        {messages.length === 0 && (
+        {store.unifiedLoading && view?.type === 'unified_streams' && (
+          <div className="flex-1 flex flex-col items-center justify-center gap-3 py-10">
+            <div className="relative w-10 h-10">
+              <div className="absolute inset-0 rounded-full border-2 border-border" />
+              <div className="absolute inset-0 rounded-full border-2 border-t-[var(--d360-orange)] animate-spin" />
+            </div>
+            <p className="text-xs text-muted-foreground font-mono uppercase tracking-widest">Syncing streams</p>
+          </div>
+        )}
+
+        {messages.length === 0 && !store.unifiedLoading && (
           <div className="flex-1 flex items-center justify-center">
             <p className="text-xs text-muted-foreground" style={{ fontFamily: 'var(--font-jetbrains)' }}>
-              {view ? 'Loading messages...' : 'Select a chat'}
+              {view?.type === 'unified_streams' ? 'Toggle streams to see messages' : view ? 'Loading messages...' : 'Select a chat'}
             </p>
           </div>
         )}
