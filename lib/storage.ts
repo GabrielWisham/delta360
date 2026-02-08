@@ -145,4 +145,8 @@ export const storage = {
   // Inactive section open
   getInactiveOpen: () => getString('gm_v3_inactive_open') === 'true',
   setInactiveOpen: (v: boolean) => setString('gm_v3_inactive_open', v ? 'true' : 'false'),
+
+  // Local chat renames
+  getChatRenames: () => get<Record<string, string>>('gm_v3_renames', {}),
+  setChatRenames: (v: Record<string, string>) => set('gm_v3_renames', v),
 }

@@ -94,6 +94,8 @@ interface StoreState {
   pendingImage: string | null
   // Search
   searchIndex: GroupMeMessage[]
+  // Chat renames
+  chatRenames: Record<string, string>
 }
 
 interface StoreActions {
@@ -151,6 +153,9 @@ interface StoreActions {
   showToast: (title: string, body: string, isPriority?: boolean) => void
   loadMessages: (panelIdx: number) => Promise<void>
   getPanelTitle: (type: ViewState['type'], id: string | null) => string
+  renameChat: (id: string, name: string) => void
+  clearChatRename: (id: string) => void
+  getChatDisplayName: (id: string, originalName: string) => string
 }
 
 interface ToastItem {
@@ -220,6 +225,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [shiftChangeOpen, setShiftChangeOpen] = useState(false)
   const [pendingImage, setPendingImage] = useState<string | null>(null)
   const [searchIndex, setSearchIndex] = useState<GroupMeMessage[]>([])
+  const [chatRenames, setChatRenames] = useState<Record<string, string>>({})
   const [toasts, setToasts] = useState<ToastItem[]>([])
   const toastIdRef = useRef(0)
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -252,6 +258,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setSortModeState(storage.getSortMode())
     setInactiveOpenState(storage.getInactiveOpen())
     setSidebarCollapsed(storage.getSidebarCollapsed())
+    setChatRenames(storage.getChatRenames())
 
     // Auto-login
     const token = storage.getToken()
@@ -578,6 +585,27 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     })
   }, [])
 
+  const renameChat = useCallback((id: string, name: string) => {
+    setChatRenames(prev => {
+      const next = { ...prev, [id]: name }
+      storage.setChatRenames(next)
+      return next
+    })
+  }, [])
+
+  const clearChatRename = useCallback((id: string) => {
+    setChatRenames(prev => {
+      const next = { ...prev }
+      delete next[id]
+      storage.setChatRenames(next)
+      return next
+    })
+  }, [])
+
+  const getChatDisplayName = useCallback((id: string, originalName: string) => {
+    return chatRenames[id] || originalName
+  }, [chatRenames])
+
   const saveStream = useCallback((name: string, ids: string[], sound: SoundName) => {
     setStreams(prev => {
       const next = { ...prev, [name]: { ids, sound } }
@@ -711,6 +739,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     shiftChangeOpen,
     pendingImage,
     searchIndex,
+    chatRenames,
     toasts,
     // Actions
     login,
@@ -795,6 +824,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     toggleMuteGroup,
     setTemplates: (t: string[]) => { setTemplatesState(t); storage.setTemplates(t) },
     setAlertWords: (w: string[]) => { setAlertWordsState(w); storage.setAlertWords(w) },
+    renameChat,
+    clearChatRename,
+    getChatDisplayName,
     saveStream,
     deleteStream,
     toggleStreamMonitor,
