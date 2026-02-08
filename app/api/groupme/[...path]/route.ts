@@ -70,6 +70,7 @@ export async function GET(
 
     if (!res.ok) {
       const text = await res.text().catch(() => '')
+      console.log('[v0] GET proxy error:', res.status, fullPath, text.slice(0, 200))
       return NextResponse.json(
         { error: `GroupMe API error ${res.status}`, detail: text },
         { status: res.status }
@@ -79,6 +80,7 @@ export async function GET(
     const data = await res.json()
     return NextResponse.json(data)
   } catch (e) {
+    console.log('[v0] GET proxy exception:', fullPath, String(e))
     return NextResponse.json(
       { error: 'Proxy error', detail: String(e) },
       { status: 502 }
@@ -96,10 +98,10 @@ export async function POST(
 
   const fullPath = path.join('/')
   const contentType = request.headers.get('content-type')
-  const body = await request.text()
 
-  // Special handling for image uploads
+  // Special handling for image uploads (must read body as arrayBuffer before text)
   if (fullPath === 'pictures') {
+    const imageBody = await request.arrayBuffer()
     await throttle(token)
     const res = await fetch(IMAGE_BASE, {
       method: 'POST',
@@ -107,7 +109,7 @@ export async function POST(
         'X-Access-Token': token,
         'Content-Type': contentType || 'application/octet-stream',
       },
-      body: await request.arrayBuffer(),
+      body: imageBody,
     })
     if (!res.ok) {
       return NextResponse.json({ error: 'Upload failed' }, { status: res.status })
@@ -116,11 +118,14 @@ export async function POST(
     return NextResponse.json(data)
   }
 
+  const body = await request.text()
+
   try {
     const res = await proxyRequest(fullPath, token, 'POST', body, contentType)
 
     if (!res.ok) {
       const text = await res.text().catch(() => '')
+      console.log('[v0] POST proxy error:', res.status, fullPath, text.slice(0, 200))
       return NextResponse.json(
         { error: `GroupMe API error ${res.status}`, detail: text },
         { status: res.status }
@@ -130,6 +135,7 @@ export async function POST(
     const data = await res.json()
     return NextResponse.json(data)
   } catch (e) {
+    console.log('[v0] POST proxy exception:', fullPath, String(e))
     return NextResponse.json(
       { error: 'Proxy error', detail: String(e) },
       { status: 502 }
