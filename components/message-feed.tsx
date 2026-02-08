@@ -22,9 +22,11 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   const title = view ? store.getPanelTitle(view.type, view.id) : '--'
   const showGroupTag = view?.type === 'all' || view?.type === 'dms' || view?.type === 'stream' || view?.type === 'unified_streams'
 
-  // Keep a ref to loadMessages so polling always calls the latest version
+  // Keep refs to load functions so polling always calls the latest version
   const loadMsgRef = useRef(store.loadMessages)
   loadMsgRef.current = store.loadMessages
+  const loadUnifiedRef = useRef(store.loadUnifiedStreams)
+  loadUnifiedRef.current = store.loadUnifiedStreams
 
   // Load messages on view change (skip unified_streams - store's buffered effect handles it)
   useEffect(() => {
@@ -32,16 +34,19 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view?.type, view?.id, panelIdx])
 
-  // Polling - uses ref so it always calls the latest loadMessages
-  // Skip polling ticks while unified streams is loading to prevent race conditions
+  // Polling
   const unifiedLoadingRef = useRef(store.unifiedLoading)
   unifiedLoadingRef.current = store.unifiedLoading
   useEffect(() => {
     if (!view) return
     if (pollRef.current) clearInterval(pollRef.current)
     pollRef.current = setInterval(() => {
-      if (view.type === 'unified_streams' && unifiedLoadingRef.current) return
-      loadMsgRef.current(panelIdx)
+      if (view.type === 'unified_streams') {
+        // For unified_streams: skip if loading, otherwise use dedicated loader
+        if (!unifiedLoadingRef.current) loadUnifiedRef.current()
+      } else {
+        loadMsgRef.current(panelIdx)
+      }
     }, 4000)
     return () => { if (pollRef.current) clearInterval(pollRef.current) }
     // eslint-disable-next-line react-hooks/exhaustive-deps

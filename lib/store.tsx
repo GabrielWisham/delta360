@@ -162,6 +162,7 @@ interface StoreActions {
   setPendingImage: (url: string | null) => void
   showToast: (title: string, body: string, isPriority?: boolean) => void
   loadMessages: (panelIdx: number) => Promise<void>
+  loadUnifiedStreams: () => Promise<void>
   getPanelTitle: (type: ViewState['type'], id: string | null) => string
   renameChat: (id: string, name: string) => void
   clearChatRename: (id: string) => void
@@ -549,33 +550,79 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     })
   }, [currentView, panels, groups, dmChats, approved, streams, streamToggles])
 
-  // Auto-refresh unified_streams when streamToggles changes (buffered)
-  const streamToggleCount = streamToggles.size
-  const loadMessagesRef = useRef(loadMessages)
-  loadMessagesRef.current = loadMessages
+  // Unified streams: single dedicated loader with version counter
+  const unifiedVersion = useRef(0)
   const unifiedDebounce = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const unifiedAbort = useRef(0)
+  // Snapshot current streams+toggles into refs so the async fetch always reads latest
+  const streamsRef = useRef(streams)
+  streamsRef.current = streams
+  const streamTogglesRef = useRef(streamToggles)
+  streamTogglesRef.current = streamToggles
+
+  const loadUnifiedStreams = useCallback(async () => {
+    const version = ++unifiedVersion.current
+    // Gather toggled group IDs from latest refs
+    const toggledIds = new Set<string>()
+    Object.entries(streamsRef.current).forEach(([key, s]: [string, { ids: string[] }]) => {
+      if (streamTogglesRef.current.has(key)) {
+        s.ids.forEach(gid => toggledIds.add(gid))
+      }
+    })
+    if (toggledIds.size === 0) {
+      if (version === unifiedVersion.current) {
+        setPanelMessages(prev => { const n = [...prev]; n[0] = []; return n })
+        setUnifiedLoading(false)
+      }
+      return
+    }
+    try {
+      const fetches = Array.from(toggledIds).map(gid =>
+        api.getGroupMessages(gid, 15).catch(() => null)
+      )
+      const results = await Promise.all(fetches)
+      // Stale check: if another load was triggered while we were fetching, discard
+      if (version !== unifiedVersion.current) return
+      const all: GroupMeMessage[] = []
+      results.forEach(r => {
+        if (r && 'messages' in r) all.push(...(r.messages || []))
+      })
+      const seen = new Set<string>()
+      const deduped = all.filter(m => {
+        if (seen.has(m.id)) return false
+        seen.add(m.id)
+        return true
+      })
+      // Sort newest first and keep 60 most recent
+      deduped.sort((a, b) => b.created_at - a.created_at)
+      const final = deduped.slice(0, 60)
+      // Store in ascending order (message-feed handles display order)
+      final.sort((a, b) => a.created_at - b.created_at)
+      if (version === unifiedVersion.current) {
+        setPanelMessages(prev => { const n = [...prev]; n[0] = final; return n })
+        setUnifiedLoading(false)
+      }
+    } catch {
+      if (version === unifiedVersion.current) setUnifiedLoading(false)
+    }
+  }, [])
+
+  // Trigger buffered load when toggles change or view switches to unified_streams
+  const streamToggleCount = streamToggles.size
   useEffect(() => {
     if (currentView.type !== 'unified_streams' || !isLoggedIn) return
-    // Immediately clear feed and show spinner
+    // Show spinner and clear feed immediately
     setUnifiedLoading(true)
-    setPanelMessages(prev => {
-      const next = [...prev]
-      next[0] = []
-      return next
-    })
-    // Debounce: wait 300ms for rapid toggles to settle
+    setPanelMessages(prev => { const n = [...prev]; n[0] = []; return n })
+    // Debounce rapid toggles
     if (unifiedDebounce.current) clearTimeout(unifiedDebounce.current)
-    const callId = ++unifiedAbort.current
-    unifiedDebounce.current = setTimeout(async () => {
-      await loadMessagesRef.current(0)
-      if (callId === unifiedAbort.current) setUnifiedLoading(false)
-    }, 300)
+    unifiedDebounce.current = setTimeout(() => {
+      loadUnifiedStreams()
+    }, 350)
     return () => {
       if (unifiedDebounce.current) clearTimeout(unifiedDebounce.current)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [streamToggleCount, currentView.type, isLoggedIn])
+  }, [streamToggleCount, currentView.type, isLoggedIn, loadUnifiedStreams])
 
   const switchView = useCallback((type: ViewState['type'], id: string | null) => {
     setCurrentView({ type, id })
@@ -1033,6 +1080,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     showToast,
     removeToast,
     loadMessages,
+    loadUnifiedStreams,
     getPanelTitle,
   }
 
