@@ -96,6 +96,15 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     }
   }, [view?.type, view?.id, store.oldestFirst])
 
+  // For unified_streams, also scroll to top when messages finish loading (buffer complete)
+  const prevUnifiedLoading = useRef(store.unifiedLoading)
+  useEffect(() => {
+    if (view?.type === 'unified_streams' && prevUnifiedLoading.current && !store.unifiedLoading && scrollRef.current) {
+      scrollRef.current.scrollTop = 0
+    }
+    prevUnifiedLoading.current = store.unifiedLoading
+  }, [store.unifiedLoading, view?.type])
+
   const scrollToMsg = useCallback((id: string) => {
     const el = document.getElementById(`msg-${id}`)
     if (el) {
