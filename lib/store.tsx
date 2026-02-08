@@ -297,6 +297,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     document.documentElement.setAttribute('data-theme', theme)
   }, [theme])
 
+  // Auto-refresh unified_streams when streamToggles changes
+  const streamToggleCount = streamToggles.size
+  useEffect(() => {
+    if (currentView.type === 'unified_streams' && isLoggedIn) {
+      loadMessages(0)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [streamToggleCount, currentView.type, isLoggedIn])
+
   async function autoLogin(token: string) {
     setIsLoggingIn(true)
     isLoggingInRef.current = true
@@ -515,7 +524,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       next[panelIdx] = msgs
       return next
     })
-  }, [currentView, panels, groups, dmChats, approved, streams])
+  }, [currentView, panels, groups, dmChats, approved, streams, streamToggles])
 
   const switchView = useCallback((type: ViewState['type'], id: string | null) => {
     setCurrentView({ type, id })
@@ -733,14 +742,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const next = new Set(prev)
       if (next.has(name)) next.delete(name)
       else next.add(name)
-      // Auto-refresh unified_streams view when a toggle changes
-      if (panels[0]?.type === 'unified_streams') {
-        setTimeout(() => loadMessages(0), 100)
-      }
       return next
     })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [panels])
+  }, [])
 
   const reorderStreams = useCallback((fromIdx: number, toIdx: number) => {
     setStreams(prev => {
