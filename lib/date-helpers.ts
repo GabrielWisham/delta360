@@ -20,7 +20,10 @@ export function formatTimeAgo(ts: number): string {
 }
 
 export function getHeat(ts: number, now: number): number {
-  return Math.max(5, Math.round(100 * (1 - (now - ts) / 21600)))
+  const elapsed = now - ts
+  if (elapsed <= 0) return 100
+  const raw = 100 * (1 - elapsed / 21600)
+  return Math.min(100, Math.max(0, Math.round(raw)))
 }
 
 export function getDayLabel(ts: number): string {

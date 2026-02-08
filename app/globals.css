@@ -1,24 +1,24 @@
 @import "tailwindcss";
 
 @theme {
-  --color-background: hsl(225 33% 5%);
-  --color-foreground: hsl(216 12% 92%);
-  --color-card: hsl(225 33% 8%);
-  --color-card-foreground: hsl(216 12% 92%);
-  --color-popover: hsl(225 33% 7%);
-  --color-popover-foreground: hsl(216 12% 92%);
+  --color-background: hsl(222 25% 10%);
+  --color-foreground: hsl(210 20% 95%);
+  --color-card: hsl(222 22% 14%);
+  --color-card-foreground: hsl(210 20% 95%);
+  --color-popover: hsl(222 22% 13%);
+  --color-popover-foreground: hsl(210 20% 95%);
   --color-primary: hsl(24 100% 50%);
   --color-primary-foreground: hsl(0 0% 100%);
-  --color-secondary: hsl(224 20% 12%);
-  --color-secondary-foreground: hsl(216 12% 84%);
-  --color-muted: hsl(224 20% 12%);
-  --color-muted-foreground: hsl(220 8% 56%);
-  --color-accent: hsl(24 100% 50%);
+  --color-secondary: hsl(222 18% 18%);
+  --color-secondary-foreground: hsl(210 15% 85%);
+  --color-muted: hsl(222 16% 18%);
+  --color-muted-foreground: hsl(215 12% 58%);
+  --color-accent: hsl(24 95% 52%);
   --color-accent-foreground: hsl(0 0% 100%);
-  --color-destructive: hsl(0 84% 60%);
+  --color-destructive: hsl(0 80% 58%);
   --color-destructive-foreground: hsl(0 0% 100%);
-  --color-border: hsl(224 20% 16%);
-  --color-input: hsl(224 20% 16%);
+  --color-border: hsl(222 16% 22%);
+  --color-input: hsl(222 16% 22%);
   --color-ring: hsl(24 100% 50%);
   --radius: 0.625rem;
 
@@ -41,28 +41,32 @@
 :root {
   --d360-orange: #ff6a00;
   --d360-orange-dark: #cc5500;
-  --d360-cyan: #00bcd4;
-  --d360-yellow: #ffcc00;
-  --d360-red: #ff3b3b;
-  --d360-green: #00d26a;
+  --d360-orange-glow: rgba(255, 106, 0, 0.15);
+  --d360-cyan: #22d3ee;
+  --d360-cyan-glow: rgba(34, 211, 238, 0.12);
+  --d360-yellow: #fbbf24;
+  --d360-red: #ef4444;
+  --d360-green: #34d399;
   --d360-purple: #a78bfa;
   --d360-gradient: linear-gradient(135deg, #ff6a00, #ff9800);
-  --d360-glass: rgba(255, 255, 255, 0.06);
-  --d360-sidebar-bg: hsl(225 33% 6%);
+  --d360-glass: rgba(255, 255, 255, 0.05);
+  --d360-sidebar-bg: hsl(222 25% 9%);
 }
 
 [data-theme="light"] {
   --d360-sidebar-bg: hsl(228 14% 96%);
-  --d360-glass: rgba(0, 0, 0, 0.04);
+  --d360-glass: rgba(0, 0, 0, 0.03);
+  --d360-orange-glow: rgba(255, 106, 0, 0.08);
+  --d360-cyan-glow: rgba(34, 211, 238, 0.06);
 }
 
 [data-theme="light"] {
-  --color-background: hsl(228 14% 93%);
-  --color-foreground: hsl(222 47% 8%);
+  --color-background: hsl(225 20% 95%);
+  --color-foreground: hsl(222 47% 11%);
   --color-card: hsl(0 0% 100%);
-  --color-card-foreground: hsl(222 47% 8%);
+  --color-card-foreground: hsl(222 47% 11%);
   --color-popover: hsl(0 0% 100%);
-  --color-popover-foreground: hsl(222 47% 8%);
+  --color-popover-foreground: hsl(222 47% 11%);
   --color-primary: hsl(24 100% 50%);
   --color-primary-foreground: hsl(0 0% 100%);
   --color-secondary: hsl(220 14% 92%);
@@ -73,8 +77,8 @@
   --color-accent-foreground: hsl(0 0% 100%);
   --color-destructive: hsl(0 84% 60%);
   --color-destructive-foreground: hsl(0 0% 100%);
-  --color-border: hsl(220 13% 86%);
-  --color-input: hsl(220 13% 86%);
+  --color-border: hsl(220 13% 87%);
+  --color-input: hsl(220 13% 87%);
   --color-ring: hsl(24 100% 50%);
 }
 
@@ -82,24 +86,24 @@
 .glass {
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  background: rgba(255, 255, 255, 0.035);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.07);
 }
 [data-theme="light"] .glass {
-  background: rgba(255, 255, 255, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.4);
 }
 
-/* ===== Select / dropdown fix for dark mode ===== */
+/* ===== Select / dropdown fix ===== */
 select,
 select option {
-  background-color: hsl(225 33% 10%);
-  color: hsl(216 12% 92%);
+  background-color: hsl(222 22% 14%);
+  color: hsl(210 20% 95%);
 }
 [data-theme="light"] select,
 [data-theme="light"] select option {
   background-color: hsl(0 0% 100%);
-  color: hsl(222 47% 8%);
+  color: hsl(222 47% 11%);
 }
 
 /* ===== Scrollbar ===== */
@@ -110,8 +114,8 @@ select option {
 
 /* ===== Animations ===== */
 @keyframes pulse-glow {
-  0%, 100% { opacity: 1; box-shadow: 0 0 4px currentColor; }
-  50% { opacity: 0.6; box-shadow: 0 0 8px currentColor; }
+  0%, 100% { opacity: 1; box-shadow: 0 0 6px currentColor; }
+  50% { opacity: 0.6; box-shadow: 0 0 12px currentColor; }
 }
 .animate-pulse-glow {
   animation: pulse-glow 2s ease-in-out infinite;
@@ -126,8 +130,17 @@ select option {
 }
 
 /* ===== Heat bar ===== */
-.heat-bar {
-  height: 2px;
-  border-radius: 1px;
-  transition: width 0.3s ease;
+.heat-bar-track {
+  height: 4px;
+  border-radius: 2px;
+  background: hsl(222 16% 20%);
+  overflow: hidden;
+}
+[data-theme="light"] .heat-bar-track {
+  background: hsl(220 14% 88%);
+}
+.heat-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.4s ease;
 }

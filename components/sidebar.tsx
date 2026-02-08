@@ -45,12 +45,18 @@ export function Sidebar() {
     return sortedGroups.filter(i => (now - i.ts) >= SIX_HOURS).sort((a, b) => b.ts - a.ts)
   }, [sortedGroups, now])
 
+  // Only show DMs where user has NOT interacted (no lastSeen and not explicitly approved/blocked)
   const pendingDMs = useMemo(() => {
     return store.dmChats.filter(d => {
       const uid = d.other_user?.id
-      return uid && store.approved[uid] === undefined
+      if (!uid) return false
+      // If they've been explicitly approved or blocked, not pending
+      if (store.approved[uid] !== undefined) return false
+      // If we've already seen / interacted with this DM, not pending
+      if (store.lastSeen[uid]) return false
+      return true
     })
-  }, [store.dmChats, store.approved])
+  }, [store.dmChats, store.approved, store.lastSeen])
 
   const pinnedItems = useMemo(() => {
     return sortedGroups.filter(i => store.pinnedChats[i.id]).sort((a, b) => b.ts - a.ts)
@@ -83,8 +89,8 @@ export function Sidebar() {
           flex flex-col border-r border-border overflow-y-auto overflow-x-hidden
           transition-all duration-300 ease-in-out shrink-0
           ${store.sidebarMobileOpen
-            ? 'fixed inset-y-0 left-0 z-40 w-[290px] bg-background shadow-2xl translate-x-0'
-            : 'fixed inset-y-0 left-0 z-40 w-[290px] bg-background shadow-2xl -translate-x-full md:translate-x-0 md:static md:shadow-none'
+            ? 'fixed inset-y-0 left-0 z-40 w-[290px] shadow-2xl translate-x-0'
+            : 'fixed inset-y-0 left-0 z-40 w-[290px] shadow-2xl -translate-x-full md:translate-x-0 md:static md:shadow-none'
           }
           ${isDesktopHidden ? 'md:w-0 md:border-r-0 md:overflow-hidden' : 'md:w-[290px]'}
         `}
@@ -168,28 +174,28 @@ export function Sidebar() {
             </div>
           )}
 
-          {/* PENDING DMs */}
+          {/* PENDING DMs - only truly new/unknown DMs */}
           {pendingDMs.length > 0 && (
             <div>
               <SectionLabel text={`Pending DMs (${pendingDMs.length})`} />
               {pendingDMs.map(d => (
-                <div key={d.other_user.id} className="flex items-center gap-2 px-2 py-1.5 rounded-md text-xs">
+                <div key={d.other_user.id} className="flex items-center gap-2 px-2 py-1.5 rounded-md text-xs bg-secondary/30">
                   <span className="text-foreground flex-1 truncate" style={{ fontFamily: 'var(--font-jetbrains)' }}>
                     {d.other_user.name}
                   </span>
-                  <span className="text-muted-foreground truncate max-w-[60px] text-[10px]">
+                  <span className="text-muted-foreground truncate max-w-[80px] text-[10px]">
                     {d.last_message?.text || ''}
                   </span>
                   <button
                     onClick={() => store.approveDM(d.other_user.id)}
-                    className="text-[var(--d360-green)] hover:brightness-125 text-sm"
+                    className="text-[var(--d360-green)] hover:brightness-125 text-sm font-bold px-1"
                     title="Approve"
                   >
                     {'\u2713'}
                   </button>
                   <button
                     onClick={() => store.blockDM(d.other_user.id)}
-                    className="text-[var(--d360-red)] hover:brightness-125 text-sm"
+                    className="text-[var(--d360-red)] hover:brightness-125 text-sm font-bold px-1"
                     title="Block"
                   >
                     {'\u2715'}
@@ -226,8 +232,8 @@ export function Sidebar() {
               <div className="flex gap-1">
                 <button
                   onClick={() => store.setSortMode('recent')}
-                  className={`text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded ${
-                    store.sortMode === 'recent' ? 'text-[var(--d360-orange)]' : 'text-muted-foreground'
+                  className={`text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded transition-colors ${
+                    store.sortMode === 'recent' ? 'text-[var(--d360-orange)] bg-[var(--d360-orange-glow)]' : 'text-muted-foreground hover:text-foreground'
                   }`}
                   style={{ fontFamily: 'var(--font-jetbrains)' }}
                 >
@@ -235,8 +241,8 @@ export function Sidebar() {
                 </button>
                 <button
                   onClick={() => store.setSortMode('heat')}
-                  className={`text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded ${
-                    store.sortMode === 'heat' ? 'text-[var(--d360-orange)]' : 'text-muted-foreground'
+                  className={`text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded transition-colors ${
+                    store.sortMode === 'heat' ? 'text-[var(--d360-orange)] bg-[var(--d360-orange-glow)]' : 'text-muted-foreground hover:text-foreground'
                   }`}
                   style={{ fontFamily: 'var(--font-jetbrains)' }}
                 >
@@ -254,7 +260,7 @@ export function Sidebar() {
               />
             ))}
             {active.length === 0 && (
-              <p className="text-[10px] text-muted-foreground px-2" style={{ fontFamily: 'var(--font-jetbrains)' }}>
+              <p className="text-[10px] text-muted-foreground px-2 py-2" style={{ fontFamily: 'var(--font-jetbrains)' }}>
                 No active chats
               </p>
             )}
@@ -275,7 +281,7 @@ export function Sidebar() {
                 </span>
               </button>
               {store.inactiveOpen && (
-                <div className="opacity-40 mt-1">
+                <div className="opacity-50 mt-1">
                   {inactive.map(item => (
                     <ChatItem
                       key={item.id}
@@ -298,7 +304,7 @@ export function Sidebar() {
 function SectionLabel({ text }: { text: string }) {
   return (
     <div
-      className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground mb-1 px-2"
+      className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground mb-1.5 px-2"
       style={{ fontFamily: 'var(--font-jetbrains)' }}
     >
       {text}
@@ -340,12 +346,20 @@ interface ChatItemData {
   heat: number
 }
 
+function getHeatColor(heat: number): string {
+  if (heat >= 75) return 'var(--d360-orange)'
+  if (heat >= 40) return 'var(--d360-yellow)'
+  return 'var(--d360-green)'
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function ChatItem({ item, now, store, onClick }: { item: ChatItemData; now: number; store: any; onClick: (e: React.MouseEvent) => void }) {
   const isActive = (store.currentView.type === item.type && store.currentView.id === item.id)
   const isUnread = store.isUnread(item.id, item.ts)
   const isMuted = store.mutedGroups[item.id]
   const accentColor = item.type === 'dm' ? 'var(--d360-cyan)' : 'var(--d360-orange)'
+  const heatPct = Math.min(100, Math.max(0, item.heat))
+  void now // used in parent for recalculation
 
   return (
     <div
@@ -371,18 +385,18 @@ function ChatItem({ item, now, store, onClick }: { item: ChatItemData; now: numb
         {item.name}
       </span>
 
-      {/* Heat bar */}
-      <div className="w-8 h-0.5 rounded-full bg-secondary overflow-hidden shrink-0">
+      {/* Heat bar - visible colored track */}
+      <div className="heat-bar-track w-10 shrink-0" title={`Heat: ${heatPct}%`}>
         <div
-          className="heat-bar"
+          className="heat-bar-fill"
           style={{
-            width: `${item.heat}%`,
-            background: item.heat > 70 ? 'var(--d360-orange)' : item.heat > 30 ? 'var(--d360-yellow)' : 'var(--d360-green)',
+            width: `${heatPct}%`,
+            background: getHeatColor(heatPct),
           }}
         />
       </div>
 
-      <span className="text-[9px] text-muted-foreground shrink-0" style={{ fontFamily: 'var(--font-jetbrains)' }}>
+      <span className="text-[9px] text-muted-foreground shrink-0 min-w-[24px] text-right" style={{ fontFamily: 'var(--font-jetbrains)' }}>
         {formatTimeAgo(item.ts)}
       </span>
 

@@ -71,7 +71,7 @@ export function Header() {
 
         {/* Tools tray */}
         {toolsOpen && (
-          <div className="glass absolute top-full left-0 mt-1 rounded-lg p-2 min-w-[180px] flex flex-col gap-1 z-50 shadow-lg">
+          <div className="absolute top-full left-0 mt-1 rounded-lg p-2 min-w-[180px] flex flex-col gap-1 z-50 shadow-xl bg-card border border-border">
             <TrayItem label="Config" icon="\u2699" onClick={() => { store.setConfigOpen(true); setToolsOpen(false) }} />
             <TrayItem label="Search" icon="\u{1F50D}" onClick={() => { store.setSearchOpen(true); setToolsOpen(false) }} />
             <TrayItem label="Members" icon="\u{1F465}" onClick={() => { store.setMembersOpen(true); setToolsOpen(false) }} />
@@ -83,7 +83,7 @@ export function Header() {
 
         {/* View tray */}
         {viewOpen && (
-          <div className="glass absolute top-full left-0 mt-1 rounded-lg p-2 min-w-[200px] flex flex-col gap-1 z-50 shadow-lg">
+          <div className="absolute top-full left-0 mt-1 rounded-lg p-2 min-w-[200px] flex flex-col gap-1 z-50 shadow-xl bg-card border border-border">
             <TrayItem
               label={`Theme: ${store.theme === 'dark' ? 'Dark' : 'Light'}`}
               icon={store.theme === 'dark' ? '\u{1F319}' : '\u2600'}
@@ -109,7 +109,7 @@ export function Header() {
 
         {/* Actions tray */}
         {actionsOpen && (
-          <div className="glass absolute top-full left-0 mt-1 rounded-lg p-2 min-w-[200px] flex flex-col gap-1 z-50 shadow-lg">
+          <div className="absolute top-full left-0 mt-1 rounded-lg p-2 min-w-[200px] flex flex-col gap-1 z-50 shadow-xl bg-card border border-border">
             <TrayItem label="Broadcast" icon="\u{1F4E2}" onClick={() => { store.setAdhocOpen(true); setActionsOpen(false) }} />
             <TrayItem label="Shift Change" icon="\u{1F4CB}" onClick={() => { store.setShiftChangeOpen(true); setActionsOpen(false) }} />
             <TrayItem label="Export Chat" icon="\u{1F4BE}" onClick={() => { exportChat(store); setActionsOpen(false) }} />
@@ -152,7 +152,7 @@ export function Header() {
           <span className="hidden sm:inline uppercase tracking-wider text-muted-foreground">{currentStatus.label}</span>
         </button>
         {statusOpen && (
-          <div className="glass absolute top-full right-0 mt-1 rounded-lg p-1 min-w-[140px] z-50 shadow-lg">
+          <div className="absolute top-full right-0 mt-1 rounded-lg p-1 min-w-[140px] z-50 shadow-xl bg-card border border-border">
             {STATUS_OPTIONS.map(s => (
               <button
                 key={s.value}
