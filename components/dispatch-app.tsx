@@ -1,9 +1,10 @@
 'use client'
 
+import { useEffect, useRef } from 'react'
 import { useStore } from '@/lib/store'
+import { resumeAudio } from '@/lib/sounds'
 import { LoginScreen } from './login-screen'
 import { Header } from './header'
-import { DispatchBoard } from './dispatch-board'
 import { Sidebar } from './sidebar'
 import { MessageFeed } from './message-feed'
 import { ConfigPanel } from './config-panel'
@@ -20,6 +21,23 @@ import { Lightbox } from './lightbox'
 
 export function DispatchApp() {
   const store = useStore()
+  const audioResumed = useRef(false)
+
+  // Resume AudioContext on very first user interaction
+  useEffect(() => {
+    function handleInteraction() {
+      if (!audioResumed.current) {
+        resumeAudio()
+        audioResumed.current = true
+      }
+    }
+    window.addEventListener('click', handleInteraction, { once: true })
+    window.addEventListener('keydown', handleInteraction, { once: true })
+    return () => {
+      window.removeEventListener('click', handleInteraction)
+      window.removeEventListener('keydown', handleInteraction)
+    }
+  }, [])
 
   if (!store.isLoggedIn) {
     return <LoginScreen />
@@ -33,7 +51,6 @@ export function DispatchApp() {
   return (
     <div className="flex flex-col h-screen overflow-hidden">
       <Header />
-      <DispatchBoard />
 
       <div className="flex flex-1 min-h-0 overflow-hidden">
         <Sidebar />

@@ -16,7 +16,7 @@ export function Lightbox() {
         alt="Full size"
         className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg"
         onClick={e => e.stopPropagation()}
-        crossOrigin="anonymous"
+
       />
     </div>
   )

@@ -116,7 +116,7 @@ export function MembersPanel() {
           {members.map(m => (
             <div key={m.userId} className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-secondary/40">
               {m.imageUrl ? (
-                <img src={m.imageUrl} alt="" className="w-6 h-6 rounded-full object-cover" crossOrigin="anonymous" />
+                <img src={m.imageUrl} alt="" className="w-6 h-6 rounded-full object-cover" />
               ) : (
                 <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold bg-secondary text-foreground">
                   {m.name[0]?.toUpperCase()}

@@ -168,7 +168,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
       {/* Pending image preview */}
       {store.pendingImage && (
         <div className="flex items-center gap-2 mb-2">
-          <img src={store.pendingImage} alt="Pending" className="w-12 h-12 rounded object-cover" crossOrigin="anonymous" />
+          <img src={store.pendingImage} alt="Pending" className="w-12 h-12 rounded object-cover" />
           <button
             onClick={() => store.setPendingImage(null)}
             className="text-[10px] text-[var(--d360-red)] hover:underline"
@@ -298,7 +298,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
                 data-day-label={item.label}
                 className="flex items-center gap-3 py-2 group"
               >
-                <div className="flex-1 h-px" style={{ background: 'linear-gradient(90deg, transparent, hsl(var(--border)), transparent)' }} />
+                <div className="flex-1 h-px" style={{ background: 'linear-gradient(90deg, transparent, var(--color-border), transparent)' }} />
                 <span
                   className="text-[10px] uppercase tracking-widest text-muted-foreground cursor-help relative"
                   style={{ fontFamily: 'var(--font-jetbrains)' }}
@@ -309,7 +309,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
                     {item.fullDate}
                   </span>
                 </span>
-                <div className="flex-1 h-px" style={{ background: 'linear-gradient(90deg, transparent, hsl(var(--border)), transparent)' }} />
+                <div className="flex-1 h-px" style={{ background: 'linear-gradient(90deg, transparent, var(--color-border), transparent)' }} />
               </div>
             )
           }

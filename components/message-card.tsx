@@ -126,7 +126,7 @@ export function MessageCard({
             src={msg.avatar_url}
             alt=""
             className="w-4 h-4 rounded-full object-cover shrink-0"
-            crossOrigin="anonymous"
+
           />
         ) : (
           <div
@@ -194,7 +194,7 @@ export function MessageCard({
               alt="Attachment"
               className="max-w-[200px] max-h-[150px] rounded-md cursor-pointer hover:opacity-80 transition-opacity object-cover"
               onClick={() => store.setLightboxUrl(att.url || '')}
-              crossOrigin="anonymous"
+
             />
           ))}
         </div>
