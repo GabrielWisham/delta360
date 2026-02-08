@@ -696,6 +696,22 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const next = { ...prev }
       delete next[name]
       storage.setStreams(next)
+      // If no streams left and viewing unified_streams or this stream, redirect
+      if (Object.keys(next).length === 0) {
+        setPanels(p => {
+          const updated = [...p]
+          if (updated[0]?.type === 'unified_streams' || (updated[0]?.type === 'stream' && updated[0]?.id === name)) {
+            updated[0] = { type: 'all', id: null }
+          }
+          return updated
+        })
+      } else if (panels[0]?.type === 'stream' && panels[0]?.id === name) {
+        setPanels(p => {
+          const updated = [...p]
+          updated[0] = { type: 'all', id: null }
+          return updated
+        })
+      }
       return next
     })
     setStreamToggles(prev => {
@@ -703,7 +719,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       next.delete(name)
       return next
     })
-  }, [])
+  }, [panels])
 
   const toggleStreamMonitor = useCallback((name: string) => {
     setStreamToggles(prev => {

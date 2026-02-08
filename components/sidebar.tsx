@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import { useStore } from '@/lib/store'
 import { formatTimeAgo, getLastMsgTs } from '@/lib/date-helpers'
 import { playSound } from '@/lib/sounds'
+import { api } from '@/lib/groupme-api'
 import { SOUND_NAMES } from '@/lib/types'
 import type { SoundName } from '@/lib/types'
 
@@ -93,10 +94,11 @@ function SoundIcon({ className = '' }: { className?: string }) {
     </svg>
   )
 }
-function PlayIcon({ className = '' }: { className?: string }) {
+function PlayCircleIcon({ className = '' }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
-      <path d="M8 5v14l11-7z" />
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <circle cx="12" cy="12" r="10" />
+      <polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none" />
     </svg>
   )
 }
@@ -106,6 +108,15 @@ function LayersIcon({ className = '' }: { className?: string }) {
       <polygon points="12 2 2 7 12 12 22 7 12 2" />
       <polyline points="2 17 12 22 22 17" />
       <polyline points="2 12 12 17 22 12" />
+    </svg>
+  )
+}
+function UserPlusIcon({ className = '' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+      <circle cx="8.5" cy="7" r="4" />
+      <line x1="20" y1="8" x2="20" y2="14" /><line x1="23" y1="11" x2="17" y2="11" />
     </svg>
   )
 }
@@ -122,12 +133,12 @@ function usePortalMenu() {
     e.preventDefault()
     if (!open && btnRef.current) {
       const rect = btnRef.current.getBoundingClientRect()
-      const menuWidth = 180
+      const menuWidth = 200
       let left = rect.right - menuWidth
       if (left < 8) left = 8
       if (left + menuWidth > window.innerWidth - 8) left = window.innerWidth - menuWidth - 8
       let top = rect.bottom + 4
-      if (top + 260 > window.innerHeight) top = rect.top - 260
+      if (top + 300 > window.innerHeight) top = rect.top - 300
       if (top < 4) top = 4
       setPos({ top, left })
     }
@@ -150,6 +161,81 @@ function usePortalMenu() {
   }, [open])
 
   return { open, pos, btnRef, menuRef, toggle, close: () => setOpen(false) }
+}
+
+/* ===== Add Member Modal (inline in portal) ===== */
+function AddMemberModal({ groupId, onClose }: { groupId: string; onClose: () => void }) {
+  const [userId, setUserId] = useState('')
+  const [nickname, setNickname] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [result, setResult] = useState<string | null>(null)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function close(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose()
+    }
+    document.addEventListener('mousedown', close)
+    return () => document.removeEventListener('mousedown', close)
+  }, [onClose])
+
+  async function handleAdd() {
+    if (!userId.trim() || !nickname.trim()) return
+    setLoading(true)
+    try {
+      await api.addMemberToGroup(groupId, userId.trim(), nickname.trim())
+      setResult('Member added successfully')
+      setTimeout(onClose, 1200)
+    } catch {
+      setResult('Failed to add member')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return createPortal(
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50">
+      <div ref={ref} className="bg-card border border-border rounded-xl shadow-2xl p-5 w-[340px] max-w-[90vw]">
+        <h3 className="text-sm font-bold font-mono text-foreground mb-3">Add Member to Group</h3>
+        <div className="flex flex-col gap-3">
+          <div>
+            <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono mb-1 block">User ID</label>
+            <input
+              value={userId}
+              onChange={e => setUserId(e.target.value)}
+              placeholder="GroupMe user ID"
+              className="w-full text-xs font-mono bg-secondary/40 border border-border rounded-lg px-3 py-2 text-foreground focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)]"
+            />
+          </div>
+          <div>
+            <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono mb-1 block">Nickname</label>
+            <input
+              value={nickname}
+              onChange={e => setNickname(e.target.value)}
+              placeholder="Display name"
+              className="w-full text-xs font-mono bg-secondary/40 border border-border rounded-lg px-3 py-2 text-foreground focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)]"
+            />
+          </div>
+          {result && (
+            <p className={`text-xs font-mono ${result.includes('success') ? 'text-[var(--d360-green)]' : 'text-[var(--d360-red)]'}`}>{result}</p>
+          )}
+          <div className="flex gap-2 mt-1">
+            <button
+              onClick={handleAdd}
+              disabled={loading || !userId.trim() || !nickname.trim()}
+              className="flex-1 px-3 py-2 text-xs font-mono font-bold rounded-lg bg-[var(--d360-orange)] text-white hover:brightness-110 disabled:opacity-50 transition-all"
+            >
+              {loading ? 'Adding...' : 'Add Member'}
+            </button>
+            <button onClick={onClose} className="px-3 py-2 text-xs font-mono rounded-lg bg-secondary/60 text-foreground/70 hover:text-foreground transition-colors">
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body
+  )
 }
 
 /* ===== Main Sidebar ===== */
@@ -414,7 +500,9 @@ export function Sidebar() {
               >
                 {/* Drop indicator: dashed box */}
                 {isOver && (
-                  <div className="h-8 rounded-lg border-2 border-dashed border-[var(--d360-orange)] mb-1 mx-1 bg-[rgba(255,106,0,0.05)]" />
+                  <div className="h-9 rounded-lg border-2 border-dashed border-[var(--d360-orange)] mb-1 mx-1 bg-[rgba(255,106,0,0.06)] flex items-center justify-center">
+                    <span className="text-[9px] text-[var(--d360-orange)]/60 font-mono uppercase tracking-widest">Drop here</span>
+                  </div>
                 )}
 
                 {/* Section header */}
@@ -453,11 +541,13 @@ export function Sidebar() {
                 setDragIdx(null)
                 setDragOverIdx(null)
               }}
-              className="h-8 rounded-lg border-2 border-dashed border-muted-foreground/20 flex items-center justify-center"
+              className={`h-9 rounded-lg border-2 border-dashed flex items-center justify-center transition-colors ${
+                dragOverIdx === store.sectionOrder.length
+                  ? 'border-[var(--d360-orange)] bg-[rgba(255,106,0,0.06)]'
+                  : 'border-muted-foreground/20'
+              }`}
             >
-              {dragOverIdx === store.sectionOrder.length && (
-                <div className="w-full h-full rounded-lg border-2 border-dashed border-[var(--d360-orange)] bg-[rgba(255,106,0,0.05)]" />
-              )}
+              <span className="text-[9px] text-muted-foreground/40 font-mono uppercase tracking-widest">Drop here</span>
             </div>
           )}
         </div>
@@ -515,7 +605,7 @@ function StreamsSection({ store, menuOpenId, setMenuOpenId }: { store: any; menu
             onDragEnd={onEnd}
             className={`transition-all ${dragIdx === idx ? 'opacity-30 scale-95' : ''}`}
           >
-            {isOver && <div className="h-8 rounded-lg border-2 border-dashed border-[var(--d360-orange)] mb-0.5 mx-1 bg-[rgba(255,106,0,0.05)]" />}
+            {isOver && <div className="h-9 rounded-lg border-2 border-dashed border-[var(--d360-orange)] mb-0.5 mx-1 bg-[rgba(255,106,0,0.06)] flex items-center justify-center"><span className="text-[9px] text-[var(--d360-orange)]/60 font-mono uppercase tracking-widest">Drop here</span></div>}
             <StreamItem
               name={name}
               stream={store.streams[name]}
@@ -538,11 +628,13 @@ function StreamsSection({ store, menuOpenId, setMenuOpenId }: { store: any; menu
             if (dragIdx !== null && dragIdx !== streamKeys.length) store.reorderStreams(dragIdx, streamKeys.length - 1)
             setDragIdx(null); setDragOverIdx(null); gripRef.current = false
           }}
-          className="h-6 rounded-lg border-2 border-dashed border-muted-foreground/15"
+          className={`h-7 rounded-lg border-2 border-dashed flex items-center justify-center transition-colors ${
+            dragOverIdx === streamKeys.length
+              ? 'border-[var(--d360-orange)] bg-[rgba(255,106,0,0.06)]'
+              : 'border-muted-foreground/15'
+          }`}
         >
-          {dragOverIdx === streamKeys.length && (
-            <div className="w-full h-full rounded-lg border-2 border-dashed border-[var(--d360-orange)] bg-[rgba(255,106,0,0.05)]" />
-          )}
+          <span className="text-[9px] text-muted-foreground/30 font-mono">Drop here</span>
         </div>
       )}
 
@@ -580,8 +672,6 @@ function StreamItem({ name, stream, store, isActive, gripRef, menuOpenId, setMen
   const isHighlighted = isActive || menuOpenId === streamId
 
   // Sync menu open state to highlight
-  const menuOpenRef = useRef(menu.open)
-  menuOpenRef.current = menu.open
   useEffect(() => {
     if (menu.open) setMenuOpenId(streamId)
     else if (menuOpenId === streamId) setMenuOpenId(null)
@@ -683,7 +773,7 @@ function StreamItem({ name, stream, store, isActive, gripRef, menuOpenId, setMen
         {menu.open && typeof document !== 'undefined' && createPortal(
           <div
             ref={menu.menuRef}
-            className="fixed bg-card border border-border rounded-lg shadow-2xl py-1 min-w-[170px]"
+            className="fixed bg-card border border-border rounded-lg shadow-2xl py-1 min-w-[180px]"
             style={{ top: menu.pos.top, left: menu.pos.left, zIndex: 9999 }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -766,6 +856,7 @@ function ChatCard({ item, store, onClick, isPinned = false, isInactive = false, 
   const [renameVal, setRenameVal] = useState('')
   const [showOriginal, setShowOriginal] = useState(false)
   const [showSoundPicker, setShowSoundPicker] = useState(false)
+  const [showAddMember, setShowAddMember] = useState(false)
   const isRenamed = !!store.chatRenames[item.id]
   const chatSound = store.chatSounds[item.id] as SoundName | undefined
 
@@ -796,191 +887,208 @@ function ChatCard({ item, store, onClick, isPinned = false, isInactive = false, 
   const isHighlighted = isSelected || isMenuOpen
 
   return (
-    <div
-      onClick={onClick}
-      className={`relative flex items-center gap-1.5 px-3 py-3 rounded-lg cursor-pointer transition-all group mb-0.5 overflow-hidden ${
-        isHighlighted
-          ? 'text-foreground font-semibold'
-          : isInactive
-            ? 'text-foreground/60 hover:text-foreground/80 hover:bg-secondary/30'
-            : 'text-foreground/80 hover:text-foreground hover:bg-secondary/40'
-      }`}
-      style={isHighlighted ? {
-        background: item.type === 'dm'
-          ? 'linear-gradient(90deg, rgba(34,211,238,0.30) 0%, rgba(34,211,238,0.08) 50%, transparent 100%)'
-          : 'linear-gradient(90deg, rgba(255,106,0,0.35) 0%, rgba(255,106,0,0.08) 50%, transparent 100%)',
-      } : {}}
-    >
-      {/* Left accent bar */}
-      {isHighlighted && (
-        <div className="absolute left-0 top-0 bottom-0 w-[3px] rounded-r" style={{ background: accent }} />
-      )}
+    <>
+      <div
+        onClick={onClick}
+        className={`relative flex items-center gap-1.5 px-3 py-3 rounded-lg cursor-pointer transition-all group mb-0.5 overflow-hidden ${
+          isHighlighted
+            ? 'text-foreground font-semibold'
+            : isInactive
+              ? 'text-foreground/60 hover:text-foreground/80 hover:bg-secondary/30'
+              : 'text-foreground/80 hover:text-foreground hover:bg-secondary/40'
+        }`}
+        style={isHighlighted ? {
+          background: item.type === 'dm'
+            ? 'linear-gradient(90deg, rgba(34,211,238,0.30) 0%, rgba(34,211,238,0.08) 50%, transparent 100%)'
+            : 'linear-gradient(90deg, rgba(255,106,0,0.35) 0%, rgba(255,106,0,0.08) 50%, transparent 100%)',
+        } : {}}
+      >
+        {/* Left accent bar */}
+        {isHighlighted && (
+          <div className="absolute left-0 top-0 bottom-0 w-[3px] rounded-r" style={{ background: accent }} />
+        )}
 
-      {/* Mute icon - fixed w-5 container, always same position */}
-      <div className="w-5 shrink-0 flex items-center justify-center">
-        {isMuted ? (
+        {/* Mute icon - fixed w-5 container, always same position */}
+        <div className="w-5 shrink-0 flex items-center justify-center">
+          {isMuted ? (
+            <button
+              onClick={(e) => { e.stopPropagation(); store.toggleMuteGroup(item.id) }}
+              className={`p-0.5 transition-colors ${isHighlighted ? 'text-foreground drop-shadow-[0_0_6px_rgba(255,255,255,0.6)]' : 'text-[var(--d360-red)]'} hover:brightness-125`}
+              title="Unmute"
+            >
+              <MuteIcon muted className="w-4 h-4" />
+            </button>
+          ) : (
+            <button
+              onClick={(e) => { e.stopPropagation(); store.toggleMuteGroup(item.id) }}
+              className={`p-0.5 transition-all ${
+                isHighlighted
+                  ? 'text-foreground/80 hover:text-foreground drop-shadow-[0_0_6px_rgba(255,255,255,0.5)] opacity-100'
+                  : 'text-muted-foreground/30 hover:text-muted-foreground opacity-0 group-hover:opacity-100'
+              }`}
+              title="Mute"
+            >
+              <MuteIcon className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
+        {/* Title area - takes all remaining space */}
+        <div className="flex-1 min-w-0">
+          {renaming ? (
+            <input
+              autoFocus
+              value={renameVal}
+              onChange={e => setRenameVal(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') confirmRename(); if (e.key === 'Escape') setRenaming(false) }}
+              onBlur={confirmRename}
+              onClick={e => e.stopPropagation()}
+              className="w-full text-[13px] font-mono bg-secondary/60 border border-border rounded px-1.5 py-0.5 text-foreground focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)]"
+            />
+          ) : (
+            <>
+              <span className={`truncate text-[13px] font-mono tracking-wide block ${isHighlighted ? 'font-bold text-foreground' : isInactive ? 'font-normal' : 'font-medium'}`}>
+                {displayName}
+              </span>
+              {isRenamed && showOriginal && (
+                <div className="text-[10px] text-muted-foreground font-mono mt-0.5 truncate">{item.name}</div>
+              )}
+              {chatSound && (
+                <div className="text-[9px] text-muted-foreground/60 font-mono flex items-center gap-1 mt-0.5">
+                  <SoundIcon className="w-2.5 h-2.5" /> {chatSound}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* RIGHT: timestamp + unread + dots */}
+        <div className="flex items-center gap-1 shrink-0">
+          <span
+            className="text-[10px] font-mono"
+            style={{
+              color: isInactive ? 'var(--color-muted-foreground)' : isHighlighted ? 'var(--color-foreground)' : accent,
+              opacity: isInactive ? 0.7 : 0.8,
+            }}
+          >
+            {formatTimeAgo(item.ts)}
+          </span>
+
+          {isUnread && !isInactive && (
+            <div className="w-2.5 h-2.5 rounded-full shrink-0 animate-pulse-glow" style={{ background: accent }} />
+          )}
+
           <button
-            onClick={(e) => { e.stopPropagation(); store.toggleMuteGroup(item.id) }}
-            className={`p-0.5 transition-colors ${isHighlighted ? 'text-foreground drop-shadow-[0_0_6px_rgba(255,255,255,0.5)]' : 'text-[var(--d360-red)]'} hover:brightness-125`}
-            title="Unmute"
+            ref={menu.btnRef}
+            onClick={(e) => { e.stopPropagation(); menu.toggle(e) }}
+            className={`p-0.5 transition-colors shrink-0 ${isHighlighted ? 'text-foreground drop-shadow-[0_0_4px_rgba(255,255,255,0.5)]' : 'text-muted-foreground hover:text-foreground'}`}
           >
-            <MuteIcon muted className="w-4 h-4" />
+            <DotsVIcon className="w-5 h-5" />
           </button>
-        ) : (
-          <button
-            onClick={(e) => { e.stopPropagation(); store.toggleMuteGroup(item.id) }}
-            className={`p-0.5 transition-all ${
-              isHighlighted
-                ? 'text-foreground/70 hover:text-foreground drop-shadow-[0_0_4px_rgba(255,255,255,0.4)] opacity-100'
-                : 'text-muted-foreground/30 hover:text-muted-foreground opacity-0 group-hover:opacity-100'
-            }`}
-            title="Mute"
-          >
-            <MuteIcon className="w-4 h-4" />
-          </button>
-        )}
-      </div>
-
-      {/* Title area - takes all remaining space */}
-      <div className="flex-1 min-w-0">
-        {renaming ? (
-          <input
-            autoFocus
-            value={renameVal}
-            onChange={e => setRenameVal(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') confirmRename(); if (e.key === 'Escape') setRenaming(false) }}
-            onBlur={confirmRename}
-            onClick={e => e.stopPropagation()}
-            className="w-full text-[13px] font-mono bg-secondary/60 border border-border rounded px-1.5 py-0.5 text-foreground focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)]"
-          />
-        ) : (
-          <>
-            <span className={`truncate text-[13px] font-mono tracking-wide block ${isHighlighted ? 'font-bold text-foreground' : isInactive ? 'font-normal' : 'font-medium'}`}>
-              {displayName}
-            </span>
-            {isRenamed && showOriginal && (
-              <div className="text-[10px] text-muted-foreground font-mono mt-0.5 truncate">{item.name}</div>
-            )}
-            {chatSound && (
-              <div className="text-[9px] text-muted-foreground/60 font-mono flex items-center gap-1 mt-0.5">
-                <SoundIcon className="w-2.5 h-2.5" /> {chatSound}
-              </div>
-            )}
-          </>
-        )}
-      </div>
-
-      {/* RIGHT: timestamp + unread + dots */}
-      <div className="flex items-center gap-1 shrink-0">
-        <span
-          className="text-[10px] font-mono"
-          style={{
-            color: isInactive ? 'var(--color-muted-foreground)' : isHighlighted ? 'var(--color-foreground)' : accent,
-            opacity: isInactive ? 0.7 : 0.8,
-          }}
-        >
-          {formatTimeAgo(item.ts)}
-        </span>
-
-        {isUnread && !isInactive && (
-          <div className="w-2.5 h-2.5 rounded-full shrink-0 animate-pulse-glow" style={{ background: accent }} />
-        )}
-
-        <button
-          ref={menu.btnRef}
-          onClick={(e) => { e.stopPropagation(); menu.toggle(e) }}
-          className={`p-0.5 transition-colors shrink-0 ${isHighlighted ? 'text-foreground drop-shadow-[0_0_4px_rgba(255,255,255,0.4)]' : 'text-muted-foreground hover:text-foreground'}`}
-        >
-          <DotsVIcon className="w-5 h-5" />
-        </button>
-        {menu.open && typeof document !== 'undefined' && createPortal(
-          <div
-            ref={menu.menuRef}
-            className="fixed bg-card border border-border rounded-lg shadow-2xl py-1 min-w-[180px]"
-            style={{ top: menu.pos.top, left: menu.pos.left, zIndex: 9999 }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              onClick={startRename}
-              className="w-full text-left px-3 py-2 text-xs text-foreground/80 hover:bg-secondary/60 font-mono flex items-center gap-2"
+          {menu.open && typeof document !== 'undefined' && createPortal(
+            <div
+              ref={menu.menuRef}
+              className="fixed bg-card border border-border rounded-lg shadow-2xl py-1 min-w-[200px]"
+              style={{ top: menu.pos.top, left: menu.pos.left, zIndex: 9999 }}
+              onClick={(e) => e.stopPropagation()}
             >
-              <EditIcon className="w-3.5 h-3.5" /> Rename
-            </button>
-            {isRenamed && (
-              <>
-                <button
-                  onClick={() => { setShowOriginal(!showOriginal); menu.close() }}
-                  className="w-full text-left px-3 py-2 text-xs text-foreground/80 hover:bg-secondary/60 font-mono"
-                >
-                  {showOriginal ? 'Hide original' : 'See original'}
-                </button>
-                <button
-                  onClick={() => { store.clearChatRename(item.id); menu.close() }}
-                  className="w-full text-left px-3 py-2 text-xs text-muted-foreground hover:bg-secondary/60 font-mono"
-                >
-                  Reset name
-                </button>
-              </>
-            )}
-            <button
-              onClick={() => { store.togglePinChat(item.id); menu.close() }}
-              className="w-full text-left px-3 py-2 text-xs text-foreground/80 hover:bg-secondary/60 font-mono flex items-center gap-2"
-            >
-              <PinIcon className="w-3.5 h-3.5" />
-              {isPinned || store.pinnedChats[item.id] ? 'Unpin' : 'Pin'}
-            </button>
-            <button
-              onClick={() => { store.toggleMuteGroup(item.id); menu.close() }}
-              className="w-full text-left px-3 py-2 text-xs text-foreground/80 hover:bg-secondary/60 font-mono flex items-center gap-2"
-            >
-              <MuteIcon muted={isMuted} className="w-3.5 h-3.5" />
-              {isMuted ? 'Unmute' : 'Mute'}
-            </button>
-
-            {/* Sound picker */}
-            <button
-              onClick={() => setShowSoundPicker(!showSoundPicker)}
-              className="w-full text-left px-3 py-2 text-xs text-foreground/80 hover:bg-secondary/60 font-mono flex items-center gap-2"
-            >
-              <SoundIcon className="w-3.5 h-3.5" />
-              Alert sound {chatSound ? `(${chatSound})` : '(default)'}
-              <ChevronIcon open={showSoundPicker} className="w-3 h-3 ml-auto" />
-            </button>
-            {showSoundPicker && (
-              <div className="px-2 py-1 border-t border-border max-h-[200px] overflow-y-auto">
-                {SOUND_NAMES.map(s => (
-                  <div key={s} className="flex items-center gap-1.5">
-                    <button
-                      onClick={() => { store.setChatSound(item.id, s) }}
-                      className={`flex-1 text-left px-2 py-1.5 text-[11px] font-mono rounded transition-colors ${
-                        chatSound === s ? 'text-[var(--d360-orange)] bg-secondary/60' : 'text-foreground/70 hover:bg-secondary/40'
-                      }`}
-                    >
-                      {s}
-                    </button>
-                    <button
-                      onClick={() => playSound(s)}
-                      className="p-1 text-muted-foreground hover:text-foreground transition-colors"
-                      title="Preview"
-                    >
-                      <PlayIcon className="w-3 h-3" />
-                    </button>
-                  </div>
-                ))}
-                {chatSound && (
+              <button
+                onClick={startRename}
+                className="w-full text-left px-3 py-2 text-xs text-foreground/80 hover:bg-secondary/60 font-mono flex items-center gap-2"
+              >
+                <EditIcon className="w-3.5 h-3.5" /> Rename
+              </button>
+              {isRenamed && (
+                <>
                   <button
-                    onClick={() => { store.clearChatSound(item.id) }}
-                    className="w-full text-left px-2 py-1.5 text-[10px] text-muted-foreground hover:text-foreground font-mono mt-0.5"
+                    onClick={() => { setShowOriginal(!showOriginal); menu.close() }}
+                    className="w-full text-left px-3 py-2 text-xs text-foreground/80 hover:bg-secondary/60 font-mono"
                   >
-                    Reset to default
+                    {showOriginal ? 'Hide original' : 'See original'}
                   </button>
-                )}
-              </div>
-            )}
-          </div>,
-          document.body
-        )}
+                  <button
+                    onClick={() => { store.clearChatRename(item.id); menu.close() }}
+                    className="w-full text-left px-3 py-2 text-xs text-muted-foreground hover:bg-secondary/60 font-mono"
+                  >
+                    Reset name
+                  </button>
+                </>
+              )}
+              <button
+                onClick={() => { store.togglePinChat(item.id); menu.close() }}
+                className="w-full text-left px-3 py-2 text-xs text-foreground/80 hover:bg-secondary/60 font-mono flex items-center gap-2"
+              >
+                <PinIcon className="w-3.5 h-3.5" />
+                {isPinned || store.pinnedChats[item.id] ? 'Unpin' : 'Pin'}
+              </button>
+              <button
+                onClick={() => { store.toggleMuteGroup(item.id); menu.close() }}
+                className="w-full text-left px-3 py-2 text-xs text-foreground/80 hover:bg-secondary/60 font-mono flex items-center gap-2"
+              >
+                <MuteIcon muted={isMuted} className="w-3.5 h-3.5" />
+                {isMuted ? 'Unmute' : 'Mute'}
+              </button>
+
+              {/* Add Member - groups only */}
+              {item.type === 'group' && (
+                <button
+                  onClick={() => { setShowAddMember(true); menu.close() }}
+                  className="w-full text-left px-3 py-2 text-xs text-foreground/80 hover:bg-secondary/60 font-mono flex items-center gap-2"
+                >
+                  <UserPlusIcon className="w-3.5 h-3.5" /> Add member
+                </button>
+              )}
+
+              {/* Sound picker */}
+              <button
+                onClick={() => setShowSoundPicker(!showSoundPicker)}
+                className="w-full text-left px-3 py-2 text-xs text-foreground/80 hover:bg-secondary/60 font-mono flex items-center gap-2"
+              >
+                <SoundIcon className="w-3.5 h-3.5" />
+                Alert sound {chatSound ? `(${chatSound})` : '(default)'}
+                <ChevronIcon open={showSoundPicker} className="w-3 h-3 ml-auto" />
+              </button>
+              {showSoundPicker && (
+                <div className="px-2 py-1 border-t border-border max-h-[200px] overflow-y-auto">
+                  {SOUND_NAMES.map(s => (
+                    <div key={s} className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => { store.setChatSound(item.id, s) }}
+                        className={`flex-1 text-left px-2 py-1.5 text-[11px] font-mono rounded transition-colors ${
+                          chatSound === s ? 'text-[var(--d360-orange)] bg-secondary/60' : 'text-foreground/70 hover:bg-secondary/40'
+                        }`}
+                      >
+                        {s}
+                      </button>
+                      <button
+                        onClick={() => playSound(s)}
+                        className="p-1.5 text-muted-foreground hover:text-[var(--d360-orange)] transition-colors rounded-full hover:bg-secondary/50"
+                        title="Preview"
+                      >
+                        <PlayCircleIcon className="w-5 h-5" />
+                      </button>
+                    </div>
+                  ))}
+                  {chatSound && (
+                    <button
+                      onClick={() => { store.clearChatSound(item.id) }}
+                      className="w-full text-left px-2 py-1.5 text-[10px] text-muted-foreground hover:text-foreground font-mono mt-0.5"
+                    >
+                      Reset to default
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>,
+            document.body
+          )}
+        </div>
       </div>
-    </div>
+
+      {/* Add member modal */}
+      {showAddMember && (
+        <AddMemberModal groupId={item.id} onClose={() => setShowAddMember(false)} />
+      )}
+    </>
   )
 }

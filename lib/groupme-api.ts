@@ -115,6 +115,21 @@ class GroupMeAPI {
     if (!res.ok) throw new Error(`Delete failed ${res.status}`)
   }
 
+  async addMemberToGroup(groupId: string, userId: string, nickname: string) {
+    return this.request(`/groups/${groupId}/members/add`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        members: [{ user_id: userId, nickname }],
+      }),
+    })
+  }
+
+  async getGroupMembers(groupId: string): Promise<{ id: string; user_id: string; nickname: string; image_url: string }[]> {
+    const group = await this.request<GroupMeGroup>(`/groups/${groupId}`)
+    return group.members || []
+  }
+
   async uploadImage(file: File): Promise<string> {
     const res = await fetch(IMAGE_BASE, {
       method: 'POST',
