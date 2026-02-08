@@ -243,7 +243,10 @@ export function Sidebar() {
   const toggleCollapse = useCallback((key: string) => {
     setCollapsedSections(prev => {
       const next = { ...prev, [key]: !prev[key] }
-      if (key === 'inactive' && prev[key]) store.setInactiveOpen(true)
+      // If expanding the inactive section, load inactive chats (deferred to avoid setState-in-render)
+      if (key === 'inactive' && prev[key]) {
+        queueMicrotask(() => store.setInactiveOpen(true))
+      }
       return next
     })
   }, [store])
