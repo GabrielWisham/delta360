@@ -533,31 +533,31 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const streamTogglesRef = useRef(streamToggles)
   streamTogglesRef.current = streamToggles
 
-  const loadUnifiedStreams = useCallback(async () => {
-    const version = ++unifiedVersion.current
-    // Always show spinner - never display partial data
-    setUnifiedLoading(true)
-    // Gather toggled group IDs from latest refs
+  // Ref for sync loading gate (prevents race between setState and interval)
+  const unifiedLoadingRef = useRef(unifiedLoading)
+  unifiedLoadingRef.current = unifiedLoading
+
+  // Core fetch function - returns sorted messages or null if stale/failed
+  const fetchUnifiedMessages = useCallback(async (version: number): Promise<GroupMeMessage[] | null> => {
     const toggledIds = new Set<string>()
     Object.entries(streamsRef.current).forEach(([key, s]: [string, { ids: string[] }]) => {
       if (streamTogglesRef.current.has(key)) {
         s.ids.forEach(gid => toggledIds.add(gid))
       }
     })
-    if (toggledIds.size === 0) {
-      if (version === unifiedVersion.current) {
-        setPanelMessages(prev => { const n = [...prev]; n[0] = []; return n })
-        setUnifiedLoading(false)
-      }
-      return
-    }
+    if (toggledIds.size === 0) return []
     try {
-      const fetches = Array.from(toggledIds).map(gid =>
-        api.getGroupMessages(gid, 15).catch(() => null)
-      )
-      const results = await Promise.all(fetches)
-      // Stale check: if another load was triggered while we were fetching, discard entirely
-      if (version !== unifiedVersion.current) return
+      // Fetch with small stagger to avoid rate limits
+      const groupIds = Array.from(toggledIds)
+      const results: ({ messages: GroupMeMessage[] } | null)[] = []
+      for (let i = 0; i < groupIds.length; i += 5) {
+        if (version !== unifiedVersion.current) return null // stale
+        const batch = groupIds.slice(i, i + 5).map(gid =>
+          api.getGroupMessages(gid, 15).catch(() => null)
+        )
+        results.push(...await Promise.all(batch))
+      }
+      if (version !== unifiedVersion.current) return null // stale
       const all: GroupMeMessage[] = []
       results.forEach(r => {
         if (r && 'messages' in r) all.push(...(r.messages || []))
@@ -568,31 +568,47 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         seen.add(m.id)
         return true
       })
-      // Sort newest first and keep 60 most recent
+      // Sort newest first, keep 60 most recent, then store ascending
       deduped.sort((a, b) => b.created_at - a.created_at)
       const ready = deduped.slice(0, 60)
-      // Final sort ascending for storage (message-feed handles display order)
       ready.sort((a, b) => a.created_at - b.created_at)
-      // Double-check stale before committing to state
-      if (version !== unifiedVersion.current) return
-      // Commit: messages + loading=false in same synchronous block (React batches)
-      setPanelMessages(prev => { const n = [...prev]; n[0] = ready; return n })
-      setUnifiedLoading(false)
+      return ready
     } catch {
-      if (version === unifiedVersion.current) setUnifiedLoading(false)
+      return null
     }
   }, [])
+
+  // Buffered load: shows spinner, hides all messages until fully ready
+  const loadUnifiedStreams = useCallback(async () => {
+    const version = ++unifiedVersion.current
+    unifiedLoadingRef.current = true // sync ref immediately to prevent races
+    setUnifiedLoading(true)
+    setPanelMessages(prev => { const n = [...prev]; n[0] = []; return n })
+    const ready = await fetchUnifiedMessages(version)
+    if (ready === null || version !== unifiedVersion.current) return // stale
+    setPanelMessages(prev => { const n = [...prev]; n[0] = ready; return n })
+    unifiedLoadingRef.current = false
+    setUnifiedLoading(false)
+  }, [fetchUnifiedMessages])
+
+  // Silent refresh: no spinner, atomically swaps messages in place
+  const refreshUnifiedStreams = useCallback(async () => {
+    const version = ++unifiedVersion.current
+    const ready = await fetchUnifiedMessages(version)
+    if (ready === null || version !== unifiedVersion.current) return // stale
+    setPanelMessages(prev => { const n = [...prev]; n[0] = ready; return n })
+  }, [fetchUnifiedMessages])
 
   // Trigger buffered load when toggles change or view switches to unified_streams
   const streamToggleCount = streamToggles.size
   useEffect(() => {
     if (currentView.type !== 'unified_streams' || !isLoggedIn) return
-    // Immediately invalidate any in-flight loadUnifiedStreams calls
+    // Immediately invalidate any in-flight calls and show spinner
     ++unifiedVersion.current
-    // Show spinner and clear feed immediately
+    unifiedLoadingRef.current = true // sync ref immediately to prevent interval races
     setUnifiedLoading(true)
     setPanelMessages(prev => { const n = [...prev]; n[0] = []; return n })
-    // Debounce rapid toggles
+    // Debounce rapid toggles - wait for user to stop toggling
     if (unifiedDebounce.current) clearTimeout(unifiedDebounce.current)
     unifiedDebounce.current = setTimeout(() => {
       loadUnifiedStreams()
@@ -603,15 +619,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [streamToggleCount, currentView.type, isLoggedIn, loadUnifiedStreams])
 
-  // Background refresh for unified_streams (always buffered behind spinner)
+  // Background refresh for unified_streams (silent - no spinner, atomic swap)
   useEffect(() => {
     if (currentView.type !== 'unified_streams' || !isLoggedIn) return
     const interval = setInterval(() => {
-      if (!unifiedLoading) loadUnifiedStreams()
+      if (!unifiedLoadingRef.current) refreshUnifiedStreams()
     }, 15000)
     return () => clearInterval(interval)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentView.type, isLoggedIn, loadUnifiedStreams, unifiedLoading])
+  }, [currentView.type, isLoggedIn, refreshUnifiedStreams])
 
   const switchView = useCallback((type: ViewState['type'], id: string | null) => {
     setCurrentView({ type, id })
