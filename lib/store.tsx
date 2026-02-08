@@ -428,6 +428,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       return dm?.other_user?.name || 'DM'
     }
     if (type === 'stream') return id || 'Stream'
+    if (type === 'unified_streams') return 'Unified Streams'
     return '--'
   }, [groups, dmChats])
 
@@ -470,6 +471,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         const stream = streams[id]
         const fetches = stream.ids.map(gid =>
           api.getGroupMessages(gid, 10).catch(() => null)
+        )
+        const results = await Promise.all(fetches)
+        results.forEach(r => {
+          if (r && 'messages' in r) msgs.push(...(r.messages || []))
+        })
+      } else if (type === 'unified_streams') {
+        const allStreamIds = new Set<string>()
+        Object.values(streams).forEach((s: { ids: string[] }) => s.ids.forEach(gid => allStreamIds.add(gid)))
+        const fetches = Array.from(allStreamIds).map(gid =>
+          api.getGroupMessages(gid, 8).catch(() => null)
         )
         const results = await Promise.all(fetches)
         results.forEach(r => {

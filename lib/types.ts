@@ -90,7 +90,7 @@ export interface GroupMeMessage {
   platform?: string
 }
 
-export type ViewType = 'all' | 'dms' | 'group' | 'dm' | 'stream'
+export type ViewType = 'all' | 'dms' | 'group' | 'dm' | 'stream' | 'unified_streams'
 
 export interface ViewState {
   type: ViewType

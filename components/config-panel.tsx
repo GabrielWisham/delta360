@@ -6,6 +6,14 @@ import { playSound } from '@/lib/sounds'
 import { SOUND_NAMES } from '@/lib/types'
 import type { SoundName } from '@/lib/types'
 
+function PlayIcon({ className = '' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
+      <path d="M8 5v14l11-7z" />
+    </svg>
+  )
+}
+
 export function ConfigPanel() {
   const store = useStore()
   const panelRef = useRef<HTMLDivElement>(null)
@@ -16,6 +24,9 @@ export function ConfigPanel() {
   const [selectedGroups, setSelectedGroups] = useState<Set<string>>(new Set())
   const [isEditing, setIsEditing] = useState(false)
 
+  // Track if we just prefilled from an edit to avoid the reset overwriting it
+  const justEdited = useRef(false)
+
   // Prefill when editing an existing stream
   useEffect(() => {
     if (store.editingStream) {
@@ -23,22 +34,27 @@ export function ConfigPanel() {
       setStreamSound(store.editingStream.sound)
       setSelectedGroups(new Set(store.editingStream.ids))
       setIsEditing(true)
+      justEdited.current = true
       store.setEditingStream(null) // clear so it doesn't re-trigger
     }
   }, [store.editingStream, store])
 
-  // Reset fields when config panel is closed then reopened
+  // Reset fields when config panel is opened fresh (not from edit)
   const wasOpen = useRef(store.configOpen)
   useEffect(() => {
-    if (store.configOpen && !wasOpen.current && !store.editingStream) {
-      // Panel just opened fresh (not from edit) - reset
-      setStreamName('')
-      setStreamSound('radar')
-      setSelectedGroups(new Set())
-      setIsEditing(false)
+    if (store.configOpen && !wasOpen.current) {
+      if (justEdited.current) {
+        // Skip reset - this open was from the edit action
+        justEdited.current = false
+      } else {
+        setStreamName('')
+        setStreamSound('radar')
+        setSelectedGroups(new Set())
+        setIsEditing(false)
+      }
     }
     wasOpen.current = store.configOpen
-  }, [store.configOpen, store.editingStream])
+  }, [store.configOpen])
 
   // Template state
   const [newTemplate, setNewTemplate] = useState('')
@@ -140,10 +156,10 @@ export function ConfigPanel() {
                 </button>
                 <button
                   onClick={() => playSound(s)}
-                  className="text-[10px] text-muted-foreground hover:text-foreground"
+                  className="p-1 text-muted-foreground hover:text-foreground transition-colors"
                   title="Preview"
                 >
-                  {'\u25B6'}
+                  <PlayIcon className="w-3 h-3" />
                 </button>
               </div>
             ))}
@@ -292,7 +308,7 @@ export function ConfigPanel() {
                   <option key={s} value={s}>{s}</option>
                 ))}
               </select>
-              <button onClick={() => playSound(store.feedSound)} className="text-xs text-muted-foreground hover:text-foreground">{'\u25B6'}</button>
+              <button onClick={() => playSound(store.feedSound)} className="p-1 text-muted-foreground hover:text-foreground transition-colors" title="Preview"><PlayIcon className="w-3 h-3" /></button>
               <label className="flex items-center gap-1 text-xs cursor-pointer">
                 <input
                   type="checkbox"
@@ -321,7 +337,7 @@ export function ConfigPanel() {
                   <option key={s} value={s}>{s}</option>
                 ))}
               </select>
-              <button onClick={() => playSound(store.dmSound)} className="text-xs text-muted-foreground hover:text-foreground">{'\u25B6'}</button>
+              <button onClick={() => playSound(store.dmSound)} className="p-1 text-muted-foreground hover:text-foreground transition-colors" title="Preview"><PlayIcon className="w-3 h-3" /></button>
               <label className="flex items-center gap-1 text-xs cursor-pointer">
                 <input
                   type="checkbox"
