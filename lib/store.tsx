@@ -297,17 +297,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     document.documentElement.setAttribute('data-theme', theme)
   }, [theme])
 
-  // Auto-refresh unified_streams when streamToggles changes
-  const streamToggleCount = streamToggles.size
-  const loadMessagesRef = useRef(loadMessages)
-  loadMessagesRef.current = loadMessages
-  useEffect(() => {
-    if (currentView.type === 'unified_streams' && isLoggedIn) {
-      loadMessagesRef.current(0)
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [streamToggleCount, currentView.type, isLoggedIn])
-
   async function autoLogin(token: string) {
     setIsLoggingIn(true)
     isLoggingInRef.current = true
@@ -527,6 +516,17 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       return next
     })
   }, [currentView, panels, groups, dmChats, approved, streams, streamToggles])
+
+  // Auto-refresh unified_streams when streamToggles changes
+  const streamToggleCount = streamToggles.size
+  const loadMessagesRef = useRef(loadMessages)
+  loadMessagesRef.current = loadMessages
+  useEffect(() => {
+    if (currentView.type === 'unified_streams' && isLoggedIn) {
+      loadMessagesRef.current(0)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [streamToggleCount, currentView.type, isLoggedIn])
 
   const switchView = useCallback((type: ViewState['type'], id: string | null) => {
     setCurrentView({ type, id })
