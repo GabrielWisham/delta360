@@ -82,12 +82,15 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     return ordered.filter(m => !store.pinnedMessages[m.id])
   }, [ordered, store.pinnedMessages])
 
-  // Auto-scroll to bottom when oldest first
+  // Auto-scroll based on sort order
   useEffect(() => {
-    if (store.oldestFirst && scrollRef.current) {
+    if (!scrollRef.current) return
+    if (store.oldestFirst) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+    } else {
+      scrollRef.current.scrollTop = 0
     }
-  }, [ordered, store.oldestFirst])
+  }, [view?.type, view?.id, store.oldestFirst])
 
   const scrollToMsg = useCallback((id: string) => {
     const el = document.getElementById(`msg-${id}`)

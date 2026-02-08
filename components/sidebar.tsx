@@ -166,7 +166,6 @@ function usePortalMenu() {
 /* ===== Add Member Modal (inline in portal) ===== */
 function AddMemberModal({ groupId, onClose }: { groupId: string; onClose: () => void }) {
   const [userId, setUserId] = useState('')
-  const [nickname, setNickname] = useState('')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<string | null>(null)
   const ref = useRef<HTMLDivElement>(null)
@@ -180,10 +179,10 @@ function AddMemberModal({ groupId, onClose }: { groupId: string; onClose: () => 
   }, [onClose])
 
   async function handleAdd() {
-    if (!userId.trim() || !nickname.trim()) return
+    if (!userId.trim()) return
     setLoading(true)
     try {
-      await api.addMemberToGroup(groupId, userId.trim(), nickname.trim())
+      await api.addMemberToGroup(groupId, userId.trim(), userId.trim())
       setResult('Member added successfully')
       setTimeout(onClose, 1200)
     } catch {
@@ -207,22 +206,13 @@ function AddMemberModal({ groupId, onClose }: { groupId: string; onClose: () => 
               className="w-full text-xs font-mono bg-secondary/40 border border-border rounded-lg px-3 py-2 text-foreground focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)]"
             />
           </div>
-          <div>
-            <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono mb-1 block">Nickname</label>
-            <input
-              value={nickname}
-              onChange={e => setNickname(e.target.value)}
-              placeholder="Display name"
-              className="w-full text-xs font-mono bg-secondary/40 border border-border rounded-lg px-3 py-2 text-foreground focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)]"
-            />
-          </div>
           {result && (
             <p className={`text-xs font-mono ${result.includes('success') ? 'text-[var(--d360-green)]' : 'text-[var(--d360-red)]'}`}>{result}</p>
           )}
           <div className="flex gap-2 mt-1">
             <button
               onClick={handleAdd}
-              disabled={loading || !userId.trim() || !nickname.trim()}
+              disabled={loading || !userId.trim()}
               className="flex-1 px-3 py-2 text-xs font-mono font-bold rounded-lg bg-[var(--d360-orange)] text-white hover:brightness-110 disabled:opacity-50 transition-all"
             >
               {loading ? 'Adding...' : 'Add Member'}
@@ -1066,7 +1056,7 @@ function ChatCard({ item, store, onClick, isPinned = false, isInactive = false, 
                   {SOUND_NAMES.map(s => (
                     <div key={s} className="flex items-center gap-1.5">
                       <button
-                        onClick={() => { store.setChatSound(item.id, s) }}
+                        onClick={() => { store.setChatSound(item.id, s); menu.close() }}
                         className={`flex-1 text-left px-2 py-1.5 text-[11px] font-mono rounded transition-colors ${
                           chatSound === s ? 'text-[var(--d360-orange)] bg-secondary/60' : 'text-foreground/70 hover:bg-secondary/40'
                         }`}
@@ -1084,7 +1074,7 @@ function ChatCard({ item, store, onClick, isPinned = false, isInactive = false, 
                   ))}
                   {chatSound && (
                     <button
-                      onClick={() => { store.clearChatSound(item.id) }}
+                      onClick={() => { store.clearChatSound(item.id); menu.close() }}
                       className="w-full text-left px-2 py-1.5 text-[10px] text-muted-foreground hover:text-foreground font-mono mt-0.5"
                     >
                       Reset to default
