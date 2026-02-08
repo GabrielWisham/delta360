@@ -49,8 +49,7 @@ function ArchiveIcon({ className = '' }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className}>
       <rect x="2" y="3" width="20" height="5" rx="1" />
-      <path d="M4 8v11a2 2 0 002 2h12a2 2 0 002-2V8" />
-      <path d="M10 12h4" />
+      <path d="M4 8v11a2 2 0 002 2h12a2 2 0 002-2V8" /><path d="M10 12h4" />
     </svg>
   )
 }
@@ -79,6 +78,45 @@ function EyeIcon({ open, className = '' }: { open: boolean; className?: string }
     </svg>
   )
 }
+function EditIcon({ className = '' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+      <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+    </svg>
+  )
+}
+
+/* ===== usePortalMenu - positions a dropdown portaled to body ===== */
+function usePortalMenu() {
+  const [open, setOpen] = useState(false)
+  const [pos, setPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 })
+  const btnRef = useRef<HTMLButtonElement>(null)
+
+  const toggle = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!open && btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect()
+      setPos({
+        top: rect.bottom + 2,
+        left: Math.min(rect.right - 140, window.innerWidth - 160),
+      })
+    }
+    setOpen(prev => !prev)
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return
+    function close(e: MouseEvent) {
+      if (btnRef.current?.contains(e.target as Node)) return
+      setOpen(false)
+    }
+    document.addEventListener('mousedown', close)
+    return () => document.removeEventListener('mousedown', close)
+  }, [open])
+
+  return { open, pos, btnRef, toggle, close: () => setOpen(false) }
+}
 
 export function Sidebar() {
   const store = useStore()
@@ -93,6 +131,9 @@ export function Sidebar() {
   const toggleCollapse = useCallback((key: string) => {
     setCollapsedSections(prev => ({ ...prev, [key]: !prev[key] }))
   }, [])
+
+  /* Active dots-menu chat ID for highlighting */
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
 
   /* Mute keys for Universal Feed and DMs hub */
   const feedMuted = !!store.mutedGroups['__universal_feed__']
@@ -145,7 +186,11 @@ export function Sidebar() {
   const isDesktopHidden = store.sidebarCollapsed && typeof window !== 'undefined' && window.innerWidth > 600
 
   /* Section drag handlers */
-  function onDragStart(idx: number) { setDragIdx(idx) }
+  function onDragStart(e: React.DragEvent, idx: number) {
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', 'section')
+    setDragIdx(idx)
+  }
   function onDragOver(e: React.DragEvent, idx: number) { e.preventDefault(); setDragOverIdx(idx) }
   function onDrop(idx: number) {
     if (dragIdx === null || dragIdx === idx) { setDragIdx(null); setDragOverIdx(null); return }
@@ -218,9 +263,7 @@ export function Sidebar() {
 
     streams: {
       label: 'Streams',
-      render: () => (
-        <StreamsSection store={store} />
-      ),
+      render: () => <StreamsSection store={store} />,
     },
 
     pending: {
@@ -244,7 +287,7 @@ export function Sidebar() {
       render: () => pinnedItems.length > 0 ? (
         <>
           {pinnedItems.map(item => (
-            <ChatCard key={item.id} item={item} store={store} onClick={(e) => handleClick(item.type, item.id, e)} isPinned />
+            <ChatCard key={item.id} item={item} store={store} onClick={(e) => handleClick(item.type, item.id, e)} isPinned menuOpenId={menuOpenId} setMenuOpenId={setMenuOpenId} />
           ))}
         </>
       ) : null,
@@ -255,7 +298,7 @@ export function Sidebar() {
       render: () => (
         <>
           {active.map(item => (
-            <ChatCard key={item.id} item={item} store={store} onClick={(e) => handleClick(item.type, item.id, e)} />
+            <ChatCard key={item.id} item={item} store={store} onClick={(e) => handleClick(item.type, item.id, e)} menuOpenId={menuOpenId} setMenuOpenId={setMenuOpenId} />
           ))}
           {active.length === 0 && <p className="text-[11px] text-muted-foreground px-2 py-2 font-mono">No active chats</p>}
         </>
@@ -276,7 +319,7 @@ export function Sidebar() {
           {store.inactiveOpen && (
             <div className="flex flex-col gap-0.5">
               {inactive.map(item => (
-                <ChatCard key={item.id} item={item} store={store} onClick={(e) => handleClick(item.type, item.id, e)} isInactive />
+                <ChatCard key={item.id} item={item} store={store} onClick={(e) => handleClick(item.type, item.id, e)} isInactive menuOpenId={menuOpenId} setMenuOpenId={setMenuOpenId} />
               ))}
             </div>
           )}
@@ -312,14 +355,14 @@ export function Sidebar() {
               <div
                 key={sectionKey}
                 draggable
-                onDragStart={() => onDragStart(idx)}
+                onDragStart={(e) => onDragStart(e, idx)}
                 onDragOver={(e) => onDragOver(e, idx)}
                 onDrop={() => onDrop(idx)}
                 onDragEnd={onDragEnd}
-                className={`transition-opacity ${dragOverIdx === idx ? 'opacity-50 border-t-2 border-[var(--d360-orange)]' : ''}`}
+                className={`transition-all ${dragOverIdx === idx ? 'border-t-2 border-[var(--d360-orange)] pt-1' : ''}`}
               >
-                {/* Section header row: grip + label + collapse toggle */}
-                <div className="flex items-center gap-1.5 mb-1 cursor-grab active:cursor-grabbing group/sec">
+                {/* Section header */}
+                <div className="flex items-center gap-1.5 mb-1 cursor-grab active:cursor-grabbing group/sec select-none">
                   <GripIcon className="w-3 h-3 text-muted-foreground/30 group-hover/sec:text-muted-foreground/60 transition-colors shrink-0" />
                   <span className="text-[10px] uppercase tracking-[0.2em] text-[var(--d360-orange)] font-bold font-mono flex-1 min-w-0 truncate">{sec.label}</span>
                   <button
@@ -330,7 +373,6 @@ export function Sidebar() {
                     <EyeIcon open={!isCollapsed} className="w-3.5 h-3.5" />
                   </button>
                 </div>
-                {/* Section body */}
                 {!isCollapsed && content}
               </div>
             )
@@ -341,38 +383,39 @@ export function Sidebar() {
   )
 }
 
-/* ===== Streams section with drag-to-reorder ===== */
+/* ===== Streams section with proper drag reorder ===== */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function StreamsSection({ store }: { store: any }) {
   const streamKeys = useMemo(() => Object.keys(store.streams), [store.streams])
   const [dragIdx, setDragIdx] = useState<number | null>(null)
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null)
 
-  function onStreamDragStart(e: React.DragEvent, idx: number) {
+  function onStart(e: React.DragEvent, idx: number) {
     e.stopPropagation()
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', 'stream')
     setDragIdx(idx)
   }
-  function onStreamDragOver(e: React.DragEvent, idx: number) {
+  function onOver(e: React.DragEvent, idx: number) {
     e.preventDefault()
     e.stopPropagation()
+    if (e.dataTransfer.getData('text/plain') === 'section') return
     setDragOverIdx(idx)
   }
-  function onStreamDrop(e: React.DragEvent, idx: number) {
+  function onDrop(e: React.DragEvent, idx: number) {
+    e.preventDefault()
     e.stopPropagation()
-    if (dragIdx === null || dragIdx === idx) { setDragIdx(null); setDragOverIdx(null); return }
-    // Reorder streams by saving/deleting/recreating in new order
-    const keys = [...streamKeys]
-    const [moved] = keys.splice(dragIdx, 1)
-    keys.splice(idx, 0, moved)
-    // Rebuild streams in new order
-    const newStreams: Record<string, { ids: string[]; sound: string }> = {}
-    keys.forEach(k => { newStreams[k] = store.streams[k] })
-    // Save each stream in order (this overwrites the whole streams object)
-    keys.forEach(k => store.saveStream(k, newStreams[k].ids, newStreams[k].sound))
+    if (dragIdx !== null && dragIdx !== idx) {
+      store.reorderStreams(dragIdx, idx)
+    }
     setDragIdx(null)
     setDragOverIdx(null)
   }
-  function onStreamDragEnd() { setDragIdx(null); setDragOverIdx(null) }
+  function onEnd(e: React.DragEvent) {
+    e.stopPropagation()
+    setDragIdx(null)
+    setDragOverIdx(null)
+  }
 
   return (
     <>
@@ -383,11 +426,11 @@ function StreamsSection({ store }: { store: any }) {
         <div
           key={name}
           draggable
-          onDragStart={(e) => onStreamDragStart(e, idx)}
-          onDragOver={(e) => onStreamDragOver(e, idx)}
-          onDrop={(e) => onStreamDrop(e, idx)}
-          onDragEnd={onStreamDragEnd}
-          className={`transition-opacity ${dragOverIdx === idx ? 'opacity-50 border-t border-[var(--d360-orange)]' : ''}`}
+          onDragStart={(e) => onStart(e, idx)}
+          onDragOver={(e) => onOver(e, idx)}
+          onDrop={(e) => onDrop(e, idx)}
+          onDragEnd={onEnd}
+          className={`transition-all ${dragOverIdx === idx ? 'border-t-2 border-[var(--d360-orange)] pt-0.5' : ''} ${dragIdx === idx ? 'opacity-40' : ''}`}
         >
           <StreamItem
             name={name}
@@ -407,7 +450,7 @@ function StreamsSection({ store }: { store: any }) {
   )
 }
 
-/* ===== Stream Item with member popover + rename ===== */
+/* ===== Stream Item with member popover + edit + rename ===== */
 function StreamItem({ name, stream, store, isActive }: {
   name: string
   stream: { ids: string[]; sound: string }
@@ -416,12 +459,11 @@ function StreamItem({ name, stream, store, isActive }: {
   isActive: boolean
 }) {
   const [showMembers, setShowMembers] = useState(false)
-  const [showMenu, setShowMenu] = useState(false)
   const [renaming, setRenaming] = useState(false)
   const [renameVal, setRenameVal] = useState('')
-  const menuRef = useRef<HTMLDivElement>(null)
   const memberBtnRef = useRef<HTMLButtonElement>(null)
   const [popoverPos, setPopoverPos] = useState<{ top: number; left: number } | null>(null)
+  const menu = usePortalMenu()
 
   const displayName = store.getStreamDisplayName(name)
   const isRenamed = !!store.streamRenames[name]
@@ -433,16 +475,17 @@ function StreamItem({ name, stream, store, isActive }: {
     })
   }, [stream.ids, store.groups])
 
-  // Click outside to close
+  // Click outside to close members popover
   useEffect(() => {
-    if (!showMembers && !showMenu) return
+    if (!showMembers) return
     function handleClickOutside(e: MouseEvent) {
-      if (showMenu && menuRef.current && !menuRef.current.contains(e.target as Node)) setShowMenu(false)
-      if (showMembers && !(e.target as Element)?.closest?.('[data-stream-popover]')) setShowMembers(false)
+      if (!(e.target as Element)?.closest?.('[data-stream-popover]') && !memberBtnRef.current?.contains(e.target as Node)) {
+        setShowMembers(false)
+      }
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [showMembers, showMenu])
+  }, [showMembers])
 
   function openMemberPopover() {
     if (memberBtnRef.current) {
@@ -450,15 +493,20 @@ function StreamItem({ name, stream, store, isActive }: {
       setPopoverPos({ top: rect.bottom + 4, left: Math.min(rect.left, window.innerWidth - 260) })
     }
     setShowMembers(true)
-    setShowMenu(false)
+    menu.close()
+  }
+
+  function openEditStream() {
+    store.setEditingStream({ name, ids: stream.ids, sound: stream.sound as SoundName })
+    store.setConfigOpen(true)
+    menu.close()
   }
 
   function startRename() {
     setRenameVal(displayName)
     setRenaming(true)
-    setShowMenu(false)
+    menu.close()
   }
-
   function confirmRename() {
     if (renameVal.trim() && renameVal.trim() !== name) {
       store.renameStream(name, renameVal.trim())
@@ -502,27 +550,44 @@ function StreamItem({ name, stream, store, isActive }: {
           )}
         </button>
 
-        {/* Dots menu - always visible */}
-        <div className="relative" ref={menuRef}>
-          <button
-            ref={memberBtnRef}
-            onClick={() => setShowMenu(!showMenu)}
-            className="p-1 text-muted-foreground hover:text-foreground transition-colors"
+        {/* View members */}
+        <button
+          ref={memberBtnRef}
+          onClick={(e) => { e.stopPropagation(); showMembers ? setShowMembers(false) : openMemberPopover() }}
+          className="p-0.5 text-muted-foreground/50 hover:text-muted-foreground transition-colors shrink-0"
+          title="View groups"
+        >
+          <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+            <circle cx="6" cy="12" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="18" cy="12" r="2" />
+          </svg>
+        </button>
+
+        {/* Dots menu */}
+        <button
+          ref={menu.btnRef}
+          onClick={menu.toggle}
+          className="p-0.5 text-muted-foreground hover:text-foreground transition-colors shrink-0"
+        >
+          <DotsIcon className="w-5 h-5" />
+        </button>
+        {menu.open && typeof document !== 'undefined' && createPortal(
+          <div
+            className="fixed bg-card border border-border rounded-lg shadow-2xl py-1 min-w-[150px]"
+            style={{ top: menu.pos.top, left: menu.pos.left, zIndex: 9999 }}
           >
-            <DotsIcon className="w-5 h-5" />
-          </button>
-          {showMenu && (
-            <div className="absolute right-0 top-full z-[60] mt-1 bg-card border border-border rounded-lg shadow-xl py-1 min-w-[150px]">
-              <button onClick={openMemberPopover} className="w-full text-left px-3 py-1.5 text-xs text-foreground/80 hover:bg-secondary/60 font-mono">View groups</button>
-              <button onClick={startRename} className="w-full text-left px-3 py-1.5 text-xs text-foreground/80 hover:bg-secondary/60 font-mono">Rename</button>
-              {isRenamed && (
-                <button onClick={() => { store.clearStreamRename(name); setShowMenu(false) }} className="w-full text-left px-3 py-1.5 text-xs text-muted-foreground hover:bg-secondary/60 font-mono">Reset name</button>
-              )}
-              <button onClick={() => { playSound(stream.sound as SoundName); setShowMenu(false) }} className="w-full text-left px-3 py-1.5 text-xs text-foreground/80 hover:bg-secondary/60 font-mono">Preview sound</button>
-              <button onClick={() => { store.deleteStream(name); setShowMenu(false) }} className="w-full text-left px-3 py-1.5 text-xs text-[var(--d360-red)] hover:bg-secondary/60 font-mono">Delete</button>
-            </div>
-          )}
-        </div>
+            <button onClick={openEditStream} className="w-full text-left px-3 py-1.5 text-xs text-foreground/80 hover:bg-secondary/60 font-mono flex items-center gap-2">
+              <EditIcon className="w-3.5 h-3.5" /> Edit stream
+            </button>
+            <button onClick={openMemberPopover} className="w-full text-left px-3 py-1.5 text-xs text-foreground/80 hover:bg-secondary/60 font-mono">View groups</button>
+            <button onClick={startRename} className="w-full text-left px-3 py-1.5 text-xs text-foreground/80 hover:bg-secondary/60 font-mono">Rename</button>
+            {isRenamed && (
+              <button onClick={() => { store.clearStreamRename(name); menu.close() }} className="w-full text-left px-3 py-1.5 text-xs text-muted-foreground hover:bg-secondary/60 font-mono">Reset name</button>
+            )}
+            <button onClick={() => { playSound(stream.sound as SoundName); menu.close() }} className="w-full text-left px-3 py-1.5 text-xs text-foreground/80 hover:bg-secondary/60 font-mono">Preview sound</button>
+            <button onClick={() => { store.deleteStream(name); menu.close() }} className="w-full text-left px-3 py-1.5 text-xs text-[var(--d360-red)] hover:bg-secondary/60 font-mono">Delete</button>
+          </div>,
+          document.body
+        )}
 
         <label className="relative inline-flex items-center cursor-pointer shrink-0">
           <input type="checkbox" className="sr-only peer" checked={store.streamToggles.has(name)} onChange={() => store.toggleStreamMonitor(name)} />
@@ -530,7 +595,7 @@ function StreamItem({ name, stream, store, isActive }: {
         </label>
       </div>
 
-      {/* Members popover - portaled to body to avoid z-index clipping */}
+      {/* Members popover - portaled to body */}
       {showMembers && popoverPos && typeof document !== 'undefined' && createPortal(
         <div
           data-stream-popover
@@ -565,36 +630,35 @@ interface ChatItemData {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function ChatCard({ item, store, onClick, isPinned = false, isInactive = false }: {
+function ChatCard({ item, store, onClick, isPinned = false, isInactive = false, menuOpenId, setMenuOpenId }: {
   item: ChatItemData
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   store: any
   onClick: (e: React.MouseEvent) => void
   isPinned?: boolean
   isInactive?: boolean
+  menuOpenId: string | null
+  setMenuOpenId: (id: string | null) => void
 }) {
   const isSelected = store.currentView.type === item.type && store.currentView.id === item.id
   const isUnread = store.isUnread(item.id, item.ts)
   const isMuted = store.mutedGroups[item.id]
   const displayName = store.getChatDisplayName(item.id, item.name)
-  const [showMenu, setShowMenu] = useState(false)
   const [renaming, setRenaming] = useState(false)
   const [renameVal, setRenameVal] = useState('')
   const [showOriginal, setShowOriginal] = useState(false)
   const isRenamed = !!store.chatRenames[item.id]
-  const menuRef = useRef<HTMLDivElement>(null)
+
+  const isMenuOpen = menuOpenId === item.id
+  const menu = usePortalMenu()
 
   const accent = item.type === 'dm' ? 'var(--d360-cyan)' : 'var(--d360-orange)'
 
-  // Click outside to close menu
+  // Sync portal menu open state with parent highlight
   useEffect(() => {
-    if (!showMenu) return
-    function handleClickOutside(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setShowMenu(false)
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [showMenu])
+    if (menu.open) setMenuOpenId(item.id)
+    else if (menuOpenId === item.id) setMenuOpenId(null)
+  }, [menu.open, item.id, menuOpenId, setMenuOpenId])
 
   function confirmRename() {
     if (renameVal.trim() && renameVal.trim() !== item.name) {
@@ -605,28 +669,30 @@ function ChatCard({ item, store, onClick, isPinned = false, isInactive = false }
     setRenaming(false)
   }
 
+  const isHighlighted = isSelected || isMenuOpen
+
   return (
     <div
       onClick={onClick}
       className={`relative flex items-center gap-1.5 px-3 py-3 rounded-lg cursor-pointer transition-all group mb-0.5 overflow-hidden ${
-        isSelected
+        isHighlighted
           ? 'text-foreground font-semibold'
           : isInactive
             ? 'text-foreground/60 hover:text-foreground/80 hover:bg-secondary/30'
             : 'text-foreground/80 hover:text-foreground hover:bg-secondary/40'
       }`}
-      style={isSelected ? {
+      style={isHighlighted ? {
         background: item.type === 'dm'
           ? 'linear-gradient(90deg, rgba(34,211,238,0.30) 0%, rgba(34,211,238,0.08) 50%, transparent 100%)'
           : 'linear-gradient(90deg, rgba(255,106,0,0.35) 0%, rgba(255,106,0,0.08) 50%, transparent 100%)',
       } : {}}
     >
       {/* Left accent bar */}
-      {isSelected && (
+      {isHighlighted && (
         <div className="absolute left-0 top-0 bottom-0 w-[3px] rounded-r" style={{ background: accent }} />
       )}
 
-      {/* Mute icon - always in same fixed spot, first element */}
+      {/* Mute icon - fixed position */}
       <div className="w-5 shrink-0 flex items-center justify-center">
         <button
           onClick={(e) => { e.stopPropagation(); store.toggleMuteGroup(item.id) }}
@@ -656,7 +722,7 @@ function ChatCard({ item, store, onClick, isPinned = false, isInactive = false }
           />
         ) : (
           <>
-            <span className={`truncate text-[13px] font-mono tracking-wide block ${isSelected ? 'font-bold text-foreground' : isInactive ? 'font-normal' : 'font-medium'}`}>
+            <span className={`truncate text-[13px] font-mono tracking-wide block ${isHighlighted ? 'font-bold text-foreground' : isInactive ? 'font-normal' : 'font-medium'}`}>
               {displayName}
             </span>
             {isRenamed && showOriginal && (
@@ -671,7 +737,7 @@ function ChatCard({ item, store, onClick, isPinned = false, isInactive = false }
         <span
           className="text-[10px] font-mono"
           style={{
-            color: isInactive ? 'var(--color-muted-foreground)' : isSelected ? 'var(--color-foreground)' : accent,
+            color: isInactive ? 'var(--color-muted-foreground)' : isHighlighted ? 'var(--color-foreground)' : accent,
             opacity: isInactive ? 0.7 : 0.8,
           }}
         >
@@ -682,57 +748,60 @@ function ChatCard({ item, store, onClick, isPinned = false, isInactive = false }
           <div className="w-2.5 h-2.5 rounded-full shrink-0 animate-pulse-glow" style={{ background: accent }} />
         )}
 
-        {/* Dots menu - ALWAYS visible, larger */}
-        <div className="relative" ref={menuRef}>
-          <button
-            onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu) }}
-            className="p-0.5 text-muted-foreground hover:text-foreground transition-colors"
+        {/* Dots menu - ALWAYS visible, portaled to body */}
+        <button
+          ref={menu.btnRef}
+          onClick={menu.toggle}
+          className="p-0.5 text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <DotsIcon className="w-5 h-5" />
+        </button>
+        {menu.open && typeof document !== 'undefined' && createPortal(
+          <div
+            className="fixed bg-card border border-border rounded-lg shadow-2xl py-1 min-w-[140px]"
+            style={{ top: menu.pos.top, left: menu.pos.left, zIndex: 9999 }}
           >
-            <DotsIcon className="w-5 h-5" />
-          </button>
-          {showMenu && (
-            <div className="absolute right-0 top-full z-[60] mt-1 bg-card border border-border rounded-lg shadow-xl py-1 min-w-[130px]">
-              <button
-                onClick={(e) => { e.stopPropagation(); setRenameVal(displayName); setRenaming(true); setShowMenu(false) }}
-                className="w-full text-left px-3 py-1.5 text-xs text-foreground/80 hover:bg-secondary/60 font-mono"
-              >
-                Rename
-              </button>
-              {isRenamed && (
-                <>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setShowOriginal(!showOriginal); setShowMenu(false) }}
-                    className="w-full text-left px-3 py-1.5 text-xs text-foreground/80 hover:bg-secondary/60 font-mono"
-                  >
-                    {showOriginal ? 'Hide original' : 'See original'}
-                  </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); store.clearChatRename(item.id); setShowMenu(false) }}
-                    className="w-full text-left px-3 py-1.5 text-xs text-muted-foreground hover:bg-secondary/60 font-mono"
-                  >
-                    Reset name
-                  </button>
-                </>
-              )}
-              {!isPinned && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setRenameVal(displayName); setRenaming(true); menu.close() }}
+              className="w-full text-left px-3 py-1.5 text-xs text-foreground/80 hover:bg-secondary/60 font-mono"
+            >
+              Rename
+            </button>
+            {isRenamed && (
+              <>
                 <button
-                  onClick={(e) => { e.stopPropagation(); store.togglePinChat(item.id); setShowMenu(false) }}
+                  onClick={(e) => { e.stopPropagation(); setShowOriginal(!showOriginal); menu.close() }}
                   className="w-full text-left px-3 py-1.5 text-xs text-foreground/80 hover:bg-secondary/60 font-mono"
                 >
-                  {store.pinnedChats[item.id] ? 'Unpin' : 'Pin'}
+                  {showOriginal ? 'Hide original' : 'See original'}
                 </button>
-              )}
-              {isPinned && (
                 <button
-                  onClick={(e) => { e.stopPropagation(); store.togglePinChat(item.id); setShowMenu(false) }}
-                  className="w-full text-left px-3 py-1.5 text-xs text-[var(--d360-red)] hover:bg-secondary/60 font-mono"
+                  onClick={(e) => { e.stopPropagation(); store.clearChatRename(item.id); menu.close() }}
+                  className="w-full text-left px-3 py-1.5 text-xs text-muted-foreground hover:bg-secondary/60 font-mono"
                 >
-                  Unpin
+                  Reset name
                 </button>
-              )}
-            </div>
-          )}
-        </div>
+              </>
+            )}
+            {!isPinned && (
+              <button
+                onClick={(e) => { e.stopPropagation(); store.togglePinChat(item.id); menu.close() }}
+                className="w-full text-left px-3 py-1.5 text-xs text-foreground/80 hover:bg-secondary/60 font-mono"
+              >
+                {store.pinnedChats[item.id] ? 'Unpin' : 'Pin'}
+              </button>
+            )}
+            {isPinned && (
+              <button
+                onClick={(e) => { e.stopPropagation(); store.togglePinChat(item.id); menu.close() }}
+                className="w-full text-left px-3 py-1.5 text-xs text-[var(--d360-red)] hover:bg-secondary/60 font-mono"
+              >
+                Unpin
+              </button>
+            )}
+          </div>,
+          document.body
+        )}
       </div>
     </div>
   )

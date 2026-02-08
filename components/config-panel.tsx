@@ -10,10 +10,22 @@ export function ConfigPanel() {
   const store = useStore()
   const panelRef = useRef<HTMLDivElement>(null)
 
-  // Stream builder state
+  // Stream builder state (prefill from editingStream)
   const [streamName, setStreamName] = useState('')
   const [streamSound, setStreamSound] = useState<SoundName>('radar')
   const [selectedGroups, setSelectedGroups] = useState<Set<string>>(new Set())
+  const [isEditing, setIsEditing] = useState(false)
+
+  // Prefill when editing an existing stream
+  useEffect(() => {
+    if (store.editingStream) {
+      setStreamName(store.editingStream.name)
+      setStreamSound(store.editingStream.sound)
+      setSelectedGroups(new Set(store.editingStream.ids))
+      setIsEditing(true)
+      store.setEditingStream(null) // clear so it doesn't re-trigger
+    }
+  }, [store.editingStream, store])
 
   // Template state
   const [newTemplate, setNewTemplate] = useState('')
@@ -39,9 +51,11 @@ export function ConfigPanel() {
   function handleSaveStream() {
     if (!streamName.trim() || selectedGroups.size === 0) return
     store.saveStream(streamName.trim().toUpperCase(), Array.from(selectedGroups), streamSound)
+    const msg = isEditing ? `Stream "${streamName.trim()}" updated` : `Stream "${streamName.trim()}" created`
     setStreamName('')
     setSelectedGroups(new Set())
-    store.showToast('Saved', `Stream "${streamName.trim()}" created`)
+    setIsEditing(false)
+    store.showToast('Saved', msg)
   }
 
   function toggleGroup(id: string) {
@@ -146,7 +160,7 @@ export function ConfigPanel() {
             className="w-full text-xs font-semibold uppercase tracking-widest text-white py-2 rounded-lg disabled:opacity-30 transition-all hover:brightness-110"
             style={{ background: 'var(--d360-gradient)', fontFamily: 'var(--font-jetbrains)' }}
           >
-            Save Stream
+            {isEditing ? 'Update Stream' : 'Save Stream'}
           </button>
         </div>
 

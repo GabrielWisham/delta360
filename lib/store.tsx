@@ -100,6 +100,8 @@ interface StoreState {
   streamRenames: Record<string, string>
   // Section order
   sectionOrder: string[]
+  // Editing a stream (prefill config)
+  editingStream: { name: string; ids: string[]; sound: SoundName } | null
 }
 
 interface StoreActions {
@@ -164,6 +166,8 @@ interface StoreActions {
   clearStreamRename: (key: string) => void
   getStreamDisplayName: (key: string) => string
   setSectionOrder: (order: string[]) => void
+  setEditingStream: (v: StoreState['editingStream']) => void
+  reorderStreams: (fromIdx: number, toIdx: number) => void
 }
 
 interface ToastItem {
@@ -233,6 +237,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [shiftChangeOpen, setShiftChangeOpen] = useState(false)
   const [pendingImage, setPendingImage] = useState<string | null>(null)
   const [searchIndex, setSearchIndex] = useState<GroupMeMessage[]>([])
+  const [editingStream, setEditingStream] = useState<StoreState['editingStream']>(null)
   const [chatRenames, setChatRenames] = useState<Record<string, string>>({})
   const [streamRenames, setStreamRenames] = useState<Record<string, string>>({})
   const [sectionOrder, setSectionOrderState] = useState<string[]>(['command', 'streams', 'pending', 'pinned', 'active', 'inactive'])
@@ -675,6 +680,19 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     })
   }, [])
 
+  const reorderStreams = useCallback((fromIdx: number, toIdx: number) => {
+    setStreams(prev => {
+      const keys = Object.keys(prev)
+      if (fromIdx < 0 || fromIdx >= keys.length || toIdx < 0 || toIdx >= keys.length) return prev
+      const [moved] = keys.splice(fromIdx, 1)
+      keys.splice(toIdx, 0, moved)
+      const next: Record<string, { ids: string[]; sound: string }> = {}
+      keys.forEach(k => { next[k] = prev[k] })
+      storage.setStreams(next)
+      return next
+    })
+  }, [])
+
   const setMyStatus = useCallback(async (s: UserStatus, broadcast = true) => {
     setMyStatusState(s)
     storage.setStatus(s)
@@ -780,6 +798,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     chatRenames,
     streamRenames,
     sectionOrder,
+    editingStream,
     toasts,
     // Actions
     login,
@@ -871,6 +890,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     clearStreamRename,
     getStreamDisplayName,
     setSectionOrder,
+    setEditingStream,
+    reorderStreams,
     saveStream,
     deleteStream,
     toggleStreamMonitor,
