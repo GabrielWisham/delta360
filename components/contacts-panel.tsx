@@ -7,7 +7,7 @@ export function ContactsPanel() {
   const store = useStore()
   const [filter, setFilter] = useState('')
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
-
+  // All hooks must be called before any early return
   const contacts = useMemo(() => {
     const map = new Map<string, { userId: string; name: string; imageUrl: string | null; groups: string[] }>()
 
