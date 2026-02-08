@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useRef, useEffect, useCallback } from 'react'
 import { useStore } from '@/lib/store'
 import { formatTimeAgo, getLastMsgTs } from '@/lib/date-helpers'
 import { playSound } from '@/lib/sounds'
@@ -37,13 +37,6 @@ function DotsIcon({ className = '' }: { className?: string }) {
     </svg>
   )
 }
-function EditIcon({ className = '' }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-    </svg>
-  )
-}
 function ChevronIcon({ open, className = '' }: { open: boolean; className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" className={`transition-transform duration-200 ${open ? 'rotate-90' : ''} ${className}`}>
@@ -60,10 +53,23 @@ function ArchiveIcon({ className = '' }: { className?: string }) {
     </svg>
   )
 }
+function GripIcon({ className = '' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
+      <circle cx="9" cy="6" r="1.5" /><circle cx="15" cy="6" r="1.5" />
+      <circle cx="9" cy="12" r="1.5" /><circle cx="15" cy="12" r="1.5" />
+      <circle cx="9" cy="18" r="1.5" /><circle cx="15" cy="18" r="1.5" />
+    </svg>
+  )
+}
 
 export function Sidebar() {
   const store = useStore()
   const now = Math.floor(Date.now() / 1000)
+
+  /* Drag state for section reorder */
+  const [dragIdx, setDragIdx] = useState<number | null>(null)
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null)
 
   const sortedGroups = useMemo(() => {
     const items = store.groups.map(g => ({
@@ -111,6 +117,133 @@ export function Sidebar() {
 
   const isDesktopHidden = store.sidebarCollapsed && typeof window !== 'undefined' && window.innerWidth > 600
 
+  /* Drag handlers */
+  function onDragStart(idx: number) { setDragIdx(idx) }
+  function onDragOver(e: React.DragEvent, idx: number) { e.preventDefault(); setDragOverIdx(idx) }
+  function onDrop(idx: number) {
+    if (dragIdx === null || dragIdx === idx) { setDragIdx(null); setDragOverIdx(null); return }
+    const order = [...store.sectionOrder]
+    const [moved] = order.splice(dragIdx, 1)
+    order.splice(idx, 0, moved)
+    store.setSectionOrder(order)
+    setDragIdx(null)
+    setDragOverIdx(null)
+  }
+  function onDragEnd() { setDragIdx(null); setDragOverIdx(null) }
+
+  /* Section renderer map */
+  const sections: Record<string, () => React.ReactNode> = {
+    command: () => (
+      <div key="command">
+        <SectionLabel text="Command" />
+        <button
+          onClick={(e) => { if (e.shiftKey) store.openSecondaryPanel('all', null); else store.switchView('all', null) }}
+          className={`flex items-center gap-2 w-full px-3 py-3 rounded-lg text-[13px] font-mono uppercase tracking-wider transition-all mb-1 ${
+            store.currentView.type === 'all' ? 'text-foreground font-bold' : 'text-foreground/70 hover:text-foreground'
+          }`}
+          style={{
+            background: store.currentView.type === 'all'
+              ? 'linear-gradient(90deg, rgba(255,106,0,0.35) 0%, rgba(255,106,0,0.08) 50%, transparent 100%)'
+              : 'rgba(255,106,0,0.06)',
+            borderLeft: store.currentView.type === 'all' ? '3px solid var(--d360-orange)' : '3px solid transparent',
+          }}
+        >
+          Universal Feed
+        </button>
+        <button
+          onClick={(e) => { if (e.shiftKey) store.openSecondaryPanel('dms', null); else store.switchView('dms', null) }}
+          className={`flex items-center gap-2 w-full px-3 py-3 rounded-lg text-[13px] font-mono uppercase tracking-wider transition-all mb-0.5 ${
+            store.currentView.type === 'dms' ? 'text-foreground font-bold' : 'text-foreground/70 hover:text-foreground'
+          }`}
+          style={{
+            background: store.currentView.type === 'dms'
+              ? 'linear-gradient(90deg, rgba(34,211,238,0.30) 0%, rgba(34,211,238,0.06) 50%, transparent 100%)'
+              : 'rgba(34,211,238,0.05)',
+            borderLeft: store.currentView.type === 'dms' ? '3px solid var(--d360-cyan)' : '3px solid transparent',
+          }}
+        >
+          Direct Comms
+        </button>
+      </div>
+    ),
+
+    streams: () => (
+      <div key="streams">
+        <SectionLabel text="Streams" />
+        {Object.keys(store.streams).length === 0 && (
+          <p className="text-[11px] text-muted-foreground px-2 py-1 font-mono">No streams yet</p>
+        )}
+        {Object.entries(store.streams).map(([name, stream]) => (
+          <StreamItem
+            key={name}
+            name={name}
+            stream={stream}
+            store={store}
+            isActive={store.currentView.type === 'stream' && store.currentView.id === name}
+          />
+        ))}
+        <button
+          onClick={() => store.setConfigOpen(true)}
+          className="text-[10px] uppercase tracking-widest text-[var(--d360-orange)] hover:text-[var(--d360-orange)]/80 mt-1 px-2 font-mono font-semibold"
+        >
+          + Create Stream
+        </button>
+      </div>
+    ),
+
+    pending: () => pendingDMs.length > 0 ? (
+      <div key="pending">
+        <SectionLabel text={`Pending DMs (${pendingDMs.length})`} />
+        {pendingDMs.map(d => (
+          <div key={d.other_user.id} className="flex items-center gap-2 px-2 py-2 rounded-lg text-xs bg-secondary/50 mb-1">
+            <span className="text-foreground flex-1 truncate font-semibold font-mono">{d.other_user.name}</span>
+            <span className="text-muted-foreground truncate max-w-[80px] text-[10px]">{d.last_message?.text || ''}</span>
+            <button onClick={() => store.approveDM(d.other_user.id)} className="text-[var(--d360-green)] hover:brightness-125 font-bold px-1 text-base" title="Approve">{'\u2713'}</button>
+            <button onClick={() => store.blockDM(d.other_user.id)} className="text-[var(--d360-red)] hover:brightness-125 font-bold px-1 text-base" title="Block">{'\u2715'}</button>
+          </div>
+        ))}
+      </div>
+    ) : null,
+
+    pinned: () => pinnedItems.length > 0 ? (
+      <div key="pinned">
+        <SectionLabel text="Pinned" />
+        {pinnedItems.map(item => (
+          <ChatCard key={item.id} item={item} store={store} onClick={(e) => handleClick(item.type, item.id, e)} isPinned />
+        ))}
+      </div>
+    ) : null,
+
+    active: () => (
+      <div key="active">
+        <SectionLabel text={`Active${unreadCount > 0 ? ` (${unreadCount})` : ''}`} />
+        {active.map(item => (
+          <ChatCard key={item.id} item={item} store={store} onClick={(e) => handleClick(item.type, item.id, e)} />
+        ))}
+        {active.length === 0 && <p className="text-[11px] text-muted-foreground px-2 py-2 font-mono">No active chats</p>}
+      </div>
+    ),
+
+    inactive: () => inactive.length > 0 ? (
+      <div key="inactive">
+        <button onClick={() => store.setInactiveOpen(!store.inactiveOpen)} className="flex items-center gap-1.5 w-full mb-1 px-1">
+          <ChevronIcon open={store.inactiveOpen} className="w-3.5 h-3.5 text-muted-foreground" />
+          <ArchiveIcon className="w-3.5 h-3.5 text-muted-foreground" />
+          <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-mono font-semibold">
+            Inactive ({inactive.length})
+          </span>
+        </button>
+        {store.inactiveOpen && (
+          <div className="flex flex-col gap-0.5">
+            {inactive.map(item => (
+              <ChatCard key={item.id} item={item} store={store} onClick={(e) => handleClick(item.type, item.id, e)} isInactive />
+            ))}
+          </div>
+        )}
+      </div>
+    ) : null,
+  }
+
   return (
     <>
       {store.sidebarMobileOpen && (
@@ -127,123 +260,29 @@ export function Sidebar() {
         style={{ background: 'var(--d360-sidebar-bg)' }}
       >
         <div className="p-3 flex flex-col gap-4">
-          {/* COMMAND */}
-          <div>
-            <SectionLabel text="Command" />
-            {/* Universal Feed - distinct background */}
-            <button
-              onClick={(e) => { if (e.shiftKey) store.openSecondaryPanel('all', null); else store.switchView('all', null) }}
-              className={`flex items-center gap-2 w-full px-3 py-3 rounded-lg text-[13px] font-mono uppercase tracking-wider transition-all mb-1 ${
-                store.currentView.type === 'all' ? 'text-foreground font-bold' : 'text-foreground/70 hover:text-foreground'
-              }`}
-              style={{
-                background: store.currentView.type === 'all'
-                  ? 'linear-gradient(90deg, rgba(255,106,0,0.35) 0%, rgba(255,106,0,0.08) 50%, transparent 100%)'
-                  : 'rgba(255,106,0,0.06)',
-                borderLeft: store.currentView.type === 'all' ? '3px solid var(--d360-orange)' : '3px solid transparent',
-              }}
-            >
-              Universal Feed
-            </button>
-            {/* Direct Comms - cyan tinted background matching DM cards */}
-            <button
-              onClick={(e) => { if (e.shiftKey) store.openSecondaryPanel('dms', null); else store.switchView('dms', null) }}
-              className={`flex items-center gap-2 w-full px-3 py-3 rounded-lg text-[13px] font-mono uppercase tracking-wider transition-all mb-0.5 ${
-                store.currentView.type === 'dms' ? 'text-foreground font-bold' : 'text-foreground/70 hover:text-foreground'
-              }`}
-              style={{
-                background: store.currentView.type === 'dms'
-                  ? 'linear-gradient(90deg, rgba(34,211,238,0.30) 0%, rgba(34,211,238,0.06) 50%, transparent 100%)'
-                  : 'rgba(34,211,238,0.05)',
-                borderLeft: store.currentView.type === 'dms' ? '3px solid var(--d360-cyan)' : '3px solid transparent',
-              }}
-            >
-              Direct Comms
-            </button>
-          </div>
-
-          {/* STREAMS */}
-          <div>
-            <SectionLabel text="Streams" />
-            {Object.keys(store.streams).length === 0 && (
-              <p className="text-[11px] text-muted-foreground px-2 py-1 font-mono">No streams yet</p>
-            )}
-            {Object.entries(store.streams).map(([name, stream]) => (
-              <StreamItem
-                key={name}
-                name={name}
-                stream={stream}
-                store={store}
-                isActive={store.currentView.type === 'stream' && store.currentView.id === name}
-              />
-            ))}
-            <button
-              onClick={() => store.setConfigOpen(true)}
-              className="text-[10px] uppercase tracking-widest text-[var(--d360-orange)] hover:text-[var(--d360-orange)]/80 mt-1 px-2 font-mono font-semibold"
-            >
-              + Create Stream
-            </button>
-          </div>
-
-          {/* PENDING DMs */}
-          {pendingDMs.length > 0 && (
-            <div>
-              <SectionLabel text={`Pending DMs (${pendingDMs.length})`} />
-              {pendingDMs.map(d => (
-                <div key={d.other_user.id} className="flex items-center gap-2 px-2 py-2 rounded-lg text-xs bg-secondary/50 mb-1">
-                  <span className="text-foreground flex-1 truncate font-semibold font-mono">{d.other_user.name}</span>
-                  <span className="text-muted-foreground truncate max-w-[80px] text-[10px]">{d.last_message?.text || ''}</span>
-                  <button onClick={() => store.approveDM(d.other_user.id)} className="text-[var(--d360-green)] hover:brightness-125 font-bold px-1 text-base" title="Approve">{'\u2713'}</button>
-                  <button onClick={() => store.blockDM(d.other_user.id)} className="text-[var(--d360-red)] hover:brightness-125 font-bold px-1 text-base" title="Block">{'\u2715'}</button>
+          {store.sectionOrder.map((sectionKey, idx) => {
+            const renderFn = sections[sectionKey]
+            if (!renderFn) return null
+            const content = renderFn()
+            if (!content) return null
+            return (
+              <div
+                key={sectionKey}
+                draggable
+                onDragStart={() => onDragStart(idx)}
+                onDragOver={(e) => onDragOver(e, idx)}
+                onDrop={() => onDrop(idx)}
+                onDragEnd={onDragEnd}
+                className={`transition-opacity ${dragOverIdx === idx ? 'opacity-50 border-t-2 border-[var(--d360-orange)]' : ''}`}
+              >
+                {/* Drag handle on section */}
+                <div className="flex items-center gap-1 group/drag cursor-grab active:cursor-grabbing mb-0.5">
+                  <GripIcon className="w-3 h-3 text-muted-foreground/30 group-hover/drag:text-muted-foreground/60 transition-colors shrink-0" />
+                  <div className="flex-1 min-w-0">{content}</div>
                 </div>
-              ))}
-            </div>
-          )}
-
-          {/* PINNED */}
-          {pinnedItems.length > 0 && (
-            <div>
-              <SectionLabel text="Pinned" />
-              {pinnedItems.map(item => (
-                <ChatCard
-                  key={item.id}
-                  item={item}
-                  store={store}
-                  onClick={(e) => handleClick(item.type, item.id, e)}
-                  isPinned
-                />
-              ))}
-            </div>
-          )}
-
-          {/* ACTIVE */}
-          <div>
-            <SectionLabel text={`Active${unreadCount > 0 ? ` (${unreadCount})` : ''}`} />
-            {active.map(item => (
-              <ChatCard key={item.id} item={item} store={store} onClick={(e) => handleClick(item.type, item.id, e)} />
-            ))}
-            {active.length === 0 && <p className="text-[11px] text-muted-foreground px-2 py-2 font-mono">No active chats</p>}
-          </div>
-
-          {/* INACTIVE */}
-          {inactive.length > 0 && (
-            <div>
-              <button onClick={() => store.setInactiveOpen(!store.inactiveOpen)} className="flex items-center gap-1.5 w-full mb-1 px-1">
-                <ChevronIcon open={store.inactiveOpen} className="w-3.5 h-3.5 text-muted-foreground" />
-                <ArchiveIcon className="w-3.5 h-3.5 text-muted-foreground" />
-                <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-mono font-semibold">
-                  Inactive ({inactive.length})
-                </span>
-              </button>
-              {store.inactiveOpen && (
-                <div className="flex flex-col gap-0.5">
-                  {inactive.map(item => (
-                    <ChatCard key={item.id} item={item} store={store} onClick={(e) => handleClick(item.type, item.id, e)} isInactive />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+              </div>
+            )
+          })}
         </div>
       </aside>
     </>
@@ -253,11 +292,11 @@ export function Sidebar() {
 /* ===== Section Label ===== */
 function SectionLabel({ text }: { text: string }) {
   return (
-    <div className="text-[10px] uppercase tracking-[0.2em] text-[var(--d360-orange)] font-bold mb-2 px-2 font-mono">{text}</div>
+    <div className="text-[10px] uppercase tracking-[0.2em] text-[var(--d360-orange)] font-bold mb-2 px-1 font-mono">{text}</div>
   )
 }
 
-/* ===== Stream Item with member popover ===== */
+/* ===== Stream Item with member popover + rename ===== */
 function StreamItem({ name, stream, store, isActive }: {
   name: string
   stream: { ids: string[]; sound: string }
@@ -266,13 +305,47 @@ function StreamItem({ name, stream, store, isActive }: {
   isActive: boolean
 }) {
   const [showMembers, setShowMembers] = useState(false)
+  const [showMenu, setShowMenu] = useState(false)
+  const [renaming, setRenaming] = useState(false)
+  const [renameVal, setRenameVal] = useState('')
+  const popoverRef = useRef<HTMLDivElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  const displayName = store.getStreamDisplayName(name)
+  const isRenamed = !!store.streamRenames[name]
 
   const groupNames = useMemo(() => {
-    return stream.ids.map(id => {
+    return stream.ids.map((id: string) => {
       const g = store.groups.find((gr: { id: string }) => gr.id === id)
       return g ? g.name : id
     })
   }, [stream.ids, store.groups])
+
+  // Click outside to close popover
+  useEffect(() => {
+    if (!showMembers && !showMenu) return
+    function handleClickOutside(e: MouseEvent) {
+      if (showMembers && popoverRef.current && !popoverRef.current.contains(e.target as Node)) setShowMembers(false)
+      if (showMenu && menuRef.current && !menuRef.current.contains(e.target as Node)) setShowMenu(false)
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [showMembers, showMenu])
+
+  function startRename() {
+    setRenameVal(displayName)
+    setRenaming(true)
+    setShowMenu(false)
+  }
+
+  function confirmRename() {
+    if (renameVal.trim() && renameVal.trim() !== name) {
+      store.renameStream(name, renameVal.trim())
+    } else {
+      store.clearStreamRename(name)
+    }
+    setRenaming(false)
+  }
 
   return (
     <div className="relative group mb-0.5">
@@ -282,7 +355,7 @@ function StreamItem({ name, stream, store, isActive }: {
             if (e.shiftKey) store.openSecondaryPanel('stream', name)
             else store.switchView('stream', name)
           }}
-          className={`flex-1 flex items-center gap-2 px-3 py-3 rounded-lg text-[13px] font-mono uppercase tracking-wider transition-all ${
+          className={`flex-1 flex items-center gap-2 px-3 py-3 rounded-lg text-[13px] font-mono uppercase tracking-wider transition-all min-w-0 ${
             isActive ? 'text-foreground font-bold' : 'text-foreground/70 hover:text-foreground hover:bg-secondary/50'
           }`}
           style={isActive ? {
@@ -290,51 +363,60 @@ function StreamItem({ name, stream, store, isActive }: {
             borderLeft: '3px solid var(--d360-orange)',
           } : { borderLeft: '3px solid transparent' }}
         >
-          {name}
+          {renaming ? (
+            <input
+              autoFocus
+              value={renameVal}
+              onChange={e => setRenameVal(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') confirmRename(); if (e.key === 'Escape') setRenaming(false) }}
+              onBlur={confirmRename}
+              onClick={e => e.stopPropagation()}
+              className="w-full text-[13px] font-mono bg-secondary/60 border border-border rounded px-1.5 py-0.5 text-foreground focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)]"
+            />
+          ) : (
+            <span className="truncate">{displayName}</span>
+          )}
         </button>
 
-        <button
-          onClick={() => setShowMembers(!showMembers)}
-          className="p-1 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
-          title="View groups in stream"
-        >
-          <DotsIcon className="w-4 h-4" />
-        </button>
+        {/* Dots menu */}
+        <div className="relative" ref={menuRef}>
+          <button
+            onClick={() => setShowMenu(!showMenu)}
+            className="p-1 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+          >
+            <DotsIcon className="w-4 h-4" />
+          </button>
+          {showMenu && (
+            <div className="absolute right-0 top-full z-50 mt-1 bg-card border border-border rounded-lg shadow-xl py-1 min-w-[140px]">
+              <button onClick={() => { setShowMembers(true); setShowMenu(false) }} className="w-full text-left px-3 py-1.5 text-xs text-foreground/80 hover:bg-secondary/60 font-mono">View groups</button>
+              <button onClick={startRename} className="w-full text-left px-3 py-1.5 text-xs text-foreground/80 hover:bg-secondary/60 font-mono">Rename</button>
+              {isRenamed && (
+                <button onClick={() => { store.clearStreamRename(name); setShowMenu(false) }} className="w-full text-left px-3 py-1.5 text-xs text-muted-foreground hover:bg-secondary/60 font-mono">Reset name</button>
+              )}
+              <button onClick={() => { playSound(stream.sound as SoundName); setShowMenu(false) }} className="w-full text-left px-3 py-1.5 text-xs text-foreground/80 hover:bg-secondary/60 font-mono">Preview sound</button>
+              <button onClick={() => { store.deleteStream(name); setShowMenu(false) }} className="w-full text-left px-3 py-1.5 text-xs text-[var(--d360-red)] hover:bg-secondary/60 font-mono">Delete</button>
+            </div>
+          )}
+        </div>
 
-        <button
-          onClick={() => playSound(stream.sound as SoundName)}
-          className="p-1 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
-          title="Preview sound"
-        >
-          <MuteIcon className="w-3.5 h-3.5" />
-        </button>
-
-        <label className="relative inline-flex items-center cursor-pointer">
+        <label className="relative inline-flex items-center cursor-pointer shrink-0">
           <input type="checkbox" className="sr-only peer" checked={store.streamToggles.has(name)} onChange={() => store.toggleStreamMonitor(name)} />
           <div className="w-7 h-4 bg-secondary rounded-full peer peer-checked:bg-[var(--d360-orange)] transition-colors after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-foreground after:rounded-full after:w-3 after:h-3 after:transition-all peer-checked:after:translate-x-3" />
         </label>
-
-        <button
-          onClick={() => store.deleteStream(name)}
-          className="text-xs text-muted-foreground hover:text-[var(--d360-red)] p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-          title="Delete stream"
-        >
-          {'\u2715'}
-        </button>
       </div>
 
+      {/* Members popover */}
       {showMembers && (
-        <div className="absolute left-8 top-full z-50 mt-1 bg-card border border-border rounded-lg shadow-xl p-3 min-w-[200px] max-w-[280px]">
+        <div ref={popoverRef} className="absolute left-8 top-full z-50 mt-1 bg-card border border-border rounded-lg shadow-xl p-3 min-w-[200px] max-w-[280px]">
           <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono mb-2">Groups in {name}</div>
           <div className="flex flex-col gap-1.5">
-            {groupNames.map((gn, i) => (
+            {groupNames.map((gn: string, i: number) => (
               <div key={i} className="flex items-center gap-2 text-xs text-foreground/80">
                 <div className="w-2 h-2 rounded-full bg-[var(--d360-orange)]" />
                 <span className="truncate font-mono">{gn}</span>
               </div>
             ))}
           </div>
-          <button onClick={() => setShowMembers(false)} className="mt-2 text-[10px] text-muted-foreground hover:text-foreground font-mono">Close</button>
         </div>
       )}
     </div>
@@ -362,18 +444,24 @@ function ChatCard({ item, store, onClick, isPinned = false, isInactive = false }
   const isUnread = store.isUnread(item.id, item.ts)
   const isMuted = store.mutedGroups[item.id]
   const displayName = store.getChatDisplayName(item.id, item.name)
-  const isRenamed = store.chatRenames[item.id]
+  const isRenamed = !!store.chatRenames[item.id]
   const [showOriginal, setShowOriginal] = useState(false)
+  const [showMenu, setShowMenu] = useState(false)
   const [renaming, setRenaming] = useState(false)
   const [renameVal, setRenameVal] = useState('')
+  const menuRef = useRef<HTMLDivElement>(null)
 
   const accent = item.type === 'dm' ? 'var(--d360-cyan)' : 'var(--d360-orange)'
 
-  function startRename(e: React.MouseEvent) {
-    e.stopPropagation()
-    setRenameVal(displayName)
-    setRenaming(true)
-  }
+  // Click outside to close menu
+  useEffect(() => {
+    if (!showMenu) return
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setShowMenu(false)
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [showMenu])
 
   function confirmRename() {
     if (renameVal.trim() && renameVal.trim() !== item.name) {
@@ -387,7 +475,7 @@ function ChatCard({ item, store, onClick, isPinned = false, isInactive = false }
   return (
     <div
       onClick={onClick}
-      className={`relative flex items-center gap-2.5 px-3 py-3 rounded-lg cursor-pointer transition-all group mb-0.5 overflow-hidden ${
+      className={`relative flex items-center gap-2 px-3 py-3 rounded-lg cursor-pointer transition-all group mb-0.5 overflow-hidden ${
         isSelected
           ? 'text-foreground font-semibold'
           : isInactive
@@ -402,69 +490,25 @@ function ChatCard({ item, store, onClick, isPinned = false, isInactive = false }
     >
       {/* Left accent bar */}
       {isSelected && (
-        <div
-          className="absolute left-0 top-0 bottom-0 w-[3px] rounded-r"
-          style={{ background: accent }}
-        />
+        <div className="absolute left-0 top-0 bottom-0 w-[3px] rounded-r" style={{ background: accent }} />
       )}
 
-      {/* LEFT side: Action buttons on hover, mute icon persistent */}
-      <div className="flex items-center gap-0.5 shrink-0">
-        {/* Persistent muted indicator (always visible when muted) */}
-        {isMuted && (
-          <button
-            onClick={(e) => { e.stopPropagation(); store.toggleMuteGroup(item.id) }}
-            className="p-0.5 text-[var(--d360-red)]/70 hover:text-[var(--d360-red)]"
-            title="Unmute"
-          >
-            <MuteIcon muted className="w-4 h-4" />
-          </button>
-        )}
-        {/* Hover-only actions */}
-        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button
-            onClick={startRename}
-            className="p-1 text-muted-foreground hover:text-foreground rounded"
-            title="Rename chat"
-          >
-            <EditIcon className="w-3.5 h-3.5" />
-          </button>
-          {/* Pin/Unpin - only show for non-pinned section items (pinned section has no pin icon) */}
-          {!isPinned && (
-            <button
-              onClick={(e) => { e.stopPropagation(); store.togglePinChat(item.id) }}
-              className={`p-1 rounded ${store.pinnedChats[item.id] ? 'text-[var(--d360-yellow)]' : 'text-muted-foreground hover:text-foreground'}`}
-              title={store.pinnedChats[item.id] ? 'Unpin' : 'Pin'}
-            >
-              <PinIcon filled={!!store.pinnedChats[item.id]} className="w-4 h-4" />
-            </button>
-          )}
-          {/* Unpin for pinned section */}
-          {isPinned && (
-            <button
-              onClick={(e) => { e.stopPropagation(); store.togglePinChat(item.id) }}
-              className="p-1 text-muted-foreground hover:text-[var(--d360-red)] rounded"
-              title="Unpin"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            </button>
-          )}
-          {/* Mute toggle (only show if not already muted, since muted icon is persistent) */}
-          {item.type === 'group' && !isMuted && (
-            <button
-              onClick={(e) => { e.stopPropagation(); store.toggleMuteGroup(item.id) }}
-              className="p-1 text-muted-foreground hover:text-foreground rounded"
-              title="Mute"
-            >
-              <MuteIcon className="w-4 h-4" />
-            </button>
-          )}
-        </div>
+      {/* Fixed-position mute icon (always in same spot) */}
+      <div className="w-5 shrink-0 flex items-center justify-center">
+        <button
+          onClick={(e) => { e.stopPropagation(); store.toggleMuteGroup(item.id) }}
+          className={`p-0.5 transition-all ${
+            isMuted
+              ? 'text-[var(--d360-red)]/70 hover:text-[var(--d360-red)] opacity-100'
+              : 'text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100'
+          }`}
+          title={isMuted ? 'Unmute' : 'Mute'}
+        >
+          <MuteIcon muted={!!isMuted} className="w-4 h-4" />
+        </button>
       </div>
 
-      {/* Title area */}
+      {/* Title area - maximized width */}
       <div className="flex-1 min-w-0">
         {renaming ? (
           <input
@@ -481,28 +525,17 @@ function ChatCard({ item, store, onClick, isPinned = false, isInactive = false }
             <span className={`truncate text-[13px] font-mono tracking-wide block ${isSelected ? 'font-bold text-foreground' : isInactive ? 'font-normal' : 'font-medium'}`}>
               {displayName}
             </span>
-            {isRenamed && (
-              <button
-                onClick={(e) => { e.stopPropagation(); setShowOriginal(!showOriginal) }}
-                className="text-[9px] text-muted-foreground hover:text-foreground font-mono mt-0.5"
-                title="Show original name"
-              >
-                {showOriginal ? 'hide' : 'see more'}
-              </button>
-            )}
-            {showOriginal && isRenamed && (
-              <div className="text-[10px] text-muted-foreground font-mono mt-0.5 truncate">
-                {item.name}
-              </div>
+            {isRenamed && showOriginal && (
+              <div className="text-[10px] text-muted-foreground font-mono mt-0.5 truncate">{item.name}</div>
             )}
           </>
         )}
       </div>
 
-      {/* RIGHT side: notification bubble / timestamp */}
-      <div className="flex items-center gap-1.5 shrink-0">
+      {/* RIGHT: timestamp + unread + dots menu */}
+      <div className="flex items-center gap-1 shrink-0">
         <span
-          className="text-[10px] min-w-[32px] text-right font-mono"
+          className="text-[10px] font-mono"
           style={{
             color: isInactive ? 'var(--color-muted-foreground)' : isSelected ? 'var(--color-foreground)' : accent,
             opacity: isInactive ? 0.7 : 0.8,
@@ -510,12 +543,62 @@ function ChatCard({ item, store, onClick, isPinned = false, isInactive = false }
         >
           {formatTimeAgo(item.ts)}
         </span>
+
         {isUnread && !isInactive && (
-          <div
-            className="w-2.5 h-2.5 rounded-full shrink-0 animate-pulse-glow"
-            style={{ background: accent, color: accent }}
-          />
+          <div className="w-2.5 h-2.5 rounded-full shrink-0 animate-pulse-glow" style={{ background: accent }} />
         )}
+
+        {/* Dots menu for actions */}
+        <div className="relative" ref={menuRef}>
+          <button
+            onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu) }}
+            className="p-0.5 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+          >
+            <DotsIcon className="w-3.5 h-3.5" />
+          </button>
+          {showMenu && (
+            <div className="absolute right-0 top-full z-50 mt-1 bg-card border border-border rounded-lg shadow-xl py-1 min-w-[130px]">
+              <button
+                onClick={(e) => { e.stopPropagation(); setRenameVal(displayName); setRenaming(true); setShowMenu(false) }}
+                className="w-full text-left px-3 py-1.5 text-xs text-foreground/80 hover:bg-secondary/60 font-mono"
+              >
+                Rename
+              </button>
+              {isRenamed && (
+                <>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setShowOriginal(!showOriginal); setShowMenu(false) }}
+                    className="w-full text-left px-3 py-1.5 text-xs text-foreground/80 hover:bg-secondary/60 font-mono"
+                  >
+                    {showOriginal ? 'Hide original' : 'See original'}
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); store.clearChatRename(item.id); setShowMenu(false) }}
+                    className="w-full text-left px-3 py-1.5 text-xs text-muted-foreground hover:bg-secondary/60 font-mono"
+                  >
+                    Reset name
+                  </button>
+                </>
+              )}
+              {!isPinned && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); store.togglePinChat(item.id); setShowMenu(false) }}
+                  className="w-full text-left px-3 py-1.5 text-xs text-foreground/80 hover:bg-secondary/60 font-mono"
+                >
+                  {store.pinnedChats[item.id] ? 'Unpin' : 'Pin'}
+                </button>
+              )}
+              {isPinned && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); store.togglePinChat(item.id); setShowMenu(false) }}
+                  className="w-full text-left px-3 py-1.5 text-xs text-[var(--d360-red)] hover:bg-secondary/60 font-mono"
+                >
+                  Unpin
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

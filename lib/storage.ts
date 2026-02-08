@@ -149,4 +149,12 @@ export const storage = {
   // Local chat renames
   getChatRenames: () => get<Record<string, string>>('gm_v3_renames', {}),
   setChatRenames: (v: Record<string, string>) => set('gm_v3_renames', v),
+
+  // Stream renames
+  getStreamRenames: () => get<Record<string, string>>('gm_v3_stream_renames', {}),
+  setStreamRenames: (v: Record<string, string>) => set('gm_v3_stream_renames', v),
+
+  // Section order
+  getSectionOrder: () => get<string[]>('gm_v3_secorder', ['command', 'streams', 'pending', 'pinned', 'active', 'inactive']),
+  setSectionOrder: (v: string[]) => set('gm_v3_secorder', v),
 }

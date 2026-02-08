@@ -96,6 +96,10 @@ interface StoreState {
   searchIndex: GroupMeMessage[]
   // Chat renames
   chatRenames: Record<string, string>
+  // Stream renames
+  streamRenames: Record<string, string>
+  // Section order
+  sectionOrder: string[]
 }
 
 interface StoreActions {
@@ -156,6 +160,10 @@ interface StoreActions {
   renameChat: (id: string, name: string) => void
   clearChatRename: (id: string) => void
   getChatDisplayName: (id: string, originalName: string) => string
+  renameStream: (key: string, displayName: string) => void
+  clearStreamRename: (key: string) => void
+  getStreamDisplayName: (key: string) => string
+  setSectionOrder: (order: string[]) => void
 }
 
 interface ToastItem {
@@ -226,6 +234,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [pendingImage, setPendingImage] = useState<string | null>(null)
   const [searchIndex, setSearchIndex] = useState<GroupMeMessage[]>([])
   const [chatRenames, setChatRenames] = useState<Record<string, string>>({})
+  const [streamRenames, setStreamRenames] = useState<Record<string, string>>({})
+  const [sectionOrder, setSectionOrderState] = useState<string[]>(['command', 'streams', 'pending', 'pinned', 'active', 'inactive'])
   const [toasts, setToasts] = useState<ToastItem[]>([])
   const toastIdRef = useRef(0)
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -259,6 +269,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setInactiveOpenState(storage.getInactiveOpen())
     setSidebarCollapsed(storage.getSidebarCollapsed())
     setChatRenames(storage.getChatRenames())
+    setStreamRenames(storage.getStreamRenames())
+    setSectionOrderState(storage.getSectionOrder())
 
     // Auto-login
     const token = storage.getToken()
@@ -606,6 +618,32 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     return chatRenames[id] || originalName
   }, [chatRenames])
 
+  const renameStream = useCallback((key: string, displayName: string) => {
+    setStreamRenames(prev => {
+      const next = { ...prev, [key]: displayName }
+      storage.setStreamRenames(next)
+      return next
+    })
+  }, [])
+
+  const clearStreamRename = useCallback((key: string) => {
+    setStreamRenames(prev => {
+      const next = { ...prev }
+      delete next[key]
+      storage.setStreamRenames(next)
+      return next
+    })
+  }, [])
+
+  const getStreamDisplayName = useCallback((key: string) => {
+    return streamRenames[key] || key
+  }, [streamRenames])
+
+  const setSectionOrder = useCallback((order: string[]) => {
+    setSectionOrderState(order)
+    storage.setSectionOrder(order)
+  }, [])
+
   const saveStream = useCallback((name: string, ids: string[], sound: SoundName) => {
     setStreams(prev => {
       const next = { ...prev, [name]: { ids, sound } }
@@ -740,6 +778,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     pendingImage,
     searchIndex,
     chatRenames,
+    streamRenames,
+    sectionOrder,
     toasts,
     // Actions
     login,
@@ -827,6 +867,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     renameChat,
     clearChatRename,
     getChatDisplayName,
+    renameStream,
+    clearStreamRename,
+    getStreamDisplayName,
+    setSectionOrder,
     saveStream,
     deleteStream,
     toggleStreamMonitor,
