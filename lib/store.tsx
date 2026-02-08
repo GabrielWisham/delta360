@@ -531,20 +531,25 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     })
   }, [currentView, panels, groups, dmChats, approved, streams, streamToggles])
 
-  // Auto-refresh unified_streams when streamToggles changes
+  // Auto-refresh unified_streams when streamToggles changes (debounced)
   const streamToggleCount = streamToggles.size
   const loadMessagesRef = useRef(loadMessages)
   loadMessagesRef.current = loadMessages
+  const unifiedDebounce = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const unifiedAbort = useRef(0)
   useEffect(() => {
-    if (currentView.type === 'unified_streams' && isLoggedIn) {
-      let cancelled = false
-      setUnifiedLoading(true)
-      const doLoad = async () => {
-        await loadMessagesRef.current(0)
-        if (!cancelled) setUnifiedLoading(false)
-      }
-      doLoad()
-      return () => { cancelled = true }
+    if (currentView.type !== 'unified_streams' || !isLoggedIn) return
+    // Debounce: wait 400ms after last toggle change before fetching
+    setUnifiedLoading(true)
+    if (unifiedDebounce.current) clearTimeout(unifiedDebounce.current)
+    const callId = ++unifiedAbort.current
+    unifiedDebounce.current = setTimeout(async () => {
+      await loadMessagesRef.current(0)
+      // Only clear loading if this is still the latest call
+      if (callId === unifiedAbort.current) setUnifiedLoading(false)
+    }, 400)
+    return () => {
+      if (unifiedDebounce.current) clearTimeout(unifiedDebounce.current)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [streamToggleCount, currentView.type, isLoggedIn])
