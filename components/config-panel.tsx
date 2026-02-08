@@ -89,10 +89,12 @@ export function ConfigPanel() {
   }
 
   function toggleGroup(id: string) {
+    console.log("[v0] toggleGroup called:", id, "configOpen:", store.configOpen, "activeTab:", activeTab)
     setSelectedGroups(prev => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
       else next.add(id)
+      console.log("[v0] selectedGroups updated, size:", next.size)
       return next
     })
   }
@@ -116,6 +118,8 @@ export function ConfigPanel() {
   function removeAlertWord(idx: number) {
     store.setAlertWords(store.alertWords.filter((_, i) => i !== idx))
   }
+
+  console.log("[v0] ConfigPanel render - configOpen:", store.configOpen, "activeTab:", activeTab, "groups:", store.groups?.length, "selectedGroups:", selectedGroups.size)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
