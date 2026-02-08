@@ -10,9 +10,9 @@ import type { SoundName } from '@/lib/types'
 const FOUR_HOURS = 14400
 
 /* ===== SVG Icons ===== */
-function PinIcon({ filled, className = '' }: { filled?: boolean; className?: string }) {
+function PinIcon({ className = '' }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className}>
       <path d="M12 17v5" /><path d="M9 2h6l-1.5 5.5L16 11h-3.5l-.5 6-.5-6H8l2.5-3.5z" />
     </svg>
   )
@@ -31,7 +31,7 @@ function MuteIcon({ muted, className = '' }: { muted?: boolean; className?: stri
     </svg>
   )
 }
-function DotsIcon({ className = '' }: { className?: string }) {
+function DotsVIcon({ className = '' }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
       <circle cx="12" cy="5" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="12" cy="19" r="2" />
@@ -86,21 +86,31 @@ function EditIcon({ className = '' }: { className?: string }) {
     </svg>
   )
 }
+function InfoIcon({ className = '' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" />
+    </svg>
+  )
+}
 
-/* ===== usePortalMenu - positions a dropdown portaled to body ===== */
+/* ===== usePortalMenu - portal dropdown to body, close on outside click ===== */
 function usePortalMenu() {
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 })
   const btnRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
 
   const toggle = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
+    e.preventDefault()
     if (!open && btnRef.current) {
       const rect = btnRef.current.getBoundingClientRect()
-      setPos({
-        top: rect.bottom + 2,
-        left: Math.min(rect.right - 140, window.innerWidth - 160),
-      })
+      const menuWidth = 160
+      let left = rect.right - menuWidth
+      if (left < 8) left = 8
+      if (left + menuWidth > window.innerWidth - 8) left = window.innerWidth - menuWidth - 8
+      setPos({ top: rect.bottom + 4, left })
     }
     setOpen(prev => !prev)
   }, [open])
@@ -108,29 +118,40 @@ function usePortalMenu() {
   useEffect(() => {
     if (!open) return
     function close(e: MouseEvent) {
-      if (btnRef.current?.contains(e.target as Node)) return
+      const target = e.target as Node
+      if (btnRef.current?.contains(target)) return
+      if (menuRef.current?.contains(target)) return
       setOpen(false)
     }
-    document.addEventListener('mousedown', close)
-    return () => document.removeEventListener('mousedown', close)
+    // Use click (not mousedown) so buttons inside the portal fire first
+    document.addEventListener('click', close, true)
+    return () => document.removeEventListener('click', close, true)
   }, [open])
 
-  return { open, pos, btnRef, toggle, close: () => setOpen(false) }
+  return { open, pos, btnRef, menuRef, toggle, close: () => setOpen(false) }
 }
 
 export function Sidebar() {
   const store = useStore()
   const now = Math.floor(Date.now() / 1000)
 
-  /* Section-level drag state */
+  /* Section-level drag: only initiated from grip icon */
   const [dragIdx, setDragIdx] = useState<number | null>(null)
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null)
+  const dragAllowedRef = useRef(false)
 
   /* Collapsed sections */
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({})
   const toggleCollapse = useCallback((key: string) => {
-    setCollapsedSections(prev => ({ ...prev, [key]: !prev[key] }))
-  }, [])
+    setCollapsedSections(prev => {
+      const next = { ...prev, [key]: !prev[key] }
+      // If expanding inactive section, also open its inner state
+      if (key === 'inactive' && prev[key]) {
+        store.setInactiveOpen(true)
+      }
+      return next
+    })
+  }, [store])
 
   /* Active dots-menu chat ID for highlighting */
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
@@ -185,13 +206,20 @@ export function Sidebar() {
 
   const isDesktopHidden = store.sidebarCollapsed && typeof window !== 'undefined' && window.innerWidth > 600
 
-  /* Section drag handlers */
+  /* Section drag handlers - only fire when grip was pressed */
   function onDragStart(e: React.DragEvent, idx: number) {
+    if (!dragAllowedRef.current) {
+      e.preventDefault()
+      return
+    }
     e.dataTransfer.effectAllowed = 'move'
     e.dataTransfer.setData('text/plain', 'section')
     setDragIdx(idx)
   }
-  function onDragOver(e: React.DragEvent, idx: number) { e.preventDefault(); setDragOverIdx(idx) }
+  function onDragOver(e: React.DragEvent, idx: number) {
+    e.preventDefault()
+    setDragOverIdx(idx)
+  }
   function onDrop(idx: number) {
     if (dragIdx === null || dragIdx === idx) { setDragIdx(null); setDragOverIdx(null); return }
     const order = [...store.sectionOrder]
@@ -201,7 +229,7 @@ export function Sidebar() {
     setDragIdx(null)
     setDragOverIdx(null)
   }
-  function onDragEnd() { setDragIdx(null); setDragOverIdx(null) }
+  function onDragEnd() { setDragIdx(null); setDragOverIdx(null); dragAllowedRef.current = false }
 
   /* Section renderer map */
   const sections: Record<string, { label: string; render: () => React.ReactNode }> = {
@@ -227,7 +255,7 @@ export function Sidebar() {
             </button>
             <button
               onClick={(e) => { e.stopPropagation(); store.toggleMuteGroup('__universal_feed__') }}
-              className={`p-1 shrink-0 transition-colors ${feedMuted ? 'text-[var(--d360-red)]/70 hover:text-[var(--d360-red)]' : 'text-muted-foreground/40 hover:text-muted-foreground'}`}
+              className={`p-1 shrink-0 transition-colors ${feedMuted ? 'text-[var(--d360-red)]' : 'text-muted-foreground/40 hover:text-muted-foreground'}`}
               title={feedMuted ? 'Unmute feed' : 'Mute feed'}
             >
               <MuteIcon muted={feedMuted} className="w-4 h-4" />
@@ -251,7 +279,7 @@ export function Sidebar() {
             </button>
             <button
               onClick={(e) => { e.stopPropagation(); store.toggleMuteGroup('__direct_comms__') }}
-              className={`p-1 shrink-0 transition-colors ${dmsMuted ? 'text-[var(--d360-red)]/70 hover:text-[var(--d360-red)]' : 'text-muted-foreground/40 hover:text-muted-foreground'}`}
+              className={`p-1 shrink-0 transition-colors ${dmsMuted ? 'text-[var(--d360-red)]' : 'text-muted-foreground/40 hover:text-muted-foreground'}`}
               title={dmsMuted ? 'Unmute DMs' : 'Mute DMs'}
             >
               <MuteIcon muted={dmsMuted} className="w-4 h-4" />
@@ -359,11 +387,18 @@ export function Sidebar() {
                 onDragOver={(e) => onDragOver(e, idx)}
                 onDrop={() => onDrop(idx)}
                 onDragEnd={onDragEnd}
-                className={`transition-all ${dragOverIdx === idx ? 'border-t-2 border-[var(--d360-orange)] pt-1' : ''}`}
+                className={`transition-all ${dragIdx === idx ? 'opacity-40' : ''} ${dragOverIdx === idx && dragIdx !== null && dragIdx !== idx ? 'border-t-2 border-[var(--d360-orange)] pt-1' : ''}`}
               >
                 {/* Section header */}
-                <div className="flex items-center gap-1.5 mb-1 cursor-grab active:cursor-grabbing group/sec select-none">
-                  <GripIcon className="w-3 h-3 text-muted-foreground/30 group-hover/sec:text-muted-foreground/60 transition-colors shrink-0" />
+                <div className="flex items-center gap-1.5 mb-1 group/sec select-none">
+                  {/* Grip icon - the ONLY drag handle */}
+                  <div
+                    className="cursor-grab active:cursor-grabbing p-0.5 rounded hover:bg-secondary/40 transition-colors shrink-0"
+                    onMouseDown={() => { dragAllowedRef.current = true }}
+                    onMouseUp={() => { dragAllowedRef.current = false }}
+                  >
+                    <GripIcon className="w-3.5 h-3.5 text-muted-foreground/30 group-hover/sec:text-muted-foreground/60 transition-colors" />
+                  </div>
                   <span className="text-[10px] uppercase tracking-[0.2em] text-[var(--d360-orange)] font-bold font-mono flex-1 min-w-0 truncate">{sec.label}</span>
                   <button
                     onClick={(e) => { e.stopPropagation(); toggleCollapse(sectionKey) }}
@@ -383,14 +418,16 @@ export function Sidebar() {
   )
 }
 
-/* ===== Streams section with proper drag reorder ===== */
+/* ===== Streams section with drag reorder ===== */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function StreamsSection({ store }: { store: any }) {
   const streamKeys = useMemo(() => Object.keys(store.streams), [store.streams])
   const [dragIdx, setDragIdx] = useState<number | null>(null)
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null)
+  const gripRef = useRef(false)
 
   function onStart(e: React.DragEvent, idx: number) {
+    if (!gripRef.current) { e.preventDefault(); return }
     e.stopPropagation()
     e.dataTransfer.effectAllowed = 'move'
     e.dataTransfer.setData('text/plain', 'stream')
@@ -399,7 +436,6 @@ function StreamsSection({ store }: { store: any }) {
   function onOver(e: React.DragEvent, idx: number) {
     e.preventDefault()
     e.stopPropagation()
-    if (e.dataTransfer.getData('text/plain') === 'section') return
     setDragOverIdx(idx)
   }
   function onDrop(e: React.DragEvent, idx: number) {
@@ -410,11 +446,13 @@ function StreamsSection({ store }: { store: any }) {
     }
     setDragIdx(null)
     setDragOverIdx(null)
+    gripRef.current = false
   }
   function onEnd(e: React.DragEvent) {
     e.stopPropagation()
     setDragIdx(null)
     setDragOverIdx(null)
+    gripRef.current = false
   }
 
   return (
@@ -430,13 +468,14 @@ function StreamsSection({ store }: { store: any }) {
           onDragOver={(e) => onOver(e, idx)}
           onDrop={(e) => onDrop(e, idx)}
           onDragEnd={onEnd}
-          className={`transition-all ${dragOverIdx === idx ? 'border-t-2 border-[var(--d360-orange)] pt-0.5' : ''} ${dragIdx === idx ? 'opacity-40' : ''}`}
+          className={`transition-all ${dragIdx === idx ? 'opacity-40' : ''} ${dragOverIdx === idx && dragIdx !== null && dragIdx !== idx ? 'border-t-2 border-[var(--d360-orange)] pt-0.5' : ''}`}
         >
           <StreamItem
             name={name}
             stream={store.streams[name]}
             store={store}
             isActive={store.currentView.type === 'stream' && store.currentView.id === name}
+            gripRef={gripRef}
           />
         </div>
       ))}
@@ -450,17 +489,19 @@ function StreamsSection({ store }: { store: any }) {
   )
 }
 
-/* ===== Stream Item with member popover + edit + rename ===== */
-function StreamItem({ name, stream, store, isActive }: {
+/* ===== Stream Item ===== */
+function StreamItem({ name, stream, store, isActive, gripRef }: {
   name: string
   stream: { ids: string[]; sound: string }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   store: any
   isActive: boolean
+  gripRef: React.MutableRefObject<boolean>
 }) {
   const [showMembers, setShowMembers] = useState(false)
   const [renaming, setRenaming] = useState(false)
   const [renameVal, setRenameVal] = useState('')
+  const popoverRef = useRef<HTMLDivElement>(null)
   const memberBtnRef = useRef<HTMLButtonElement>(null)
   const [popoverPos, setPopoverPos] = useState<{ top: number; left: number } | null>(null)
   const menu = usePortalMenu()
@@ -479,9 +520,10 @@ function StreamItem({ name, stream, store, isActive }: {
   useEffect(() => {
     if (!showMembers) return
     function handleClickOutside(e: MouseEvent) {
-      if (!(e.target as Element)?.closest?.('[data-stream-popover]') && !memberBtnRef.current?.contains(e.target as Node)) {
-        setShowMembers(false)
-      }
+      const target = e.target as Node
+      if (popoverRef.current?.contains(target)) return
+      if (memberBtnRef.current?.contains(target)) return
+      setShowMembers(false)
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
@@ -490,7 +532,8 @@ function StreamItem({ name, stream, store, isActive }: {
   function openMemberPopover() {
     if (memberBtnRef.current) {
       const rect = memberBtnRef.current.getBoundingClientRect()
-      setPopoverPos({ top: rect.bottom + 4, left: Math.min(rect.left, window.innerWidth - 260) })
+      // Position to the right of the sidebar
+      setPopoverPos({ top: rect.top, left: rect.right + 8 })
     }
     setShowMembers(true)
     menu.close()
@@ -519,8 +562,14 @@ function StreamItem({ name, stream, store, isActive }: {
   return (
     <div className="relative group mb-0.5">
       <div className="flex items-center gap-1">
-        {/* Drag grip */}
-        <GripIcon className="w-3 h-3 text-muted-foreground/20 cursor-grab shrink-0" />
+        {/* Drag grip - only this is the handle */}
+        <div
+          className="cursor-grab active:cursor-grabbing p-0.5 shrink-0 rounded hover:bg-secondary/30 transition-colors"
+          onMouseDown={() => { gripRef.current = true }}
+          onMouseUp={() => { gripRef.current = false }}
+        >
+          <GripIcon className="w-3 h-3 text-muted-foreground/20" />
+        </div>
 
         <button
           onClick={(e) => {
@@ -550,41 +599,35 @@ function StreamItem({ name, stream, store, isActive }: {
           )}
         </button>
 
-        {/* View members */}
-        <button
-          ref={memberBtnRef}
-          onClick={(e) => { e.stopPropagation(); showMembers ? setShowMembers(false) : openMemberPopover() }}
-          className="p-0.5 text-muted-foreground/50 hover:text-muted-foreground transition-colors shrink-0"
-          title="View groups"
-        >
-          <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
-            <circle cx="6" cy="12" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="18" cy="12" r="2" />
-          </svg>
-        </button>
-
-        {/* Dots menu */}
+        {/* Vertical dots menu - ONLY dots button, no separate horizontal dots */}
         <button
           ref={menu.btnRef}
           onClick={menu.toggle}
-          className="p-0.5 text-muted-foreground hover:text-foreground transition-colors shrink-0"
+          className="p-1 text-muted-foreground hover:text-foreground transition-colors shrink-0"
         >
-          <DotsIcon className="w-5 h-5" />
+          <DotsVIcon className="w-5 h-5" />
         </button>
         {menu.open && typeof document !== 'undefined' && createPortal(
           <div
-            className="fixed bg-card border border-border rounded-lg shadow-2xl py-1 min-w-[150px]"
+            ref={menu.menuRef}
+            className="fixed bg-card border border-border rounded-lg shadow-2xl py-1 min-w-[160px]"
             style={{ top: menu.pos.top, left: menu.pos.left, zIndex: 9999 }}
           >
-            <button onClick={openEditStream} className="w-full text-left px-3 py-1.5 text-xs text-foreground/80 hover:bg-secondary/60 font-mono flex items-center gap-2">
+            <button onClick={(e) => { e.stopPropagation(); openEditStream() }} className="w-full text-left px-3 py-2 text-xs text-foreground/80 hover:bg-secondary/60 font-mono flex items-center gap-2">
               <EditIcon className="w-3.5 h-3.5" /> Edit stream
             </button>
-            <button onClick={openMemberPopover} className="w-full text-left px-3 py-1.5 text-xs text-foreground/80 hover:bg-secondary/60 font-mono">View groups</button>
-            <button onClick={startRename} className="w-full text-left px-3 py-1.5 text-xs text-foreground/80 hover:bg-secondary/60 font-mono">Rename</button>
+            <button ref={memberBtnRef} onClick={(e) => { e.stopPropagation(); openMemberPopover() }} className="w-full text-left px-3 py-2 text-xs text-foreground/80 hover:bg-secondary/60 font-mono flex items-center gap-2">
+              <InfoIcon className="w-3.5 h-3.5" /> View groups
+            </button>
+            <button onClick={(e) => { e.stopPropagation(); startRename() }} className="w-full text-left px-3 py-2 text-xs text-foreground/80 hover:bg-secondary/60 font-mono flex items-center gap-2">
+              <EditIcon className="w-3.5 h-3.5" /> Rename
+            </button>
             {isRenamed && (
-              <button onClick={() => { store.clearStreamRename(name); menu.close() }} className="w-full text-left px-3 py-1.5 text-xs text-muted-foreground hover:bg-secondary/60 font-mono">Reset name</button>
+              <button onClick={(e) => { e.stopPropagation(); store.clearStreamRename(name); menu.close() }} className="w-full text-left px-3 py-2 text-xs text-muted-foreground hover:bg-secondary/60 font-mono">Reset name</button>
             )}
-            <button onClick={() => { playSound(stream.sound as SoundName); menu.close() }} className="w-full text-left px-3 py-1.5 text-xs text-foreground/80 hover:bg-secondary/60 font-mono">Preview sound</button>
-            <button onClick={() => { store.deleteStream(name); menu.close() }} className="w-full text-left px-3 py-1.5 text-xs text-[var(--d360-red)] hover:bg-secondary/60 font-mono">Delete</button>
+            <button onClick={(e) => { e.stopPropagation(); playSound(stream.sound as SoundName); menu.close() }} className="w-full text-left px-3 py-2 text-xs text-foreground/80 hover:bg-secondary/60 font-mono">Preview sound</button>
+            <div className="border-t border-border my-1" />
+            <button onClick={(e) => { e.stopPropagation(); store.deleteStream(name); menu.close() }} className="w-full text-left px-3 py-2 text-xs text-[var(--d360-red)] hover:bg-secondary/60 font-mono">Delete</button>
           </div>,
           document.body
         )}
@@ -595,10 +638,10 @@ function StreamItem({ name, stream, store, isActive }: {
         </label>
       </div>
 
-      {/* Members popover - portaled to body */}
+      {/* Members popover - portaled to body, positioned next to sidebar */}
       {showMembers && popoverPos && typeof document !== 'undefined' && createPortal(
         <div
-          data-stream-popover
+          ref={popoverRef}
           className="fixed bg-card border border-border rounded-xl shadow-2xl p-4 min-w-[220px] max-w-[300px]"
           style={{ top: popoverPos.top, left: popoverPos.left, zIndex: 9999 }}
         >
@@ -654,11 +697,16 @@ function ChatCard({ item, store, onClick, isPinned = false, isInactive = false, 
 
   const accent = item.type === 'dm' ? 'var(--d360-cyan)' : 'var(--d360-orange)'
 
-  // Sync portal menu open state with parent highlight
+  // Sync highlight state with menu open/close
   useEffect(() => {
-    if (menu.open) setMenuOpenId(item.id)
-    else if (menuOpenId === item.id) setMenuOpenId(null)
-  }, [menu.open, item.id, menuOpenId, setMenuOpenId])
+    if (menu.open && menuOpenId !== item.id) {
+      setMenuOpenId(item.id)
+    }
+    if (!menu.open && menuOpenId === item.id) {
+      setMenuOpenId(null)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [menu.open])
 
   function confirmRename() {
     if (renameVal.trim() && renameVal.trim() !== item.name) {
@@ -692,23 +740,28 @@ function ChatCard({ item, store, onClick, isPinned = false, isInactive = false, 
         <div className="absolute left-0 top-0 bottom-0 w-[3px] rounded-r" style={{ background: accent }} />
       )}
 
-      {/* Mute icon - fixed position */}
+      {/* Mute icon - fixed 20px container, never shifts */}
       <div className="w-5 shrink-0 flex items-center justify-center">
-        <button
-          onClick={(e) => { e.stopPropagation(); store.toggleMuteGroup(item.id) }}
-          className={`p-0.5 transition-colors ${
-            isMuted
-              ? 'text-[var(--d360-red)]/70 hover:text-[var(--d360-red)]'
-              : 'text-muted-foreground/30 hover:text-muted-foreground opacity-0 group-hover:opacity-100'
-          }`}
-          title={isMuted ? 'Unmute' : 'Mute'}
-          style={isMuted ? { opacity: 1 } : undefined}
-        >
-          <MuteIcon muted={!!isMuted} className="w-4 h-4" />
-        </button>
+        {isMuted ? (
+          <button
+            onClick={(e) => { e.stopPropagation(); store.toggleMuteGroup(item.id) }}
+            className="p-0.5 text-[var(--d360-red)] hover:brightness-125 transition-colors"
+            title="Unmute"
+          >
+            <MuteIcon muted className="w-4 h-4" />
+          </button>
+        ) : (
+          <button
+            onClick={(e) => { e.stopPropagation(); store.toggleMuteGroup(item.id) }}
+            className="p-0.5 text-muted-foreground/30 hover:text-muted-foreground opacity-0 group-hover:opacity-100 transition-all"
+            title="Mute"
+          >
+            <MuteIcon className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
-      {/* Title area */}
+      {/* Title area - takes all remaining space */}
       <div className="flex-1 min-w-0">
         {renaming ? (
           <input
@@ -733,7 +786,7 @@ function ChatCard({ item, store, onClick, isPinned = false, isInactive = false, 
       </div>
 
       {/* RIGHT: timestamp + unread + dots */}
-      <div className="flex items-center gap-1.5 shrink-0">
+      <div className="flex items-center gap-1 shrink-0">
         <span
           className="text-[10px] font-mono"
           style={{
@@ -748,57 +801,49 @@ function ChatCard({ item, store, onClick, isPinned = false, isInactive = false, 
           <div className="w-2.5 h-2.5 rounded-full shrink-0 animate-pulse-glow" style={{ background: accent }} />
         )}
 
-        {/* Dots menu - ALWAYS visible, portaled to body */}
+        {/* Vertical dots menu */}
         <button
           ref={menu.btnRef}
-          onClick={menu.toggle}
+          onClick={(e) => menu.toggle(e)}
           className="p-0.5 text-muted-foreground hover:text-foreground transition-colors"
         >
-          <DotsIcon className="w-5 h-5" />
+          <DotsVIcon className="w-5 h-5" />
         </button>
         {menu.open && typeof document !== 'undefined' && createPortal(
           <div
-            className="fixed bg-card border border-border rounded-lg shadow-2xl py-1 min-w-[140px]"
+            ref={menu.menuRef}
+            className="fixed bg-card border border-border rounded-lg shadow-2xl py-1 min-w-[150px]"
             style={{ top: menu.pos.top, left: menu.pos.left, zIndex: 9999 }}
           >
             <button
               onClick={(e) => { e.stopPropagation(); setRenameVal(displayName); setRenaming(true); menu.close() }}
-              className="w-full text-left px-3 py-1.5 text-xs text-foreground/80 hover:bg-secondary/60 font-mono"
+              className="w-full text-left px-3 py-2 text-xs text-foreground/80 hover:bg-secondary/60 font-mono flex items-center gap-2"
             >
-              Rename
+              <EditIcon className="w-3.5 h-3.5" /> Rename
             </button>
             {isRenamed && (
               <>
                 <button
                   onClick={(e) => { e.stopPropagation(); setShowOriginal(!showOriginal); menu.close() }}
-                  className="w-full text-left px-3 py-1.5 text-xs text-foreground/80 hover:bg-secondary/60 font-mono"
+                  className="w-full text-left px-3 py-2 text-xs text-foreground/80 hover:bg-secondary/60 font-mono"
                 >
                   {showOriginal ? 'Hide original' : 'See original'}
                 </button>
                 <button
                   onClick={(e) => { e.stopPropagation(); store.clearChatRename(item.id); menu.close() }}
-                  className="w-full text-left px-3 py-1.5 text-xs text-muted-foreground hover:bg-secondary/60 font-mono"
+                  className="w-full text-left px-3 py-2 text-xs text-muted-foreground hover:bg-secondary/60 font-mono"
                 >
                   Reset name
                 </button>
               </>
             )}
-            {!isPinned && (
-              <button
-                onClick={(e) => { e.stopPropagation(); store.togglePinChat(item.id); menu.close() }}
-                className="w-full text-left px-3 py-1.5 text-xs text-foreground/80 hover:bg-secondary/60 font-mono"
-              >
-                {store.pinnedChats[item.id] ? 'Unpin' : 'Pin'}
-              </button>
-            )}
-            {isPinned && (
-              <button
-                onClick={(e) => { e.stopPropagation(); store.togglePinChat(item.id); menu.close() }}
-                className="w-full text-left px-3 py-1.5 text-xs text-[var(--d360-red)] hover:bg-secondary/60 font-mono"
-              >
-                Unpin
-              </button>
-            )}
+            <button
+              onClick={(e) => { e.stopPropagation(); store.togglePinChat(item.id); menu.close() }}
+              className="w-full text-left px-3 py-2 text-xs text-foreground/80 hover:bg-secondary/60 font-mono flex items-center gap-2"
+            >
+              <PinIcon className="w-3.5 h-3.5" />
+              {isPinned || store.pinnedChats[item.id] ? 'Unpin' : 'Pin'}
+            </button>
           </div>,
           document.body
         )}
