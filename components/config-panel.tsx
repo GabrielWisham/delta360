@@ -27,6 +27,19 @@ export function ConfigPanel() {
     }
   }, [store.editingStream, store])
 
+  // Reset fields when config panel is closed then reopened
+  const wasOpen = useRef(store.configOpen)
+  useEffect(() => {
+    if (store.configOpen && !wasOpen.current && !store.editingStream) {
+      // Panel just opened fresh (not from edit) - reset
+      setStreamName('')
+      setStreamSound('radar')
+      setSelectedGroups(new Set())
+      setIsEditing(false)
+    }
+    wasOpen.current = store.configOpen
+  }, [store.configOpen, store.editingStream])
+
   // Template state
   const [newTemplate, setNewTemplate] = useState('')
 

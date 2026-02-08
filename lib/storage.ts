@@ -157,4 +157,8 @@ export const storage = {
   // Section order
   getSectionOrder: () => get<string[]>('gm_v3_secorder', ['command', 'streams', 'pending', 'pinned', 'active', 'inactive']),
   setSectionOrder: (v: string[]) => set('gm_v3_secorder', v),
+
+  // Per-chat alert sounds
+  getChatSounds: () => get<Record<string, string>>('gm_v3_chat_sounds', {}),
+  setChatSounds: (v: Record<string, string>) => set('gm_v3_chat_sounds', v),
 }

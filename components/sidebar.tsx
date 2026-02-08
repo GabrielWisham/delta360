@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import { useStore } from '@/lib/store'
 import { formatTimeAgo, getLastMsgTs } from '@/lib/date-helpers'
 import { playSound } from '@/lib/sounds'
+import { SOUND_NAMES } from '@/lib/types'
 import type { SoundName } from '@/lib/types'
 
 const FOUR_HOURS = 14400
@@ -42,14 +43,6 @@ function ChevronIcon({ open, className = '' }: { open: boolean; className?: stri
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" className={`transition-transform duration-200 ${open ? 'rotate-90' : ''} ${className}`}>
       <polyline points="9 18 15 12 9 6" />
-    </svg>
-  )
-}
-function ArchiveIcon({ className = '' }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <rect x="2" y="3" width="20" height="5" rx="1" />
-      <path d="M4 8v11a2 2 0 002 2h12a2 2 0 002-2V8" /><path d="M10 12h4" />
     </svg>
   )
 }
@@ -93,8 +86,15 @@ function InfoIcon({ className = '' }: { className?: string }) {
     </svg>
   )
 }
+function SoundIcon({ className = '' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" />
+    </svg>
+  )
+}
 
-/* ===== usePortalMenu - portal dropdown to body, close on outside click ===== */
+/* ===== Portal menu hook ===== */
 function usePortalMenu() {
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 })
@@ -106,36 +106,42 @@ function usePortalMenu() {
     e.preventDefault()
     if (!open && btnRef.current) {
       const rect = btnRef.current.getBoundingClientRect()
-      const menuWidth = 160
+      const menuWidth = 180
       let left = rect.right - menuWidth
       if (left < 8) left = 8
       if (left + menuWidth > window.innerWidth - 8) left = window.innerWidth - menuWidth - 8
-      setPos({ top: rect.bottom + 4, left })
+      let top = rect.bottom + 4
+      // If near bottom, position above
+      if (top + 200 > window.innerHeight) top = rect.top - 200
+      setPos({ top, left })
     }
     setOpen(prev => !prev)
   }, [open])
 
   useEffect(() => {
     if (!open) return
-    function close(e: MouseEvent) {
-      const target = e.target as Node
-      if (btnRef.current?.contains(target)) return
-      if (menuRef.current?.contains(target)) return
-      setOpen(false)
-    }
-    // Use click (not mousedown) so buttons inside the portal fire first
-    document.addEventListener('click', close, true)
-    return () => document.removeEventListener('click', close, true)
+    const timer = setTimeout(() => {
+      function close(e: MouseEvent) {
+        const target = e.target as Node
+        if (btnRef.current?.contains(target)) return
+        if (menuRef.current?.contains(target)) return
+        setOpen(false)
+      }
+      document.addEventListener('mousedown', close)
+      return document.removeEventListener.bind(document, 'mousedown', close)
+    }, 50)
+    return () => { clearTimeout(timer) }
   }, [open])
 
   return { open, pos, btnRef, menuRef, toggle, close: () => setOpen(false) }
 }
 
+/* ===== Main Sidebar ===== */
 export function Sidebar() {
   const store = useStore()
   const now = Math.floor(Date.now() / 1000)
 
-  /* Section-level drag: only initiated from grip icon */
+  /* Section-level drag */
   const [dragIdx, setDragIdx] = useState<number | null>(null)
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null)
   const dragAllowedRef = useRef(false)
@@ -145,36 +151,27 @@ export function Sidebar() {
   const toggleCollapse = useCallback((key: string) => {
     setCollapsedSections(prev => {
       const next = { ...prev, [key]: !prev[key] }
-      // If expanding inactive section, also open its inner state
-      if (key === 'inactive' && prev[key]) {
-        store.setInactiveOpen(true)
-      }
+      if (key === 'inactive' && prev[key]) store.setInactiveOpen(true)
       return next
     })
   }, [store])
 
-  /* Active dots-menu chat ID for highlighting */
+  /* Active dots-menu ID for highlighting */
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
 
-  /* Mute keys for Universal Feed and DMs hub */
   const feedMuted = !!store.mutedGroups['__universal_feed__']
   const dmsMuted = !!store.mutedGroups['__direct_comms__']
 
   const sortedGroups = useMemo(() => {
     const items = store.groups.map(g => ({
-      type: 'group' as const,
-      id: g.id,
-      name: g.name,
-      ts: getLastMsgTs(g),
-      imageUrl: g.image_url,
+      type: 'group' as const, id: g.id, name: g.name,
+      ts: getLastMsgTs(g), imageUrl: g.image_url,
     }))
     const dmItems = store.dmChats
       .filter(d => store.approved[d.other_user?.id] !== false)
       .map(d => ({
-        type: 'dm' as const,
-        id: d.other_user?.id || '',
-        name: d.other_user?.name || 'DM',
-        ts: d.updated_at,
+        type: 'dm' as const, id: d.other_user?.id || '',
+        name: d.other_user?.name || 'DM', ts: d.updated_at,
         imageUrl: d.other_user?.avatar_url,
       }))
     return [...items, ...dmItems].sort((a, b) => b.ts - a.ts)
@@ -206,21 +203,20 @@ export function Sidebar() {
 
   const isDesktopHidden = store.sidebarCollapsed && typeof window !== 'undefined' && window.innerWidth > 600
 
-  /* Section drag handlers - only fire when grip was pressed */
-  function onDragStart(e: React.DragEvent, idx: number) {
-    if (!dragAllowedRef.current) {
-      e.preventDefault()
-      return
-    }
+  /* Section drag handlers */
+  function onSectionDragStart(e: React.DragEvent, idx: number) {
+    if (!dragAllowedRef.current) { e.preventDefault(); return }
     e.dataTransfer.effectAllowed = 'move'
     e.dataTransfer.setData('text/plain', 'section')
     setDragIdx(idx)
   }
-  function onDragOver(e: React.DragEvent, idx: number) {
-    e.preventDefault()
-    setDragOverIdx(idx)
+  function onSectionDragOver(e: React.DragEvent, idx: number) {
+    if (e.dataTransfer.types.includes('text/plain')) {
+      e.preventDefault()
+      setDragOverIdx(idx)
+    }
   }
-  function onDrop(idx: number) {
+  function onSectionDrop(idx: number) {
     if (dragIdx === null || dragIdx === idx) { setDragIdx(null); setDragOverIdx(null); return }
     const order = [...store.sectionOrder]
     const [moved] = order.splice(dragIdx, 1)
@@ -229,7 +225,7 @@ export function Sidebar() {
     setDragIdx(null)
     setDragOverIdx(null)
   }
-  function onDragEnd() { setDragIdx(null); setDragOverIdx(null); dragAllowedRef.current = false }
+  function onSectionDragEnd() { setDragIdx(null); setDragOverIdx(null); dragAllowedRef.current = false }
 
   /* Section renderer map */
   const sections: Record<string, { label: string; render: () => React.ReactNode }> = {
@@ -237,7 +233,6 @@ export function Sidebar() {
       label: 'Command',
       render: () => (
         <>
-          {/* Universal Feed */}
           <div className="flex items-center gap-1 mb-0.5">
             <button
               onClick={(e) => { if (e.shiftKey) store.openSecondaryPanel('all', null); else store.switchView('all', null) }}
@@ -261,7 +256,6 @@ export function Sidebar() {
               <MuteIcon muted={feedMuted} className="w-4 h-4" />
             </button>
           </div>
-          {/* Direct Comms */}
           <div className="flex items-center gap-1 mb-0.5">
             <button
               onClick={(e) => { if (e.shiftKey) store.openSecondaryPanel('dms', null); else store.switchView('dms', null) }}
@@ -291,7 +285,7 @@ export function Sidebar() {
 
     streams: {
       label: 'Streams',
-      render: () => <StreamsSection store={store} />,
+      render: () => <StreamsSection store={store} menuOpenId={menuOpenId} setMenuOpenId={setMenuOpenId} />,
     },
 
     pending: {
@@ -336,22 +330,11 @@ export function Sidebar() {
     inactive: {
       label: `Inactive (${inactive.length})`,
       render: () => inactive.length > 0 ? (
-        <>
-          <button onClick={() => store.setInactiveOpen(!store.inactiveOpen)} className="flex items-center gap-1.5 w-full mb-1 px-1">
-            <ChevronIcon open={store.inactiveOpen} className="w-3.5 h-3.5 text-muted-foreground" />
-            <ArchiveIcon className="w-3.5 h-3.5 text-muted-foreground" />
-            <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-mono font-semibold">
-              Expand ({inactive.length})
-            </span>
-          </button>
-          {store.inactiveOpen && (
-            <div className="flex flex-col gap-0.5">
-              {inactive.map(item => (
-                <ChatCard key={item.id} item={item} store={store} onClick={(e) => handleClick(item.type, item.id, e)} isInactive menuOpenId={menuOpenId} setMenuOpenId={setMenuOpenId} />
-              ))}
-            </div>
-          )}
-        </>
+        <div className="flex flex-col gap-0.5">
+          {inactive.map(item => (
+            <ChatCard key={item.id} item={item} store={store} onClick={(e) => handleClick(item.type, item.id, e)} isInactive menuOpenId={menuOpenId} setMenuOpenId={setMenuOpenId} />
+          ))}
+        </div>
       ) : null,
     },
   }
@@ -371,7 +354,7 @@ export function Sidebar() {
         `}
         style={{ background: 'var(--d360-sidebar-bg)' }}
       >
-        <div className="p-3 flex flex-col gap-3">
+        <div className="p-3 flex flex-col gap-1">
           {store.sectionOrder.map((sectionKey, idx) => {
             const sec = sections[sectionKey]
             if (!sec) return null
@@ -379,19 +362,23 @@ export function Sidebar() {
             const content = sec.render()
             if (!content && sectionKey !== 'command') return null
 
+            const isOver = dragOverIdx === idx && dragIdx !== null && dragIdx !== idx
+
             return (
               <div
                 key={sectionKey}
                 draggable
-                onDragStart={(e) => onDragStart(e, idx)}
-                onDragOver={(e) => onDragOver(e, idx)}
-                onDrop={() => onDrop(idx)}
-                onDragEnd={onDragEnd}
-                className={`transition-all ${dragIdx === idx ? 'opacity-40' : ''} ${dragOverIdx === idx && dragIdx !== null && dragIdx !== idx ? 'border-t-2 border-[var(--d360-orange)] pt-1' : ''}`}
+                onDragStart={(e) => onSectionDragStart(e, idx)}
+                onDragOver={(e) => onSectionDragOver(e, idx)}
+                onDrop={() => onSectionDrop(idx)}
+                onDragEnd={onSectionDragEnd}
+                className={`transition-all ${dragIdx === idx ? 'opacity-30 scale-95' : ''}`}
               >
-                {/* Section header */}
-                <div className="flex items-center gap-1.5 mb-1 group/sec select-none">
-                  {/* Grip icon - the ONLY drag handle */}
+                {/* Drop indicator bar */}
+                {isOver && <div className="h-[3px] rounded-full bg-[var(--d360-orange)] mb-1 mx-2 transition-all" />}
+
+                {/* Section header - fixed height, stable layout */}
+                <div className="flex items-center h-7 gap-1 group/sec select-none">
                   <div
                     className="cursor-grab active:cursor-grabbing p-0.5 rounded hover:bg-secondary/40 transition-colors shrink-0"
                     onMouseDown={() => { dragAllowedRef.current = true }}
@@ -408,19 +395,40 @@ export function Sidebar() {
                     <EyeIcon open={!isCollapsed} className="w-3.5 h-3.5" />
                   </button>
                 </div>
-                {!isCollapsed && content}
+                {!isCollapsed && <div className="mt-0.5">{content}</div>}
               </div>
             )
           })}
+
+          {/* Bottom drop zone for dragging to last position */}
+          {dragIdx !== null && (
+            <div
+              onDragOver={(e) => { e.preventDefault(); setDragOverIdx(store.sectionOrder.length) }}
+              onDrop={() => {
+                if (dragIdx === null) return
+                const order = [...store.sectionOrder]
+                const [moved] = order.splice(dragIdx, 1)
+                order.push(moved)
+                store.setSectionOrder(order)
+                setDragIdx(null)
+                setDragOverIdx(null)
+              }}
+              className="h-8 rounded-lg border-2 border-dashed border-muted-foreground/20 flex items-center justify-center"
+            >
+              {dragOverIdx === store.sectionOrder.length && (
+                <div className="h-[3px] w-full rounded-full bg-[var(--d360-orange)]" />
+              )}
+            </div>
+          )}
         </div>
       </aside>
     </>
   )
 }
 
-/* ===== Streams section with drag reorder ===== */
+/* ===== Streams section ===== */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function StreamsSection({ store }: { store: any }) {
+function StreamsSection({ store, menuOpenId, setMenuOpenId }: { store: any; menuOpenId: string | null; setMenuOpenId: (id: string | null) => void }) {
   const streamKeys = useMemo(() => Object.keys(store.streams), [store.streams])
   const [dragIdx, setDragIdx] = useState<number | null>(null)
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null)
@@ -441,18 +449,12 @@ function StreamsSection({ store }: { store: any }) {
   function onDrop(e: React.DragEvent, idx: number) {
     e.preventDefault()
     e.stopPropagation()
-    if (dragIdx !== null && dragIdx !== idx) {
-      store.reorderStreams(dragIdx, idx)
-    }
-    setDragIdx(null)
-    setDragOverIdx(null)
-    gripRef.current = false
+    if (dragIdx !== null && dragIdx !== idx) store.reorderStreams(dragIdx, idx)
+    setDragIdx(null); setDragOverIdx(null); gripRef.current = false
   }
   function onEnd(e: React.DragEvent) {
     e.stopPropagation()
-    setDragIdx(null)
-    setDragOverIdx(null)
-    gripRef.current = false
+    setDragIdx(null); setDragOverIdx(null); gripRef.current = false
   }
 
   return (
@@ -460,25 +462,31 @@ function StreamsSection({ store }: { store: any }) {
       {streamKeys.length === 0 && (
         <p className="text-[11px] text-muted-foreground px-2 py-1 font-mono">No streams yet</p>
       )}
-      {streamKeys.map((name, idx) => (
-        <div
-          key={name}
-          draggable
-          onDragStart={(e) => onStart(e, idx)}
-          onDragOver={(e) => onOver(e, idx)}
-          onDrop={(e) => onDrop(e, idx)}
-          onDragEnd={onEnd}
-          className={`transition-all ${dragIdx === idx ? 'opacity-40' : ''} ${dragOverIdx === idx && dragIdx !== null && dragIdx !== idx ? 'border-t-2 border-[var(--d360-orange)] pt-0.5' : ''}`}
-        >
-          <StreamItem
-            name={name}
-            stream={store.streams[name]}
-            store={store}
-            isActive={store.currentView.type === 'stream' && store.currentView.id === name}
-            gripRef={gripRef}
-          />
-        </div>
-      ))}
+      {streamKeys.map((name, idx) => {
+        const isOver = dragOverIdx === idx && dragIdx !== null && dragIdx !== idx
+        return (
+          <div
+            key={name}
+            draggable
+            onDragStart={(e) => onStart(e, idx)}
+            onDragOver={(e) => onOver(e, idx)}
+            onDrop={(e) => onDrop(e, idx)}
+            onDragEnd={onEnd}
+            className={`transition-all ${dragIdx === idx ? 'opacity-30 scale-95' : ''}`}
+          >
+            {isOver && <div className="h-[3px] rounded-full bg-[var(--d360-orange)] mb-0.5 mx-2" />}
+            <StreamItem
+              name={name}
+              stream={store.streams[name]}
+              store={store}
+              isActive={store.currentView.type === 'stream' && store.currentView.id === name}
+              gripRef={gripRef}
+              menuOpenId={menuOpenId}
+              setMenuOpenId={setMenuOpenId}
+            />
+          </div>
+        )
+      })}
       <button
         onClick={() => store.setConfigOpen(true)}
         className="text-[10px] uppercase tracking-widest text-[var(--d360-orange)] hover:text-[var(--d360-orange)]/80 mt-1 px-2 font-mono font-semibold"
@@ -490,13 +498,15 @@ function StreamsSection({ store }: { store: any }) {
 }
 
 /* ===== Stream Item ===== */
-function StreamItem({ name, stream, store, isActive, gripRef }: {
+function StreamItem({ name, stream, store, isActive, gripRef, menuOpenId, setMenuOpenId }: {
   name: string
   stream: { ids: string[]; sound: string }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   store: any
   isActive: boolean
   gripRef: React.MutableRefObject<boolean>
+  menuOpenId: string | null
+  setMenuOpenId: (id: string | null) => void
 }) {
   const [showMembers, setShowMembers] = useState(false)
   const [renaming, setRenaming] = useState(false)
@@ -508,6 +518,15 @@ function StreamItem({ name, stream, store, isActive, gripRef }: {
 
   const displayName = store.getStreamDisplayName(name)
   const isRenamed = !!store.streamRenames[name]
+  const streamId = `stream__${name}`
+  const isHighlighted = isActive || menuOpenId === streamId
+
+  // Sync menu open to highlight
+  useEffect(() => {
+    if (menu.open && menuOpenId !== streamId) setMenuOpenId(streamId)
+    if (!menu.open && menuOpenId === streamId) setMenuOpenId(null)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [menu.open])
 
   const groupNames = useMemo(() => {
     return stream.ids.map((id: string) => {
@@ -516,7 +535,6 @@ function StreamItem({ name, stream, store, isActive, gripRef }: {
     })
   }, [stream.ids, store.groups])
 
-  // Click outside to close members popover
   useEffect(() => {
     if (!showMembers) return
     function handleClickOutside(e: MouseEvent) {
@@ -532,7 +550,6 @@ function StreamItem({ name, stream, store, isActive, gripRef }: {
   function openMemberPopover() {
     if (memberBtnRef.current) {
       const rect = memberBtnRef.current.getBoundingClientRect()
-      // Position to the right of the sidebar
       setPopoverPos({ top: rect.top, left: rect.right + 8 })
     }
     setShowMembers(true)
@@ -551,18 +568,14 @@ function StreamItem({ name, stream, store, isActive, gripRef }: {
     menu.close()
   }
   function confirmRename() {
-    if (renameVal.trim() && renameVal.trim() !== name) {
-      store.renameStream(name, renameVal.trim())
-    } else {
-      store.clearStreamRename(name)
-    }
+    if (renameVal.trim() && renameVal.trim() !== name) store.renameStream(name, renameVal.trim())
+    else store.clearStreamRename(name)
     setRenaming(false)
   }
 
   return (
     <div className="relative group mb-0.5">
       <div className="flex items-center gap-1">
-        {/* Drag grip - only this is the handle */}
         <div
           className="cursor-grab active:cursor-grabbing p-0.5 shrink-0 rounded hover:bg-secondary/30 transition-colors"
           onMouseDown={() => { gripRef.current = true }}
@@ -577,9 +590,9 @@ function StreamItem({ name, stream, store, isActive, gripRef }: {
             else store.switchView('stream', name)
           }}
           className={`flex-1 flex items-center gap-2 px-2 py-3 rounded-lg text-[13px] font-mono uppercase tracking-wider transition-all min-w-0 ${
-            isActive ? 'text-foreground font-bold' : 'text-foreground/70 hover:text-foreground hover:bg-secondary/50'
+            isHighlighted ? 'text-foreground font-bold' : 'text-foreground/70 hover:text-foreground hover:bg-secondary/50'
           }`}
-          style={isActive ? {
+          style={isHighlighted ? {
             background: 'linear-gradient(90deg, rgba(255,106,0,0.35) 0%, rgba(255,106,0,0.08) 50%, transparent 100%)',
             borderLeft: '3px solid var(--d360-orange)',
           } : { borderLeft: '3px solid transparent' }}
@@ -599,7 +612,6 @@ function StreamItem({ name, stream, store, isActive, gripRef }: {
           )}
         </button>
 
-        {/* Vertical dots menu - ONLY dots button, no separate horizontal dots */}
         <button
           ref={menu.btnRef}
           onClick={menu.toggle}
@@ -610,24 +622,27 @@ function StreamItem({ name, stream, store, isActive, gripRef }: {
         {menu.open && typeof document !== 'undefined' && createPortal(
           <div
             ref={menu.menuRef}
-            className="fixed bg-card border border-border rounded-lg shadow-2xl py-1 min-w-[160px]"
+            className="fixed bg-card border border-border rounded-lg shadow-2xl py-1 min-w-[170px]"
             style={{ top: menu.pos.top, left: menu.pos.left, zIndex: 9999 }}
+            onClick={(e) => e.stopPropagation()}
           >
-            <button onClick={(e) => { e.stopPropagation(); openEditStream() }} className="w-full text-left px-3 py-2 text-xs text-foreground/80 hover:bg-secondary/60 font-mono flex items-center gap-2">
+            <button onClick={() => openEditStream()} className="w-full text-left px-3 py-2 text-xs text-foreground/80 hover:bg-secondary/60 font-mono flex items-center gap-2">
               <EditIcon className="w-3.5 h-3.5" /> Edit stream
             </button>
-            <button ref={memberBtnRef} onClick={(e) => { e.stopPropagation(); openMemberPopover() }} className="w-full text-left px-3 py-2 text-xs text-foreground/80 hover:bg-secondary/60 font-mono flex items-center gap-2">
+            <button ref={memberBtnRef} onClick={() => openMemberPopover()} className="w-full text-left px-3 py-2 text-xs text-foreground/80 hover:bg-secondary/60 font-mono flex items-center gap-2">
               <InfoIcon className="w-3.5 h-3.5" /> View groups
             </button>
-            <button onClick={(e) => { e.stopPropagation(); startRename() }} className="w-full text-left px-3 py-2 text-xs text-foreground/80 hover:bg-secondary/60 font-mono flex items-center gap-2">
+            <button onClick={() => startRename()} className="w-full text-left px-3 py-2 text-xs text-foreground/80 hover:bg-secondary/60 font-mono flex items-center gap-2">
               <EditIcon className="w-3.5 h-3.5" /> Rename
             </button>
             {isRenamed && (
-              <button onClick={(e) => { e.stopPropagation(); store.clearStreamRename(name); menu.close() }} className="w-full text-left px-3 py-2 text-xs text-muted-foreground hover:bg-secondary/60 font-mono">Reset name</button>
+              <button onClick={() => { store.clearStreamRename(name); menu.close() }} className="w-full text-left px-3 py-2 text-xs text-muted-foreground hover:bg-secondary/60 font-mono">Reset name</button>
             )}
-            <button onClick={(e) => { e.stopPropagation(); playSound(stream.sound as SoundName); menu.close() }} className="w-full text-left px-3 py-2 text-xs text-foreground/80 hover:bg-secondary/60 font-mono">Preview sound</button>
+            <button onClick={() => { playSound(stream.sound as SoundName); menu.close() }} className="w-full text-left px-3 py-2 text-xs text-foreground/80 hover:bg-secondary/60 font-mono flex items-center gap-2">
+              <SoundIcon className="w-3.5 h-3.5" /> Preview sound
+            </button>
             <div className="border-t border-border my-1" />
-            <button onClick={(e) => { e.stopPropagation(); store.deleteStream(name); menu.close() }} className="w-full text-left px-3 py-2 text-xs text-[var(--d360-red)] hover:bg-secondary/60 font-mono">Delete</button>
+            <button onClick={() => { store.deleteStream(name); menu.close() }} className="w-full text-left px-3 py-2 text-xs text-[var(--d360-red)] hover:bg-secondary/60 font-mono">Delete</button>
           </div>,
           document.body
         )}
@@ -638,7 +653,6 @@ function StreamItem({ name, stream, store, isActive, gripRef }: {
         </label>
       </div>
 
-      {/* Members popover - portaled to body, positioned next to sidebar */}
       {showMembers && popoverPos && typeof document !== 'undefined' && createPortal(
         <div
           ref={popoverRef}
@@ -690,30 +704,24 @@ function ChatCard({ item, store, onClick, isPinned = false, isInactive = false, 
   const [renaming, setRenaming] = useState(false)
   const [renameVal, setRenameVal] = useState('')
   const [showOriginal, setShowOriginal] = useState(false)
+  const [showSoundPicker, setShowSoundPicker] = useState(false)
   const isRenamed = !!store.chatRenames[item.id]
+  const chatSound = store.chatSounds[item.id] as SoundName | undefined
 
   const isMenuOpen = menuOpenId === item.id
   const menu = usePortalMenu()
 
   const accent = item.type === 'dm' ? 'var(--d360-cyan)' : 'var(--d360-orange)'
 
-  // Sync highlight state with menu open/close
   useEffect(() => {
-    if (menu.open && menuOpenId !== item.id) {
-      setMenuOpenId(item.id)
-    }
-    if (!menu.open && menuOpenId === item.id) {
-      setMenuOpenId(null)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (menu.open && menuOpenId !== item.id) setMenuOpenId(item.id)
+    if (!menu.open && menuOpenId === item.id) { setMenuOpenId(null); setShowSoundPicker(false) }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [menu.open])
 
   function confirmRename() {
-    if (renameVal.trim() && renameVal.trim() !== item.name) {
-      store.renameChat(item.id, renameVal.trim())
-    } else {
-      store.clearChatRename(item.id)
-    }
+    if (renameVal.trim() && renameVal.trim() !== item.name) store.renameChat(item.id, renameVal.trim())
+    else store.clearChatRename(item.id)
     setRenaming(false)
   }
 
@@ -740,12 +748,12 @@ function ChatCard({ item, store, onClick, isPinned = false, isInactive = false, 
         <div className="absolute left-0 top-0 bottom-0 w-[3px] rounded-r" style={{ background: accent }} />
       )}
 
-      {/* Mute icon - fixed 20px container, never shifts */}
+      {/* Mute icon - fixed container, always in same spot */}
       <div className="w-5 shrink-0 flex items-center justify-center">
         {isMuted ? (
           <button
             onClick={(e) => { e.stopPropagation(); store.toggleMuteGroup(item.id) }}
-            className="p-0.5 text-[var(--d360-red)] hover:brightness-125 transition-colors"
+            className={`p-0.5 transition-colors ${isHighlighted ? 'text-foreground drop-shadow-[0_0_4px_rgba(255,106,0,0.6)]' : 'text-[var(--d360-red)]'} hover:brightness-125`}
             title="Unmute"
           >
             <MuteIcon muted className="w-4 h-4" />
@@ -753,7 +761,11 @@ function ChatCard({ item, store, onClick, isPinned = false, isInactive = false, 
         ) : (
           <button
             onClick={(e) => { e.stopPropagation(); store.toggleMuteGroup(item.id) }}
-            className="p-0.5 text-muted-foreground/30 hover:text-muted-foreground opacity-0 group-hover:opacity-100 transition-all"
+            className={`p-0.5 transition-all ${
+              isHighlighted
+                ? 'text-foreground/50 hover:text-foreground drop-shadow-[0_0_3px_rgba(255,255,255,0.3)] opacity-100'
+                : 'text-muted-foreground/30 hover:text-muted-foreground opacity-0 group-hover:opacity-100'
+            }`}
             title="Mute"
           >
             <MuteIcon className="w-4 h-4" />
@@ -761,7 +773,7 @@ function ChatCard({ item, store, onClick, isPinned = false, isInactive = false, 
         )}
       </div>
 
-      {/* Title area - takes all remaining space */}
+      {/* Title area */}
       <div className="flex-1 min-w-0">
         {renaming ? (
           <input
@@ -780,6 +792,11 @@ function ChatCard({ item, store, onClick, isPinned = false, isInactive = false, 
             </span>
             {isRenamed && showOriginal && (
               <div className="text-[10px] text-muted-foreground font-mono mt-0.5 truncate">{item.name}</div>
+            )}
+            {chatSound && (
+              <div className="text-[9px] text-muted-foreground/60 font-mono flex items-center gap-1 mt-0.5">
+                <SoundIcon className="w-2.5 h-2.5" /> {chatSound}
+              </div>
             )}
           </>
         )}
@@ -801,22 +818,22 @@ function ChatCard({ item, store, onClick, isPinned = false, isInactive = false, 
           <div className="w-2.5 h-2.5 rounded-full shrink-0 animate-pulse-glow" style={{ background: accent }} />
         )}
 
-        {/* Vertical dots menu */}
         <button
           ref={menu.btnRef}
           onClick={(e) => menu.toggle(e)}
-          className="p-0.5 text-muted-foreground hover:text-foreground transition-colors"
+          className={`p-0.5 transition-colors ${isHighlighted ? 'text-foreground drop-shadow-[0_0_3px_rgba(255,255,255,0.3)]' : 'text-muted-foreground hover:text-foreground'}`}
         >
           <DotsVIcon className="w-5 h-5" />
         </button>
         {menu.open && typeof document !== 'undefined' && createPortal(
           <div
             ref={menu.menuRef}
-            className="fixed bg-card border border-border rounded-lg shadow-2xl py-1 min-w-[150px]"
+            className="fixed bg-card border border-border rounded-lg shadow-2xl py-1 min-w-[170px]"
             style={{ top: menu.pos.top, left: menu.pos.left, zIndex: 9999 }}
+            onClick={(e) => e.stopPropagation()}
           >
             <button
-              onClick={(e) => { e.stopPropagation(); setRenameVal(displayName); setRenaming(true); menu.close() }}
+              onClick={() => { setRenameVal(displayName); setRenaming(true); menu.close() }}
               className="w-full text-left px-3 py-2 text-xs text-foreground/80 hover:bg-secondary/60 font-mono flex items-center gap-2"
             >
               <EditIcon className="w-3.5 h-3.5" /> Rename
@@ -824,13 +841,13 @@ function ChatCard({ item, store, onClick, isPinned = false, isInactive = false, 
             {isRenamed && (
               <>
                 <button
-                  onClick={(e) => { e.stopPropagation(); setShowOriginal(!showOriginal); menu.close() }}
+                  onClick={() => { setShowOriginal(!showOriginal); menu.close() }}
                   className="w-full text-left px-3 py-2 text-xs text-foreground/80 hover:bg-secondary/60 font-mono"
                 >
                   {showOriginal ? 'Hide original' : 'See original'}
                 </button>
                 <button
-                  onClick={(e) => { e.stopPropagation(); store.clearChatRename(item.id); menu.close() }}
+                  onClick={() => { store.clearChatRename(item.id); menu.close() }}
                   className="w-full text-left px-3 py-2 text-xs text-muted-foreground hover:bg-secondary/60 font-mono"
                 >
                   Reset name
@@ -838,12 +855,54 @@ function ChatCard({ item, store, onClick, isPinned = false, isInactive = false, 
               </>
             )}
             <button
-              onClick={(e) => { e.stopPropagation(); store.togglePinChat(item.id); menu.close() }}
+              onClick={() => { store.togglePinChat(item.id); menu.close() }}
               className="w-full text-left px-3 py-2 text-xs text-foreground/80 hover:bg-secondary/60 font-mono flex items-center gap-2"
             >
               <PinIcon className="w-3.5 h-3.5" />
               {isPinned || store.pinnedChats[item.id] ? 'Unpin' : 'Pin'}
             </button>
+            <button
+              onClick={() => { store.toggleMuteGroup(item.id); menu.close() }}
+              className="w-full text-left px-3 py-2 text-xs text-foreground/80 hover:bg-secondary/60 font-mono flex items-center gap-2"
+            >
+              <MuteIcon muted={isMuted} className="w-3.5 h-3.5" />
+              {isMuted ? 'Unmute' : 'Mute'}
+            </button>
+
+            {/* Sound picker */}
+            <button
+              onClick={() => setShowSoundPicker(!showSoundPicker)}
+              className="w-full text-left px-3 py-2 text-xs text-foreground/80 hover:bg-secondary/60 font-mono flex items-center gap-2"
+            >
+              <SoundIcon className="w-3.5 h-3.5" />
+              Alert sound {chatSound ? `(${chatSound})` : '(default)'}
+              <ChevronIcon open={showSoundPicker} className="w-3 h-3 ml-auto" />
+            </button>
+            {showSoundPicker && (
+              <div className="px-2 py-1 border-t border-border">
+                {SOUND_NAMES.map(s => (
+                  <div key={s} className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => { store.setChatSound(item.id, s); }}
+                      className={`flex-1 text-left px-2 py-1.5 text-[11px] font-mono rounded transition-colors ${
+                        chatSound === s ? 'text-[var(--d360-orange)] bg-secondary/60' : 'text-foreground/70 hover:bg-secondary/40'
+                      }`}
+                    >
+                      {s}
+                    </button>
+                    <button onClick={() => playSound(s)} className="text-[10px] text-muted-foreground hover:text-foreground p-1" title="Preview">{'\u25B6'}</button>
+                  </div>
+                ))}
+                {chatSound && (
+                  <button
+                    onClick={() => { store.clearChatSound(item.id); }}
+                    className="w-full text-left px-2 py-1.5 text-[10px] text-muted-foreground hover:text-foreground font-mono mt-0.5"
+                  >
+                    Reset to default
+                  </button>
+                )}
+              </div>
+            )}
           </div>,
           document.body
         )}

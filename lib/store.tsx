@@ -102,6 +102,8 @@ interface StoreState {
   sectionOrder: string[]
   // Editing a stream (prefill config)
   editingStream: { name: string; ids: string[]; sound: SoundName } | null
+  // Per-chat alert sounds
+  chatSounds: Record<string, SoundName>
 }
 
 interface StoreActions {
@@ -168,6 +170,8 @@ interface StoreActions {
   setSectionOrder: (order: string[]) => void
   setEditingStream: (v: StoreState['editingStream']) => void
   reorderStreams: (fromIdx: number, toIdx: number) => void
+  setChatSound: (id: string, sound: SoundName) => void
+  clearChatSound: (id: string) => void
 }
 
 interface ToastItem {
@@ -237,6 +241,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [shiftChangeOpen, setShiftChangeOpen] = useState(false)
   const [pendingImage, setPendingImage] = useState<string | null>(null)
   const [searchIndex, setSearchIndex] = useState<GroupMeMessage[]>([])
+  const [chatSounds, setChatSounds] = useState<Record<string, SoundName>>({})
   const [editingStream, setEditingStream] = useState<StoreState['editingStream']>(null)
   const [chatRenames, setChatRenames] = useState<Record<string, string>>({})
   const [streamRenames, setStreamRenames] = useState<Record<string, string>>({})
@@ -276,6 +281,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setChatRenames(storage.getChatRenames())
     setStreamRenames(storage.getStreamRenames())
     setSectionOrderState(storage.getSectionOrder())
+    setChatSounds(storage.getChatSounds() as Record<string, SoundName>)
 
     // Auto-login
     const token = storage.getToken()
@@ -623,6 +629,23 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     return chatRenames[id] || originalName
   }, [chatRenames])
 
+  const setChatSoundAction = useCallback((id: string, sound: SoundName) => {
+    setChatSounds(prev => {
+      const next = { ...prev, [id]: sound }
+      storage.setChatSounds(next)
+      return next
+    })
+  }, [])
+
+  const clearChatSound = useCallback((id: string) => {
+    setChatSounds(prev => {
+      const next = { ...prev }
+      delete next[id]
+      storage.setChatSounds(next)
+      return next
+    })
+  }, [])
+
   const renameStream = useCallback((key: string, displayName: string) => {
     setStreamRenames(prev => {
       const next = { ...prev, [key]: displayName }
@@ -799,6 +822,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     streamRenames,
     sectionOrder,
     editingStream,
+    chatSounds,
     toasts,
     // Actions
     login,
@@ -892,6 +916,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setSectionOrder,
     setEditingStream,
     reorderStreams,
+    setChatSound: setChatSoundAction,
+    clearChatSound,
     saveStream,
     deleteStream,
     toggleStreamMonitor,
