@@ -9,7 +9,7 @@ const IMAGE_BASE = 'https://image.groupme.com/pictures'
 
 // Simple per-token rate limiter: track last request time
 const lastRequestTime = new Map<string, number>()
-const MIN_DELAY = 120 // ms between requests per token
+const MIN_DELAY = 250 // ms between requests per token
 
 async function throttle(token: string) {
   const last = lastRequestTime.get(token) || 0
@@ -25,7 +25,7 @@ async function proxyRequest(
   method: string,
   body: string | null,
   contentType: string | null,
-  retries = 2
+  retries = 3
 ): Promise<Response> {
   await throttle(token)
 
@@ -43,7 +43,7 @@ async function proxyRequest(
 
   // Retry on 429 with exponential backoff
   if (res.status === 429 && retries > 0) {
-    const delay = (3 - retries) * 1000 // 1s, 2s
+    const delay = (4 - retries) * 2000 // 2s, 4s, 6s
     await new Promise(r => setTimeout(r, delay))
     return proxyRequest(path, token, method, body, contentType, retries - 1)
   }
@@ -70,7 +70,6 @@ export async function GET(
 
     if (!res.ok) {
       const text = await res.text().catch(() => '')
-      console.log('[v0] GET proxy error:', res.status, fullPath, text.slice(0, 200))
       return NextResponse.json(
         { error: `GroupMe API error ${res.status}`, detail: text },
         { status: res.status }
@@ -80,7 +79,6 @@ export async function GET(
     const data = await res.json()
     return NextResponse.json(data)
   } catch (e) {
-    console.log('[v0] GET proxy exception:', fullPath, String(e))
     return NextResponse.json(
       { error: 'Proxy error', detail: String(e) },
       { status: 502 }
@@ -125,7 +123,6 @@ export async function POST(
 
     if (!res.ok) {
       const text = await res.text().catch(() => '')
-      console.log('[v0] POST proxy error:', res.status, fullPath, text.slice(0, 200))
       return NextResponse.json(
         { error: `GroupMe API error ${res.status}`, detail: text },
         { status: res.status }
@@ -135,7 +132,6 @@ export async function POST(
     const data = await res.json()
     return NextResponse.json(data)
   } catch (e) {
-    console.log('[v0] POST proxy exception:', fullPath, String(e))
     return NextResponse.json(
       { error: 'Proxy error', detail: String(e) },
       { status: 502 }

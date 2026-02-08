@@ -13,10 +13,12 @@ const PROXY_BASE = '/api/groupme'
 class GroupMeAPI {
   private token = ''
 
-  // Client-side request queue to limit concurrency
+  // Client-side request queue to limit concurrency and avoid 429s
   private queue: (() => void)[] = []
   private active = 0
-  private maxConcurrent = 3 // max simultaneous requests
+  private maxConcurrent = 2 // max simultaneous requests
+  private lastDequeue = 0
+  private minGap = 150 // ms between request starts
 
   setToken(token: string) {
     this.token = token
@@ -31,6 +33,11 @@ class GroupMeAPI {
     if (this.active >= this.maxConcurrent) {
       await new Promise<void>(resolve => this.queue.push(resolve))
     }
+    // Enforce minimum gap between request starts
+    const now = Date.now()
+    const wait = Math.max(0, this.minGap - (now - this.lastDequeue))
+    if (wait > 0) await new Promise(r => setTimeout(r, wait))
+    this.lastDequeue = Date.now()
     this.active++
     try {
       return await fn()

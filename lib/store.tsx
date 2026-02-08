@@ -469,11 +469,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         const data = await api.getDMMessages(id, 40)
         msgs = data.direct_messages || []
       } else if (type === 'all') {
-        const fetches = groups.slice(0, 10).map(g =>
+        const fetches = groups.slice(0, 6).map(g =>
           api.getGroupMessages(g.id, 5).catch(() => null)
         )
         const approvedDMs = dmChats.filter(d => approved[d.other_user?.id] !== false)
-        const dmFetches = approvedDMs.slice(0, 3).map(d =>
+        const dmFetches = approvedDMs.slice(0, 2).map(d =>
           api.getDMMessages(d.other_user.id, 3).catch(() => null)
         )
         const results = await Promise.all([...fetches, ...dmFetches])
@@ -484,7 +484,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         })
       } else if (type === 'dms') {
         const approvedDMs = dmChats.filter(d => approved[d.other_user?.id] !== false)
-        const fetches = approvedDMs.slice(0, 12).map(d =>
+        const fetches = approvedDMs.slice(0, 8).map(d =>
           api.getDMMessages(d.other_user.id, 5).catch(() => null)
         )
         const results = await Promise.all(fetches)
@@ -547,13 +547,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     })
     if (toggledIds.size === 0) return []
     try {
-      // Fetch with small stagger to avoid rate limits
+      // Fetch in small batches to avoid rate limits
       const groupIds = Array.from(toggledIds)
       const results: ({ messages: GroupMeMessage[] } | null)[] = []
-      for (let i = 0; i < groupIds.length; i += 5) {
+      for (let i = 0; i < groupIds.length; i += 3) {
         if (version !== unifiedVersion.current) return null // stale
-        const batch = groupIds.slice(i, i + 5).map(gid =>
-          api.getGroupMessages(gid, 15).catch(() => null)
+        const batch = groupIds.slice(i, i + 3).map(gid =>
+          api.getGroupMessages(gid, 8).catch(() => null)
         )
         results.push(...await Promise.all(batch))
       }
