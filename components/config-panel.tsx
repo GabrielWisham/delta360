@@ -89,12 +89,10 @@ export function ConfigPanel() {
   }
 
   function toggleGroup(id: string) {
-    console.log("[v0] toggleGroup called:", id, "configOpen:", store.configOpen, "activeTab:", activeTab)
     setSelectedGroups(prev => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
       else next.add(id)
-      console.log("[v0] selectedGroups updated, size:", next.size)
       return next
     })
   }
@@ -118,8 +116,6 @@ export function ConfigPanel() {
   function removeAlertWord(idx: number) {
     store.setAlertWords(store.alertWords.filter((_, i) => i !== idx))
   }
-
-  console.log("[v0] ConfigPanel render - configOpen:", store.configOpen, "activeTab:", activeTab, "groups:", store.groups?.length, "selectedGroups:", selectedGroups.size)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -174,7 +170,7 @@ export function ConfigPanel() {
         <div className="border-t border-border" />
 
         {/* Tab content */}
-        <div className="flex-1 overflow-y-auto px-5 py-4" role="tabpanel">
+        <div className="flex-1 min-h-0 px-5 py-4 overflow-hidden" role="tabpanel">
           {activeTab === 'streams' && (
             <StreamsTab
               streamName={streamName}
@@ -189,25 +185,31 @@ export function ConfigPanel() {
             />
           )}
           {activeTab === 'templates' && (
-            <TemplatesTab
-              templates={store.templates}
-              newTemplate={newTemplate}
-              setNewTemplate={setNewTemplate}
-              addTemplate={addTemplate}
-              removeTemplate={removeTemplate}
-            />
+            <div className="h-full overflow-y-auto">
+              <TemplatesTab
+                templates={store.templates}
+                newTemplate={newTemplate}
+                setNewTemplate={setNewTemplate}
+                addTemplate={addTemplate}
+                removeTemplate={removeTemplate}
+              />
+            </div>
           )}
           {activeTab === 'alerts' && (
-            <AlertsTab
-              alertWords={store.alertWords}
-              newAlert={newAlert}
-              setNewAlert={setNewAlert}
-              addAlertWord={addAlertWord}
-              removeAlertWord={removeAlertWord}
-            />
+            <div className="h-full overflow-y-auto">
+              <AlertsTab
+                alertWords={store.alertWords}
+                newAlert={newAlert}
+                setNewAlert={setNewAlert}
+                addAlertWord={addAlertWord}
+                removeAlertWord={removeAlertWord}
+              />
+            </div>
           )}
           {activeTab === 'audio' && (
-            <AudioTab store={store} />
+            <div className="h-full overflow-y-auto">
+              <AudioTab store={store} />
+            </div>
           )}
         </div>
       </div>
@@ -240,7 +242,7 @@ function StreamsTab({
     .filter(g => g.name.toLowerCase().includes(groupFilter.toLowerCase()))
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-3 h-full">
       <SectionLabel>Stream Name</SectionLabel>
       <input
         value={streamName}
@@ -291,8 +293,8 @@ function StreamsTab({
         />
       </div>
 
-      {/* Fixed-height group list */}
-      <div className="h-[200px] overflow-y-auto rounded-lg border border-border bg-secondary/20">
+      {/* Group list fills remaining space */}
+      <div className="flex-1 min-h-0 overflow-y-auto rounded-lg border border-border bg-secondary/20">
         {sortedGroups.length === 0 ? (
           <div className="flex items-center justify-center h-full text-xs text-muted-foreground">
             No groups match your search.
