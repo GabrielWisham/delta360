@@ -44,6 +44,22 @@ function EditIcon({ className = '' }: { className?: string }) {
     </svg>
   )
 }
+function ChevronIcon({ open, className = '' }: { open: boolean; className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" className={`transition-transform duration-200 ${open ? 'rotate-90' : ''} ${className}`}>
+      <polyline points="9 18 15 12 9 6" />
+    </svg>
+  )
+}
+function ArchiveIcon({ className = '' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <rect x="2" y="3" width="20" height="5" rx="1" />
+      <path d="M4 8v11a2 2 0 002 2h12a2 2 0 002-2V8" />
+      <path d="M10 12h4" />
+    </svg>
+  )
+}
 
 export function Sidebar() {
   const store = useStore()
@@ -110,22 +126,40 @@ export function Sidebar() {
         `}
         style={{ background: 'var(--d360-sidebar-bg)' }}
       >
-        <div className="p-3 flex flex-col gap-5">
+        <div className="p-3 flex flex-col gap-4">
           {/* COMMAND */}
           <div>
             <SectionLabel text="Command" />
-            <NavItem
-              label="Universal Feed"
-              isActive={store.currentView.type === 'all'}
-              accent="var(--d360-orange)"
+            {/* Universal Feed - distinct background */}
+            <button
               onClick={(e) => { if (e.shiftKey) store.openSecondaryPanel('all', null); else store.switchView('all', null) }}
-            />
-            <NavItem
-              label="Direct Comms"
-              isActive={store.currentView.type === 'dms'}
-              accent="var(--d360-cyan)"
+              className={`flex items-center gap-2 w-full px-3 py-3 rounded-lg text-[13px] font-mono uppercase tracking-wider transition-all mb-1 ${
+                store.currentView.type === 'all' ? 'text-foreground font-bold' : 'text-foreground/70 hover:text-foreground'
+              }`}
+              style={{
+                background: store.currentView.type === 'all'
+                  ? 'linear-gradient(90deg, rgba(255,106,0,0.35) 0%, rgba(255,106,0,0.08) 50%, transparent 100%)'
+                  : 'rgba(255,106,0,0.06)',
+                borderLeft: store.currentView.type === 'all' ? '3px solid var(--d360-orange)' : '3px solid transparent',
+              }}
+            >
+              Universal Feed
+            </button>
+            {/* Direct Comms - cyan tinted background matching DM cards */}
+            <button
               onClick={(e) => { if (e.shiftKey) store.openSecondaryPanel('dms', null); else store.switchView('dms', null) }}
-            />
+              className={`flex items-center gap-2 w-full px-3 py-3 rounded-lg text-[13px] font-mono uppercase tracking-wider transition-all mb-0.5 ${
+                store.currentView.type === 'dms' ? 'text-foreground font-bold' : 'text-foreground/70 hover:text-foreground'
+              }`}
+              style={{
+                background: store.currentView.type === 'dms'
+                  ? 'linear-gradient(90deg, rgba(34,211,238,0.30) 0%, rgba(34,211,238,0.06) 50%, transparent 100%)'
+                  : 'rgba(34,211,238,0.05)',
+                borderLeft: store.currentView.type === 'dms' ? '3px solid var(--d360-cyan)' : '3px solid transparent',
+              }}
+            >
+              Direct Comms
+            </button>
           </div>
 
           {/* STREAMS */}
@@ -194,9 +228,11 @@ export function Sidebar() {
           {/* INACTIVE */}
           {inactive.length > 0 && (
             <div>
-              <button onClick={() => store.setInactiveOpen(!store.inactiveOpen)} className="flex items-center gap-1 w-full mb-1">
-                <span className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground font-mono font-semibold">
-                  {store.inactiveOpen ? '\u25BC' : '\u25B6'} Inactive ({inactive.length})
+              <button onClick={() => store.setInactiveOpen(!store.inactiveOpen)} className="flex items-center gap-1.5 w-full mb-1 px-1">
+                <ChevronIcon open={store.inactiveOpen} className="w-3.5 h-3.5 text-muted-foreground" />
+                <ArchiveIcon className="w-3.5 h-3.5 text-muted-foreground" />
+                <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-mono font-semibold">
+                  Inactive ({inactive.length})
                 </span>
               </button>
               {store.inactiveOpen && (
@@ -218,24 +254,6 @@ export function Sidebar() {
 function SectionLabel({ text }: { text: string }) {
   return (
     <div className="text-[10px] uppercase tracking-[0.2em] text-[var(--d360-orange)] font-bold mb-2 px-2 font-mono">{text}</div>
-  )
-}
-
-/* ===== Nav Item (Command section) ===== */
-function NavItem({ label, isActive, accent, onClick }: { label: string; isActive: boolean; accent: string; onClick: (e: React.MouseEvent) => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`flex items-center gap-2 w-full px-3 py-2.5 rounded-lg text-[13px] font-mono uppercase tracking-wider transition-all mb-0.5 ${
-        isActive ? 'text-foreground font-bold' : 'text-foreground/60 hover:text-foreground hover:bg-secondary/50'
-      }`}
-      style={isActive ? {
-        background: `linear-gradient(90deg, ${accent}30 0%, ${accent}05 100%)`,
-        borderLeft: `3px solid ${accent}`,
-      } : { borderLeft: '3px solid transparent' }}
-    >
-      {label}
-    </button>
   )
 }
 
@@ -264,18 +282,17 @@ function StreamItem({ name, stream, store, isActive }: {
             if (e.shiftKey) store.openSecondaryPanel('stream', name)
             else store.switchView('stream', name)
           }}
-          className={`flex-1 flex items-center gap-2 px-3 py-2.5 rounded-lg text-[13px] font-mono uppercase tracking-wider transition-all ${
-            isActive ? 'text-foreground font-bold' : 'text-foreground/60 hover:text-foreground hover:bg-secondary/50'
+          className={`flex-1 flex items-center gap-2 px-3 py-3 rounded-lg text-[13px] font-mono uppercase tracking-wider transition-all ${
+            isActive ? 'text-foreground font-bold' : 'text-foreground/70 hover:text-foreground hover:bg-secondary/50'
           }`}
           style={isActive ? {
-            background: 'linear-gradient(90deg, var(--d360-orange)30 0%, var(--d360-orange)05 100%)',
+            background: 'linear-gradient(90deg, rgba(255,106,0,0.35) 0%, rgba(255,106,0,0.08) 50%, transparent 100%)',
             borderLeft: '3px solid var(--d360-orange)',
           } : { borderLeft: '3px solid transparent' }}
         >
           {name}
         </button>
 
-        {/* Dots menu for stream members */}
         <button
           onClick={() => setShowMembers(!showMembers)}
           className="p-1 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
@@ -284,7 +301,6 @@ function StreamItem({ name, stream, store, isActive }: {
           <DotsIcon className="w-4 h-4" />
         </button>
 
-        {/* Sound preview */}
         <button
           onClick={() => playSound(stream.sound as SoundName)}
           className="p-1 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
@@ -293,13 +309,11 @@ function StreamItem({ name, stream, store, isActive }: {
           <MuteIcon className="w-3.5 h-3.5" />
         </button>
 
-        {/* Toggle */}
         <label className="relative inline-flex items-center cursor-pointer">
           <input type="checkbox" className="sr-only peer" checked={store.streamToggles.has(name)} onChange={() => store.toggleStreamMonitor(name)} />
           <div className="w-7 h-4 bg-secondary rounded-full peer peer-checked:bg-[var(--d360-orange)] transition-colors after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-foreground after:rounded-full after:w-3 after:h-3 after:transition-all peer-checked:after:translate-x-3" />
         </label>
 
-        {/* Delete */}
         <button
           onClick={() => store.deleteStream(name)}
           className="text-xs text-muted-foreground hover:text-[var(--d360-red)] p-1 opacity-0 group-hover:opacity-100 transition-opacity"
@@ -309,7 +323,6 @@ function StreamItem({ name, stream, store, isActive }: {
         </button>
       </div>
 
-      {/* Member popover */}
       {showMembers && (
         <div className="absolute left-8 top-full z-50 mt-1 bg-card border border-border rounded-lg shadow-xl p-3 min-w-[200px] max-w-[280px]">
           <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono mb-2">Groups in {name}</div>
@@ -328,7 +341,7 @@ function StreamItem({ name, stream, store, isActive }: {
   )
 }
 
-/* ===== Chat Card - Larger with rename, gradient, modern icons ===== */
+/* ===== Chat Card ===== */
 interface ChatItemData {
   type: 'group' | 'dm'
   id: string
@@ -378,14 +391,16 @@ function ChatCard({ item, store, onClick, isPinned = false, isInactive = false }
         isSelected
           ? 'text-foreground font-semibold'
           : isInactive
-            ? 'text-foreground/55 hover:text-foreground/80 hover:bg-secondary/30'
+            ? 'text-foreground/60 hover:text-foreground/80 hover:bg-secondary/30'
             : 'text-foreground/80 hover:text-foreground hover:bg-secondary/40'
       }`}
       style={isSelected ? {
-        background: `linear-gradient(90deg, ${accent}35 0%, ${accent}08 60%, transparent 100%)`,
+        background: item.type === 'dm'
+          ? 'linear-gradient(90deg, rgba(34,211,238,0.30) 0%, rgba(34,211,238,0.08) 50%, transparent 100%)'
+          : 'linear-gradient(90deg, rgba(255,106,0,0.35) 0%, rgba(255,106,0,0.08) 50%, transparent 100%)',
       } : {}}
     >
-      {/* Left accent bar with gradient */}
+      {/* Left accent bar */}
       {isSelected && (
         <div
           className="absolute left-0 top-0 bottom-0 w-[3px] rounded-r"
@@ -393,13 +408,61 @@ function ChatCard({ item, store, onClick, isPinned = false, isInactive = false }
         />
       )}
 
-      {/* Unread dot */}
-      {isUnread && !isInactive && (
-        <div
-          className="w-2.5 h-2.5 rounded-full shrink-0 animate-pulse-glow"
-          style={{ background: accent, color: accent }}
-        />
-      )}
+      {/* LEFT side: Action buttons on hover, mute icon persistent */}
+      <div className="flex items-center gap-0.5 shrink-0">
+        {/* Persistent muted indicator (always visible when muted) */}
+        {isMuted && (
+          <button
+            onClick={(e) => { e.stopPropagation(); store.toggleMuteGroup(item.id) }}
+            className="p-0.5 text-[var(--d360-red)]/70 hover:text-[var(--d360-red)]"
+            title="Unmute"
+          >
+            <MuteIcon muted className="w-4 h-4" />
+          </button>
+        )}
+        {/* Hover-only actions */}
+        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            onClick={startRename}
+            className="p-1 text-muted-foreground hover:text-foreground rounded"
+            title="Rename chat"
+          >
+            <EditIcon className="w-3.5 h-3.5" />
+          </button>
+          {/* Pin/Unpin - only show for non-pinned section items (pinned section has no pin icon) */}
+          {!isPinned && (
+            <button
+              onClick={(e) => { e.stopPropagation(); store.togglePinChat(item.id) }}
+              className={`p-1 rounded ${store.pinnedChats[item.id] ? 'text-[var(--d360-yellow)]' : 'text-muted-foreground hover:text-foreground'}`}
+              title={store.pinnedChats[item.id] ? 'Unpin' : 'Pin'}
+            >
+              <PinIcon filled={!!store.pinnedChats[item.id]} className="w-4 h-4" />
+            </button>
+          )}
+          {/* Unpin for pinned section */}
+          {isPinned && (
+            <button
+              onClick={(e) => { e.stopPropagation(); store.togglePinChat(item.id) }}
+              className="p-1 text-muted-foreground hover:text-[var(--d360-red)] rounded"
+              title="Unpin"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          )}
+          {/* Mute toggle (only show if not already muted, since muted icon is persistent) */}
+          {item.type === 'group' && !isMuted && (
+            <button
+              onClick={(e) => { e.stopPropagation(); store.toggleMuteGroup(item.id) }}
+              className="p-1 text-muted-foreground hover:text-foreground rounded"
+              title="Mute"
+            >
+              <MuteIcon className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      </div>
 
       {/* Title area */}
       <div className="flex-1 min-w-0">
@@ -415,24 +478,20 @@ function ChatCard({ item, store, onClick, isPinned = false, isInactive = false }
           />
         ) : (
           <>
-            <div className="flex items-center gap-1.5">
-              {isMuted && <MuteIcon muted className="w-3 h-3 text-muted-foreground/50 shrink-0" />}
-              {isPinned && <PinIcon filled className="w-3 h-3 text-[var(--d360-yellow)] shrink-0" />}
-              <span className={`truncate text-[13px] font-mono tracking-wide ${isSelected ? 'font-bold' : isInactive ? 'font-normal' : 'font-medium'}`}>
-                {displayName}
-              </span>
-              {isRenamed && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); setShowOriginal(!showOriginal) }}
-                  className="text-[9px] text-muted-foreground hover:text-foreground shrink-0 font-mono"
-                  title="Show original name"
-                >
-                  {showOriginal ? 'hide' : 'orig'}
-                </button>
-              )}
-            </div>
+            <span className={`truncate text-[13px] font-mono tracking-wide block ${isSelected ? 'font-bold text-foreground' : isInactive ? 'font-normal' : 'font-medium'}`}>
+              {displayName}
+            </span>
+            {isRenamed && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowOriginal(!showOriginal) }}
+                className="text-[9px] text-muted-foreground hover:text-foreground font-mono mt-0.5"
+                title="Show original name"
+              >
+                {showOriginal ? 'hide' : 'see more'}
+              </button>
+            )}
             {showOriginal && isRenamed && (
-              <div className="text-[10px] text-muted-foreground font-mono mt-0.5 truncate pl-1">
+              <div className="text-[10px] text-muted-foreground font-mono mt-0.5 truncate">
                 {item.name}
               </div>
             )}
@@ -440,44 +499,22 @@ function ChatCard({ item, store, onClick, isPinned = false, isInactive = false }
         )}
       </div>
 
-      {/* Timestamp */}
-      <span
-        className="text-[10px] shrink-0 min-w-[32px] text-right font-mono"
-        style={{
-          color: isInactive ? 'var(--color-muted-foreground)' : accent,
-          opacity: isInactive ? 0.6 : 0.8,
-        }}
-      >
-        {formatTimeAgo(item.ts)}
-      </span>
-
-      {/* Action buttons - always rendered but hidden until hover */}
-      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-        {/* Rename */}
-        <button
-          onClick={startRename}
-          className="p-1 text-muted-foreground hover:text-foreground rounded"
-          title="Rename chat"
+      {/* RIGHT side: notification bubble / timestamp */}
+      <div className="flex items-center gap-1.5 shrink-0">
+        <span
+          className="text-[10px] min-w-[32px] text-right font-mono"
+          style={{
+            color: isInactive ? 'var(--color-muted-foreground)' : isSelected ? 'var(--color-foreground)' : accent,
+            opacity: isInactive ? 0.7 : 0.8,
+          }}
         >
-          <EditIcon className="w-3.5 h-3.5" />
-        </button>
-        {/* Pin/Unpin */}
-        <button
-          onClick={(e) => { e.stopPropagation(); store.togglePinChat(item.id) }}
-          className={`p-1 rounded ${store.pinnedChats[item.id] ? 'text-[var(--d360-yellow)]' : 'text-muted-foreground hover:text-foreground'}`}
-          title={store.pinnedChats[item.id] ? 'Unpin' : 'Pin'}
-        >
-          <PinIcon filled={!!store.pinnedChats[item.id]} className="w-4 h-4" />
-        </button>
-        {/* Mute */}
-        {item.type === 'group' && (
-          <button
-            onClick={(e) => { e.stopPropagation(); store.toggleMuteGroup(item.id) }}
-            className={`p-1 rounded ${isMuted ? 'text-[var(--d360-red)]' : 'text-muted-foreground hover:text-foreground'}`}
-            title={isMuted ? 'Unmute' : 'Mute'}
-          >
-            <MuteIcon muted={!!isMuted} className="w-4 h-4" />
-          </button>
+          {formatTimeAgo(item.ts)}
+        </span>
+        {isUnread && !isInactive && (
+          <div
+            className="w-2.5 h-2.5 rounded-full shrink-0 animate-pulse-glow"
+            style={{ background: accent, color: accent }}
+          />
         )}
       </div>
     </div>
