@@ -535,6 +535,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const loadUnifiedStreams = useCallback(async () => {
     const version = ++unifiedVersion.current
+    // Always show spinner - never display partial data
+    setUnifiedLoading(true)
     // Gather toggled group IDs from latest refs
     const toggledIds = new Set<string>()
     Object.entries(streamsRef.current).forEach(([key, s]: [string, { ids: string[] }]) => {
@@ -554,7 +556,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         api.getGroupMessages(gid, 15).catch(() => null)
       )
       const results = await Promise.all(fetches)
-      // Stale check: if another load was triggered while we were fetching, discard
+      // Stale check: if another load was triggered while we were fetching, discard entirely
       if (version !== unifiedVersion.current) return
       const all: GroupMeMessage[] = []
       results.forEach(r => {
@@ -568,13 +570,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       })
       // Sort newest first and keep 60 most recent
       deduped.sort((a, b) => b.created_at - a.created_at)
-      const final = deduped.slice(0, 60)
-      // Store in ascending order (message-feed handles display order)
-      final.sort((a, b) => a.created_at - b.created_at)
-      if (version === unifiedVersion.current) {
-        setPanelMessages(prev => { const n = [...prev]; n[0] = final; return n })
-        setUnifiedLoading(false)
-      }
+      const ready = deduped.slice(0, 60)
+      // Final sort ascending for storage (message-feed handles display order)
+      ready.sort((a, b) => a.created_at - b.created_at)
+      // Double-check stale before committing to state
+      if (version !== unifiedVersion.current) return
+      // Commit: messages + loading=false in same synchronous block (React batches)
+      setPanelMessages(prev => { const n = [...prev]; n[0] = ready; return n })
+      setUnifiedLoading(false)
     } catch {
       if (version === unifiedVersion.current) setUnifiedLoading(false)
     }
@@ -600,12 +603,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [streamToggleCount, currentView.type, isLoggedIn, loadUnifiedStreams])
 
-  // Background refresh for unified_streams (silent swap, no spinner, every 10s)
+  // Background refresh for unified_streams (always buffered behind spinner)
   useEffect(() => {
     if (currentView.type !== 'unified_streams' || !isLoggedIn) return
     const interval = setInterval(() => {
       if (!unifiedLoading) loadUnifiedStreams()
-    }, 10000)
+    }, 15000)
     return () => clearInterval(interval)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentView.type, isLoggedIn, loadUnifiedStreams, unifiedLoading])
