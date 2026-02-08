@@ -733,9 +733,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const next = new Set(prev)
       if (next.has(name)) next.delete(name)
       else next.add(name)
+      // Auto-refresh unified_streams view when a toggle changes
+      if (panels[0]?.type === 'unified_streams') {
+        setTimeout(() => loadMessages(0), 100)
+      }
       return next
     })
-  }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [panels])
 
   const reorderStreams = useCallback((fromIdx: number, toIdx: number) => {
     setStreams(prev => {

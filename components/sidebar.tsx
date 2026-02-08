@@ -384,32 +384,38 @@ export function Sidebar() {
             </button>
           </div>
           {/* Unified Streams */}
-          {hasStreams && (
-            <div className="flex items-center gap-1 mb-0.5">
-              <button
-                onClick={(e) => { if (e.shiftKey) store.openSecondaryPanel('unified_streams', null); else store.switchView('unified_streams', null) }}
-                className={`flex-1 flex items-center gap-2 px-3 py-3 rounded-lg text-[13px] font-mono uppercase tracking-wider transition-all min-w-0 ${
-                  store.currentView.type === 'unified_streams' ? 'text-foreground font-bold' : 'text-foreground/70 hover:text-foreground'
-                }`}
-                style={{
-                  background: store.currentView.type === 'unified_streams'
-                    ? 'linear-gradient(90deg, rgba(168,85,247,0.30) 0%, rgba(168,85,247,0.06) 50%, transparent 100%)'
-                    : 'rgba(168,85,247,0.05)',
-                  borderLeft: store.currentView.type === 'unified_streams' ? '3px solid #a855f7' : '3px solid transparent',
-                }}
-              >
-                <LayersIcon className="w-4 h-4 shrink-0" />
-                Unified Streams
-              </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); store.toggleMuteGroup('__unified_streams__') }}
-                className={`p-1 shrink-0 transition-colors ${store.mutedGroups['__unified_streams__'] ? 'text-[var(--d360-red)]' : 'text-muted-foreground/40 hover:text-muted-foreground'}`}
-                title={store.mutedGroups['__unified_streams__'] ? 'Unmute unified streams' : 'Mute unified streams'}
-              >
-                <MuteIcon muted={!!store.mutedGroups['__unified_streams__']} className="w-4 h-4" />
-              </button>
-            </div>
-          )}
+          {hasStreams && (() => {
+            const toggledCount = Object.keys(store.streams).filter(k => store.streamToggles.has(k)).length
+            const unifiedMuted = !!store.mutedGroups['__unified_streams__']
+            return (
+              <div className="flex items-center gap-1 mb-0.5">
+                <button
+                  onClick={(e) => { if (e.shiftKey) store.openSecondaryPanel('unified_streams', null); else store.switchView('unified_streams', null) }}
+                  className={`flex-1 flex items-center gap-2 px-3 py-3 rounded-lg text-[13px] font-mono uppercase tracking-wider transition-all min-w-0 ${
+                    store.currentView.type === 'unified_streams' ? 'text-foreground font-bold' : 'text-foreground/70 hover:text-foreground'
+                  }`}
+                  style={{
+                    background: store.currentView.type === 'unified_streams'
+                      ? 'linear-gradient(90deg, rgba(168,85,247,0.30) 0%, rgba(168,85,247,0.06) 50%, transparent 100%)'
+                      : 'rgba(168,85,247,0.05)',
+                    borderLeft: store.currentView.type === 'unified_streams' ? '3px solid #a855f7' : '3px solid transparent',
+                  }}
+                >
+                  <LayersIcon className="w-4 h-4 shrink-0" />
+                  <span className="truncate">
+                    {toggledCount > 0 ? `Unified Streams (${toggledCount})` : 'Toggle Streams'}
+                  </span>
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); store.toggleMuteGroup('__unified_streams__') }}
+                  className={`p-1 shrink-0 transition-colors ${unifiedMuted ? 'text-[var(--d360-red)]' : 'text-muted-foreground/40 hover:text-muted-foreground'}`}
+                  title={unifiedMuted ? 'Unmute unified streams' : 'Mute unified streams'}
+                >
+                  <MuteIcon muted={unifiedMuted} className="w-4 h-4" />
+                </button>
+              </div>
+            )
+          })()}
         </>
       ),
     },

@@ -62,18 +62,23 @@ export function ConfigPanel() {
   // Alert word state
   const [newAlert, setNewAlert] = useState('')
 
-  // Close on outside click
+  // Close on outside click - any click outside the panel closes it
   useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
-        const sidebar = document.querySelector('aside')
-        if (sidebar?.contains(e.target as Node)) return
-        store.setConfigOpen(false)
+    if (!store.configOpen) return
+    let handler: ((e: MouseEvent) => void) | null = null
+    const timer = setTimeout(() => {
+      handler = (e: MouseEvent) => {
+        if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+          store.setConfigOpen(false)
+        }
       }
+      document.addEventListener('mousedown', handler)
+    }, 150)
+    return () => {
+      clearTimeout(timer)
+      if (handler) document.removeEventListener('mousedown', handler)
     }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [store])
+  }, [store, store.configOpen])
 
   if (!store.configOpen) return null
 
