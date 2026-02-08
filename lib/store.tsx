@@ -310,6 +310,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const [g, d] = await Promise.all([api.getGroups(), api.getDMChats()])
       setGroups(g)
       setDmChats(d)
+      // Auto-approve any pending DMs on login
+      const storedApproved = storage.getApproved()
+      const updatedApproved = { ...storedApproved }
+      d.forEach((dm: GroupMeDMChat) => {
+        const uid = dm.other_user?.id
+        if (uid && !(uid in updatedApproved)) updatedApproved[uid] = true
+      })
+      setApproved(updatedApproved)
+      storage.setApproved(updatedApproved)
       const sync = g.find(gr => gr.name.toLowerCase() === 'dispatch')
       if (sync) setSyncGroupId(sync.id)
       setIsLoggedIn(true)
@@ -334,6 +343,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const [g, d] = await Promise.all([api.getGroups(), api.getDMChats()])
       setGroups(g)
       setDmChats(d)
+      // Auto-approve any pending DMs on login
+      const storedApproved = storage.getApproved()
+      const updatedApproved = { ...storedApproved }
+      d.forEach((dm: GroupMeDMChat) => {
+        const uid = dm.other_user?.id
+        if (uid && !(uid in updatedApproved)) updatedApproved[uid] = true
+      })
+      setApproved(updatedApproved)
+      storage.setApproved(updatedApproved)
       const sync = g.find(gr => gr.name.toLowerCase() === 'dispatch')
       if (sync) setSyncGroupId(sync.id)
       setIsLoggedIn(true)
