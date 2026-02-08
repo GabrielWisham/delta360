@@ -15,7 +15,8 @@ const jetbrains = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: 'Delta 360 | Dispatch Command Center',
-  description: 'Professional real-time dispatch command center powered by GroupMe. Monitor multiple groups, manage team status, and organize communications.',
+  description:
+    'Professional real-time dispatch command center powered by GroupMe. Monitor multiple groups, manage team status, and organize communications.',
 }
 
 export const viewport: Viewport = {

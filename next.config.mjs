@@ -6,6 +6,6 @@ const nextConfig = {
       { protocol: 'https', hostname: 'image.groupme.com' },
     ],
   },
-};
+}
 
-export default nextConfig;
+export default nextConfig
