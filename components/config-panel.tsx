@@ -581,6 +581,22 @@ function AudioTab({ store }: { store: ReturnType<typeof useStore> }) {
           className="sr-only"
         />
       </label>
+
+      <div className="border-t border-border" />
+
+      {/* Test notification */}
+      <SectionLabel>Diagnostics</SectionLabel>
+      <button
+        onClick={() => store.testNotification()}
+        className="w-full rounded-lg border border-[var(--d360-orange)] bg-[var(--d360-orange)]/10 px-4 py-3 text-left hover:bg-[var(--d360-orange)]/20 transition-colors"
+      >
+        <span className="text-xs font-bold text-[var(--d360-orange)]" style={{ fontFamily: 'var(--font-mono)' }}>
+          Test Notification
+        </span>
+        <p className="text-[10px] text-muted-foreground mt-0.5">
+          Fires a test sound + toast right now. If you hear a chime and see a toast, notifications are working.
+        </p>
+      </button>
     </div>
   )
 }
