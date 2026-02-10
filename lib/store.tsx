@@ -509,8 +509,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         const cv = currentViewRef.current
         let needsFeedRefresh = false
         let needsUnifiedRefresh = false
-        // Queue toasts so they fire AFTER the feed refreshes
+        // Queue toasts, sounds, and notifications so they fire AFTER the feed refreshes
         const pendingToasts: Omit<MsgToast, 'id' | 'ts'>[] = []
+        const pendingSounds: (() => void)[] = []
         // Check groups for new messages
         for (const group of g) {
           const lmid = group.messages?.last_message_id
@@ -521,9 +522,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               needsFeedRefresh = true
             }
             if (cv.type === 'unified_streams') {
-              for (const [, s] of Object.entries(streamsRef.current)) {
-                if ((s as { ids: string[] }).ids.includes(group.id)) { needsUnifiedRefresh = true; break }
-              }
+              needsUnifiedRefresh = true
             }
             if (group.messages?.preview) {
               const prev = group.messages.preview
@@ -534,8 +533,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                 for (const [, s] of Object.entries(streamsRef.current)) {
                   if (s.ids.includes(group.id)) { customSound = s.sound as SoundName; break }
                 }
-                playSound(customSound || feedSoundRef.current)
-                sendDesktopNotification(`Delta 360 - ${group.name}`, `${senderName}: ${text}`)
+                const soundToPlay = customSound || feedSoundRef.current
+                const notifTitle = `Delta 360 - ${group.name}`
+                const notifBody = `${senderName}: ${text}`
+                pendingSounds.push(() => { playSound(soundToPlay); sendDesktopNotification(notifTitle, notifBody) })
               }
               pendingToasts.push({ sourceKey: `group:${group.id}`, sourceName: group.name, senderName, text, messageId: lmid, viewType: 'group', viewId: group.id, originType: 'group', originId: group.id })
             }
@@ -558,8 +559,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             const senderName = lm.name || dm.other_user?.name || 'DM'
             const text = lm.text || '(attachment)'
             if (!globalMuteRef.current && !dmMutedRef.current) {
-              playSound(dmSoundRef.current)
-              sendDesktopNotification('Delta 360 - DM', `${senderName}: ${text}`)
+              const dmSound = dmSoundRef.current
+              const notifBody = `${senderName}: ${text}`
+              pendingSounds.push(() => { playSound(dmSound); sendDesktopNotification('Delta 360 - DM', notifBody) })
             }
             pendingToasts.push({ sourceKey: `dm:${otherId}`, sourceName: dm.other_user?.name || 'DM', senderName, text, messageId: lmid, viewType: 'dm', viewId: otherId, originType: 'dm', originId: otherId })
           }
@@ -573,10 +575,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           await Promise.all(refreshPromises)
           // Bump tick so the feed auto-scroll effect re-evaluates with fresh messages
           setFeedRefreshTick(t => t + 1)
-          // Give React two frames to render the new messages before showing toasts
-          await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
         }
-        // Now fire toasts -- messages are already in the feed
+        // Wait for React to flush state updates and commit to DOM before showing toasts.
+        // A triple rAF gives React enough time to commit.
+        await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(r))))
+        // Now fire sounds + toasts together -- messages should be rendered in the feed
+        for (const fn of pendingSounds) fn()
         for (const t of pendingToasts) showMsgToastRef.current(t)
       } else {
         // First poll -- seed the tracker without firing notifications
