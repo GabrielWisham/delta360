@@ -31,7 +31,7 @@ export interface GroupMeGroup {
     count: number
     last_message_id: string
     last_message_created_at: number
-    preview: { nickname: string; text: string; image_attached: boolean }
+    preview: { nickname: string; text: string; image_attached: boolean; sender_id?: string }
   }
 }
 

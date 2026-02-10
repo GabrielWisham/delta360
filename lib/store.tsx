@@ -356,6 +356,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   // Ref for showMsgToast so pollLoop (defined before the useCallback) can access it
   const showMsgToastRef = useRef<(toast: Omit<MsgToast, 'id' | 'ts'>) => void>(() => {})
   const isLoggingInRef = useRef(false)
+  const userIdRef = useRef<string | null>(null)
 
   // Load persisted settings on mount
   useEffect(() => {
@@ -418,6 +419,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       api.setToken(token)
       const me = await api.getMe()
       setUser(me)
+      userIdRef.current = me.id
       const [g, d] = await Promise.all([api.getGroups(), api.getDMChats()])
       setGroups(g)
       setDmChats(d)
@@ -451,6 +453,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const me = await api.getMe()
       storage.setToken(token)
       setUser(me)
+      userIdRef.current = me.id
       const [g, d] = await Promise.all([api.getGroups(), api.getDMChats()])
       setGroups(g)
       setDmChats(d)
@@ -495,6 +498,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   // Reset in-memory state
   setIsLoggedIn(false)
   setUser(null)
+  userIdRef.current = null
   setGroups([])
   setDmChats([])
   setPanelMessages([[], [], []])
@@ -540,9 +544,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             }
             if (group.messages?.preview) {
               const prev = group.messages.preview
+              const isSelf = prev.sender_id === userIdRef.current
               const senderName = prev.nickname || 'Someone'
               const text = prev.text || (prev.image_attached ? '(image)' : '(attachment)')
-              if (!globalMuteRef.current && !feedMutedRef.current) {
+              if (!isSelf && !globalMuteRef.current && !feedMutedRef.current) {
                 let customSound: SoundName | null = null
                 for (const [, s] of Object.entries(streamsRef.current)) {
                   if (s.ids.includes(group.id)) { customSound = s.sound as SoundName; break }
@@ -552,7 +557,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                 const notifBody = `${senderName}: ${text}`
                 pendingSounds.push(() => { playSound(soundToPlay); sendDesktopNotification(notifTitle, notifBody) })
               }
-              pendingToasts.push({ sourceKey: `group:${group.id}`, sourceName: group.name, senderName, text, messageId: lmid, viewType: 'group', viewId: group.id, originType: 'group', originId: group.id })
+              if (!isSelf) {
+                pendingToasts.push({ sourceKey: `group:${group.id}`, sourceName: group.name, senderName, text, messageId: lmid, viewType: 'group', viewId: group.id, originType: 'group', originId: group.id })
+              }
             }
           }
           lastMsgTracker.current[`g:${group.id}`] = lmid
@@ -573,14 +580,17 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             if (cv.type === 'unified_streams') {
               needsUnifiedRefresh = true
             }
+            const isSelf = (lm.sender_id || lm.user_id) === userIdRef.current
             const senderName = lm.name || dm.other_user?.name || 'DM'
             const text = lm.text || '(attachment)'
-            if (!globalMuteRef.current && !dmMutedRef.current) {
+            if (!isSelf && !globalMuteRef.current && !dmMutedRef.current) {
               const dmSound = dmSoundRef.current
               const notifBody = `${senderName}: ${text}`
               pendingSounds.push(() => { playSound(dmSound); sendDesktopNotification('Delta 360 - DM', notifBody) })
             }
-            pendingToasts.push({ sourceKey: `dm:${otherId}`, sourceName: dm.other_user?.name || 'DM', senderName, text, messageId: lmid, viewType: 'dm', viewId: otherId, originType: 'dm', originId: otherId })
+            if (!isSelf) {
+              pendingToasts.push({ sourceKey: `dm:${otherId}`, sourceName: dm.other_user?.name || 'DM', senderName, text, messageId: lmid, viewType: 'dm', viewId: otherId, originType: 'dm', originId: otherId })
+            }
           }
           lastMsgTracker.current[`d:${otherId}`] = lmid
         }
@@ -1167,8 +1177,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         await api.sendDM(id, text, attachments)
       }
       setPendingImage(null)
-      // Immediately refresh to replace optimistic msg with server-confirmed version
-      loadMessagesRef.current(panelIdx)
+      // Force cache bypass by passing an empty notifications object so the
+      // fresh-cache early-return is skipped and the real messages are fetched.
+      loadMessagesRef.current(panelIdx, { sounds: [], toasts: [] })
     } catch {
       // Remove optimistic message on failure
       setPanelMessages(prev => {
@@ -1216,7 +1227,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         await api.sendDM(targetId, text, attachments)
       }
       setPendingImage(null)
-      loadMessagesRef.current(0)
+      loadMessagesRef.current(0, { sounds: [], toasts: [] })
     } catch {
       setPanelMessages(prev => {
         const next = [...prev]
