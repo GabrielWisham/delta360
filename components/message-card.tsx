@@ -17,6 +17,8 @@ import {
 } from 'lucide-react'
 import type { GroupMeMessage } from '@/lib/types'
 
+const QUICK_EMOJIS = ['\u2764\uFE0F', '\uD83D\uDD25', '\uD83D\uDE02', '\uD83D\uDC4D', '\uD83D\uDE2E', '\uD83D\uDE22']
+
 export const MessageCard = memo(function MessageCard({
   msg,
   panelIdx,
@@ -106,6 +108,24 @@ export const MessageCard = memo(function MessageCard({
       await store.sendMessageDirect('dm', dmTarget, newText, msg.attachments || [])
     }
     setIsEditing(false)
+  }
+
+  function handleQuickEmoji(emoji: string) {
+    const groupId = msg.group_id || ''
+    const recipientId = msg.recipient_id || (
+      msg.sender_id !== store.user?.id ? msg.sender_id :
+      msg.user_id !== store.user?.id ? msg.user_id : ''
+    ) || ''
+    if (groupId) {
+      store.sendMessageDirect('group', groupId, emoji, [
+        { type: 'reply' as const, reply_id: msg.id, base_reply_id: msg.id }
+      ])
+    } else if (recipientId) {
+      const dmTarget = msg.conversation_id
+        ? msg.conversation_id.split('+').find(id => id !== store.user?.id) || recipientId
+        : recipientId
+      store.sendMessageDirect('dm', dmTarget, emoji, [])
+    }
   }
 
   /* ======================================= */
@@ -254,16 +274,27 @@ export const MessageCard = memo(function MessageCard({
           </div>
 
           {/* Hover action tray (like, pin, forward, delete) */}
-          <div className={`absolute ${isSelf ? 'right-full mr-1' : 'left-full ml-1'} top-0 opacity-0 group-hover/msg:opacity-100 transition-opacity flex items-center gap-0.5 bg-card border border-border rounded-full px-1.5 py-0.5 shadow-md z-10`}>
-            {!isDm && <CompactAction Icon={ThumbsUp} title="Like" active={likedBy.includes(store.user?.id || '')} onClick={() => {
-              const gid = msg.group_id || ''
-              if (likedBy.includes(store.user?.id || '')) store.unlikeMessage(gid, msg.id)
-              else store.likeMessage(gid, msg.id)
-            }} />}
-            <CompactAction Icon={Pin} title="Pin" active={isPinned} onClick={() => store.togglePinMessage(msg.id)} />
-            <CompactAction Icon={Forward} title="Forward" onClick={() => store.setForwardMsg({ id: msg.id, name: msg.name, text: msg.text || '', groupId: msg.group_id })} />
-            {isSelf && <CompactAction Icon={Pencil} title="Edit" onClick={startEdit} />}
-            {isSelf && <CompactAction Icon={Trash2} title={confirmDelete ? 'Confirm?' : 'Delete'} danger active={confirmDelete} onClick={handleDelete} />}
+          <div className={`absolute ${isSelf ? 'right-full mr-1' : 'left-full ml-1'} top-0 opacity-0 group-hover/msg:opacity-100 transition-opacity flex flex-col items-end gap-0.5 z-10`}>
+            {/* Quick emoji reaction tray */}
+            <div className="flex items-center gap-0.5 bg-card border border-border rounded-full px-1 py-0.5 shadow-md">
+              {QUICK_EMOJIS.map(e => (
+                <button key={e} onClick={() => handleQuickEmoji(e)} className="w-6 h-6 flex items-center justify-center rounded-full text-sm hover:bg-muted/60 hover:scale-110 transition-all" title={`React ${e}`}>
+                  {e}
+                </button>
+              ))}
+            </div>
+            {/* Action buttons */}
+            <div className="flex items-center gap-0.5 bg-card border border-border rounded-full px-1.5 py-0.5 shadow-md">
+              {!isDm && <CompactAction Icon={ThumbsUp} title="Like" active={likedBy.includes(store.user?.id || '')} onClick={() => {
+                const gid = msg.group_id || ''
+                if (likedBy.includes(store.user?.id || '')) store.unlikeMessage(gid, msg.id)
+                else store.likeMessage(gid, msg.id)
+              }} />}
+              <CompactAction Icon={Pin} title="Pin" active={isPinned} onClick={() => store.togglePinMessage(msg.id)} />
+              <CompactAction Icon={Forward} title="Forward" onClick={() => store.setForwardMsg({ id: msg.id, name: msg.name, text: msg.text || '', groupId: msg.group_id })} />
+              {isSelf && <CompactAction Icon={Pencil} title="Edit" onClick={startEdit} />}
+              {isSelf && <CompactAction Icon={Trash2} title={confirmDelete ? 'Confirm?' : 'Delete'} danger active={confirmDelete} onClick={handleDelete} />}
+            </div>
           </div>
         </div>
       </div>
@@ -422,17 +453,28 @@ export const MessageCard = memo(function MessageCard({
         </div>
 
           {/* Hover action tray (pin, like, forward, delete) */}
-          <div className={`absolute ${isSelf ? 'right-full mr-1' : 'left-full ml-1'} top-0 opacity-0 group-hover/msg:opacity-100 transition-opacity flex items-center gap-0.5 bg-card border border-border rounded-full px-1.5 py-0.5 shadow-md z-10`}>
-          {!isDm && <CompactAction Icon={ThumbsUp} title="Like" active={likedBy.includes(store.user?.id || '')} onClick={() => {
-            const gid = msg.group_id || ''
-            if (likedBy.includes(store.user?.id || '')) store.unlikeMessage(gid, msg.id)
-            else store.likeMessage(gid, msg.id)
-          }} />}
-          <CompactAction Icon={Pin} title="Pin" active={isPinned} onClick={() => store.togglePinMessage(msg.id)} />
-          <CompactAction Icon={Forward} title="Forward" onClick={() => store.setForwardMsg({ id: msg.id, name: msg.name, text: msg.text || '', groupId: msg.group_id })} />
-          {isSelf && <CompactAction Icon={Pencil} title="Edit" onClick={startEdit} />}
-          {isSelf && <CompactAction Icon={Trash2} title={confirmDelete ? 'Confirm?' : 'Delete'} danger active={confirmDelete} onClick={handleDelete} />}
-        </div>
+          <div className={`absolute ${isSelf ? 'right-full mr-1' : 'left-full ml-1'} top-0 opacity-0 group-hover/msg:opacity-100 transition-opacity flex flex-col items-end gap-0.5 z-10`}>
+            {/* Quick emoji reaction tray */}
+            <div className="flex items-center gap-0.5 bg-card border border-border rounded-full px-1.5 py-0.5 shadow-md">
+              {QUICK_EMOJIS.map(e => (
+                <button key={e} onClick={() => handleQuickEmoji(e)} className="w-7 h-7 flex items-center justify-center rounded-full text-base hover:bg-muted/60 hover:scale-110 transition-all" title={`React ${e}`}>
+                  {e}
+                </button>
+              ))}
+            </div>
+            {/* Action buttons */}
+            <div className="flex items-center gap-0.5 bg-card border border-border rounded-full px-1.5 py-0.5 shadow-md">
+              {!isDm && <CompactAction Icon={ThumbsUp} title="Like" active={likedBy.includes(store.user?.id || '')} onClick={() => {
+                const gid = msg.group_id || ''
+                if (likedBy.includes(store.user?.id || '')) store.unlikeMessage(gid, msg.id)
+                else store.likeMessage(gid, msg.id)
+              }} />}
+              <CompactAction Icon={Pin} title="Pin" active={isPinned} onClick={() => store.togglePinMessage(msg.id)} />
+              <CompactAction Icon={Forward} title="Forward" onClick={() => store.setForwardMsg({ id: msg.id, name: msg.name, text: msg.text || '', groupId: msg.group_id })} />
+              {isSelf && <CompactAction Icon={Pencil} title="Edit" onClick={startEdit} />}
+              {isSelf && <CompactAction Icon={Trash2} title={confirmDelete ? 'Confirm?' : 'Delete'} danger active={confirmDelete} onClick={handleDelete} />}
+            </div>
+          </div>
       </div>
     </div>
   )
