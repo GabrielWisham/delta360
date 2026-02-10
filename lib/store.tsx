@@ -512,6 +512,24 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     } catch { /* ignore */ }
 
     msgs.sort((a, b) => a.created_at - b.created_at)
+
+    // Detect new messages and play sound
+    const oldIds = knownMsgIds.current[panelIdx]
+    if (oldIds && oldIds.size > 0 && !globalMute) {
+      const hasNew = msgs.some(m => !oldIds.has(m.id))
+      if (hasNew) {
+        if ((type === 'group' || type === 'all' || type === 'stream') && !feedMuted) {
+          // Use stream-specific sound if in a stream view
+          if (type === 'stream' && id && streams[id]) {
+            playSound(streams[id].sound as SoundName)
+          } else {
+            playSound(feedSound)
+          }
+        } else if ((type === 'dm' || type === 'dms') && !dmMuted) {
+          playSound(dmSound)
+        }
+      }
+    }
     knownMsgIds.current[panelIdx] = new Set(msgs.map(m => m.id))
 
     // Index for search
@@ -530,9 +548,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       next[panelIdx] = msgs
       return next
     })
-  }, [currentView, panels, groups, dmChats, approved, streams])
+  }, [currentView, panels, groups, dmChats, approved, streams, globalMute, feedMuted, dmMuted, feedSound, dmSound])
 
   // Unified streams: single dedicated loader with version counter
+  const unifiedKnownIds = useRef<Set<string>>(new Set())
   const unifiedVersion = useRef(0)
   const unifiedDebounce = useRef<ReturnType<typeof setTimeout> | null>(null)
   // Snapshot current streams+toggles into refs so the async fetch always reads latest
@@ -594,6 +613,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setPanelMessages(prev => { const n = [...prev]; n[0] = []; return n })
     const ready = await fetchUnifiedMessages(version)
     if (ready === null || version !== unifiedVersion.current) return
+    // Seed known IDs on initial load (no sound on first load)
+    unifiedKnownIds.current = new Set(ready.map(m => m.id))
     setPanelMessages(prev => { const n = [...prev]; n[0] = ready; return n })
     unifiedLoadingRef.current = false
     setUnifiedLoading(false)
@@ -604,8 +625,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const version = ++unifiedVersion.current
     const ready = await fetchUnifiedMessages(version)
     if (ready === null || version !== unifiedVersion.current) return
+    // Play sound if new messages detected
+    if (unifiedKnownIds.current.size > 0 && !globalMute && !unifiedMuted) {
+      const hasNew = ready.some(m => !unifiedKnownIds.current.has(m.id))
+      if (hasNew) playSound(unifiedSound)
+    }
+    unifiedKnownIds.current = new Set(ready.map(m => m.id))
     setPanelMessages(prev => { const n = [...prev]; n[0] = ready; return n })
-  }, [fetchUnifiedMessages])
+  }, [fetchUnifiedMessages, globalMute, unifiedMuted, unifiedSound])
 
   // Trigger buffered load when toggles change or view switches to unified_streams
   const streamToggleCount = streamToggles.size
