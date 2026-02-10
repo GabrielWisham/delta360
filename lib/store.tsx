@@ -1047,7 +1047,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const version = ++unifiedVersion.current
     const ready = await fetchUnifiedMessages(version)
     if (ready === null || version !== unifiedVersion.current) return
-    unifiedKnownIds.current = new Set(ready.map(m => m.id))
+    for (const m of ready) unifiedKnownIds.current.add(m.id)
     // Detect new likes on the user's own messages in unified feed
     if (user && likeTrackerSeeded.current) {
       const myId = user.id
@@ -1072,12 +1072,28 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         likeTracker.current[m.id] = new Set(curr)
       }
     }
-    setPanelMessages(prev => { const n = [...prev]; n[0] = ready; return n })
+    // Merge instead of replace so concurrent patches aren't lost.
+    // Start from the full fresh fetch, then add any extra messages that
+    // exist in current state but aren't in the fresh fetch (e.g. from a
+    // concurrent patchUnifiedStreams that committed after our fetch started).
+    setPanelMessages(prev => {
+      const freshIds = new Set(ready.map(m => m.id))
+      const existing = prev[0] || []
+      const extras = existing.filter(m => !freshIds.has(m.id))
+      let merged = [...ready, ...extras]
+      merged.sort((a, b) => a.created_at - b.created_at)
+      if (merged.length > 60) merged = merged.slice(merged.length - 60)
+      const n = [...prev]
+      n[0] = merged
+      return n
+    })
   }, [fetchUnifiedMessages, user, groups])
   // Targeted patch: only fetch from specific groups and merge into existing
   // unified messages. Much faster than a full refresh (~200ms vs 2-4s).
   const patchUnifiedStreams = useCallback(async (groupIds: string[]) => {
     if (groupIds.length === 0) return
+    // Invalidate any in-flight full refreshes so they don't overwrite our patch
+    ++unifiedVersion.current
     try {
       const fetches = groupIds.map(gid => api.getGroupMessages(gid, 8).catch(() => null))
       const results = await Promise.all(fetches)
