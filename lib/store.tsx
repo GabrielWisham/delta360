@@ -420,14 +420,17 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const logout = useCallback(() => {
-    storage.removeToken()
-    api.setToken('')
-    if (pollTimerRef.current) clearTimeout(pollTimerRef.current)
-    setIsLoggedIn(false)
-    setUser(null)
-    setGroups([])
-    setDmChats([])
-    setCurrentView({ type: 'all', id: null })
+  storage.removeToken()
+  api.setToken('')
+  if (pollTimerRef.current) clearTimeout(pollTimerRef.current)
+  // Clear first-time user flags so next login shows onboarding
+  localStorage.removeItem('d360_tutorial_done')
+  localStorage.removeItem('d360_guide_dismissed')
+  setIsLoggedIn(false)
+  setUser(null)
+  setGroups([])
+  setDmChats([])
+  setCurrentView({ type: 'all', id: null })
   }, [])
 
   function startPolling() {
