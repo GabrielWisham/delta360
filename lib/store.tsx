@@ -575,15 +575,37 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                 const notifTitle = `ALERT: "${matchedAlert}" - ${group.name}`
                 const notifBody = `${senderName}: ${text}`
                 pendingSounds.push(() => { playSound('siren' as SoundName); sendDesktopNotification(notifTitle, notifBody) })
-              } else if (!isSelf && !isViewingThis && !globalMuteRef.current && !feedMutedRef.current) {
-                let customSound: SoundName | null = null
-                for (const [, s] of Object.entries(streamsRef.current)) {
-                  if (s.ids.includes(group.id)) { customSound = s.sound as SoundName; break }
+              } else if (!isSelf && !isViewingThis) {
+                // Collect sounds from all TOGGLED streams that contain this group.
+                // Each toggled stream plays its own sound independently.
+                const matchedStreamSounds: SoundName[] = []
+                for (const [key, s] of Object.entries(streamsRef.current)) {
+                  if (s.ids.includes(group.id) && streamTogglesRef.current.has(key)) {
+                    matchedStreamSounds.push((s.sound as SoundName) || feedSoundRef.current)
+                  }
                 }
-                const soundToPlay = customSound || feedSoundRef.current
-                const notifTitle = `Delta 360 - ${group.name}`
-                const notifBody = `${senderName}: ${text}`
-                pendingSounds.push(() => { playSound(soundToPlay); sendDesktopNotification(notifTitle, notifBody) })
+
+                if (matchedStreamSounds.length > 0) {
+                  // Toggled streams override global/feed mute -- the user
+                  // explicitly enabled these streams for monitoring.
+                  // Play each stream's sound but only send one desktop notification.
+                  const notifTitle = `Delta 360 - ${group.name}`
+                  const notifBody = `${senderName}: ${text}`
+                  matchedStreamSounds.forEach((sound, i) => {
+                    pendingSounds.push(() => {
+                      // Stagger sounds slightly so they don't overlap into noise
+                      setTimeout(() => playSound(sound), i * 300)
+                      if (i === 0) sendDesktopNotification(notifTitle, notifBody)
+                    })
+                  })
+                } else if (!globalMuteRef.current && !feedMutedRef.current) {
+                  // No toggled stream matched -- fall back to default feed sound
+                  // (respects global/feed mute as before).
+                  const soundToPlay = feedSoundRef.current
+                  const notifTitle = `Delta 360 - ${group.name}`
+                  const notifBody = `${senderName}: ${text}`
+                  pendingSounds.push(() => { playSound(soundToPlay); sendDesktopNotification(notifTitle, notifBody) })
+                }
               }
               if (!isSelf && !isViewingThis) {
                 pendingToasts.push({ sourceKey: `group:${group.id}`, sourceName: group.name, senderName, text, messageId: lmid, viewType: 'group', viewId: group.id, originType: 'group', originId: group.id, ...(matchedAlert ? { alertWord: matchedAlert } : {}) })
@@ -753,6 +775,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   approvedRef.current = approved
   const streamsRef = useRef(streams)
   streamsRef.current = streams
+  const streamTogglesRef = useRef(streamToggles)
+  streamTogglesRef.current = streamToggles
   const currentViewRef = useRef(currentView)
   currentViewRef.current = currentView
   const alertWordsRef = useRef(alertWords)
@@ -1054,9 +1078,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const unifiedKnownIds = useRef<Set<string>>(new Set())
   const unifiedVersion = useRef(0)
   const unifiedDebounce = useRef<ReturnType<typeof setTimeout> | null>(null)
-  // streamsRef already defined earlier (notification refs section) -- just keep it in sync
+  // streamsRef / streamTogglesRef already defined earlier (notification refs section) -- just keep in sync
   streamsRef.current = streams
-  const streamTogglesRef = useRef(streamToggles)
   streamTogglesRef.current = streamToggles
 
   // Ref for sync loading gate (prevents race between setState and interval)
