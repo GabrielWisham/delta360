@@ -23,7 +23,7 @@ export function ShiftChangeModal() {
 
   // Profiles
   const [profiles, setProfiles] = useState<ShiftProfile[]>([])
-  const [showProfiles, setShowProfiles] = useState(false)
+  const [showProfiles, setShowProfiles] = useState(true)
   const [editingProfiles, setEditingProfiles] = useState(false)
   const [newName, setNewName] = useState('')
   const [newPhone, setNewPhone] = useState('')
@@ -307,10 +307,10 @@ export function ShiftChangeModal() {
                     {profiles.length > 0 && (
                       <button
                         onClick={() => setEditingProfiles(!editingProfiles)}
-                        className={`text-[8px] uppercase tracking-widest transition-colors ${editingProfiles ? 'text-destructive' : 'text-muted-foreground hover:text-foreground'}`}
-                        style={{ fontFamily: 'var(--font-mono)' }}
+                        className={`p-0.5 rounded transition-colors ${editingProfiles ? 'text-[var(--d360-orange)]' : 'text-muted-foreground hover:text-foreground'}`}
+                        title={editingProfiles ? 'Done editing' : 'Edit profiles'}
                       >
-                        {editingProfiles ? 'Done' : 'Manage'}
+                        <Pencil className="w-3 h-3" />
                       </button>
                     )}
                   </div>
