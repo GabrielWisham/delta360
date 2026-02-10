@@ -127,9 +127,9 @@ export function MembersPanel() {
           {members.map(m => (
             <div key={m.userId} className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-secondary/40">
               {m.imageUrl ? (
-                <img src={m.imageUrl} alt="" className="w-6 h-6 rounded-full object-cover" />
+                <img src={m.imageUrl} alt="" className="w-6 h-6 rounded-full object-cover ring-1" style={{ '--tw-ring-color': 'var(--d360-avatar-ring)' } as React.CSSProperties} />
               ) : (
-                <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold bg-secondary text-foreground">
+                <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold bg-secondary text-foreground ring-1" style={{ '--tw-ring-color': 'var(--d360-avatar-ring)' } as React.CSSProperties}>
                   {m.name[0]?.toUpperCase()}
                 </div>
               )}

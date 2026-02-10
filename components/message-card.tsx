@@ -80,11 +80,11 @@ export const MessageCard = memo(function MessageCard({
         {/* Avatar */}
         <div className="shrink-0 mt-0.5">
           {msg.avatar_url ? (
-            <img src={msg.avatar_url} alt="" className="w-5 h-5 rounded-full object-cover" />
+            <img src={msg.avatar_url} alt="" className="w-5 h-5 rounded-full object-cover ring-1" style={{ '--tw-ring-color': 'var(--d360-avatar-ring)' } as React.CSSProperties} />
           ) : (
             <div
-              className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold"
-              style={{ background: `${accentColor}22`, color: accentColor }}
+              className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold ring-1"
+              style={{ background: `${accentColor}22`, color: accentColor, '--tw-ring-color': 'var(--d360-avatar-ring)' } as React.CSSProperties}
             >
               {msg.name?.[0]?.toUpperCase() || '?'}
             </div>
@@ -219,11 +219,11 @@ export const MessageCard = memo(function MessageCard({
       {/* Avatar */}
       <div className="shrink-0 mt-1">
         {msg.avatar_url ? (
-          <img src={msg.avatar_url} alt="" className="w-7 h-7 rounded-full object-cover ring-1 ring-white/10" />
+          <img src={msg.avatar_url} alt="" className="w-7 h-7 rounded-full object-cover ring-1" style={{ '--tw-ring-color': 'var(--d360-avatar-ring)' } as React.CSSProperties} />
         ) : (
           <div
-            className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold ring-1 ring-white/10"
-            style={{ background: `${accentColor}22`, color: accentColor }}
+            className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold ring-1"
+            style={{ background: `${accentColor}22`, color: accentColor, '--tw-ring-color': 'var(--d360-avatar-ring)' } as React.CSSProperties}
           >
             {msg.name?.[0]?.toUpperCase() || '?'}
           </div>

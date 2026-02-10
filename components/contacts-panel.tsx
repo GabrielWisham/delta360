@@ -86,9 +86,9 @@ export function ContactsPanel() {
                 onClick={() => { store.switchView('dm', c.userId); store.setContactsOpen(false) }}
               >
                 {c.imageUrl ? (
-                  <img src={c.imageUrl} alt="" className="w-6 h-6 rounded-full object-cover mt-0.5" />
+                  <img src={c.imageUrl} alt="" className="w-6 h-6 rounded-full object-cover mt-0.5 ring-1" style={{ '--tw-ring-color': 'var(--d360-avatar-ring)' } as React.CSSProperties} />
                 ) : (
-                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold bg-secondary text-foreground mt-0.5">
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold bg-secondary text-foreground mt-0.5 ring-1" style={{ '--tw-ring-color': 'var(--d360-avatar-ring)' } as React.CSSProperties}>
                     {c.name[0]?.toUpperCase()}
                   </div>
                 )}

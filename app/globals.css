@@ -65,6 +65,7 @@
   --d360-bubble-self-border: rgba(255, 106, 0, 0.15);
   --d360-bubble-other-mix: 8%;
   --d360-bubble-other-border: rgba(255, 255, 255, 0.08);
+  --d360-avatar-ring: rgba(255, 255, 255, 0.12);
 }
 
 [data-theme="light"] {
@@ -77,6 +78,7 @@
   --d360-bubble-self-border: hsl(24 80% 82%);
   --d360-bubble-other-mix: 22%;
   --d360-bubble-other-border: hsl(220 14% 86%);
+  --d360-avatar-ring: rgba(0, 0, 0, 0.15);
 }
 
 [data-theme="light"] {
