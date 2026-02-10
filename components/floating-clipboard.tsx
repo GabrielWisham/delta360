@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useStore } from '@/lib/store'
 import { storage } from '@/lib/storage'
+import { X } from 'lucide-react'
 
 export function FloatingClipboard() {
   const store = useStore()
@@ -95,17 +96,17 @@ export function FloatingClipboard() {
             onClick={() => store.setClipboardOpen(false)}
             className="hover:opacity-70"
           >
-            {'\u2715'}
+            <X className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
 
       {/* Content */}
-      <div className="glass p-2">
+      <div className="bg-card border border-border border-t-0 rounded-b-xl p-2">
         <textarea
           value={content}
           onChange={e => handleContentChange(e.target.value)}
-          className="w-full h-[150px] text-xs bg-transparent border border-border rounded px-2 py-1.5 resize-y text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)]"
+          className="w-full h-[150px] text-xs bg-secondary/30 border border-border rounded-lg px-2 py-1.5 resize-y text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)]"
           style={{ fontFamily: 'var(--font-jetbrains)' }}
           placeholder="Paste or type notes..."
         />
