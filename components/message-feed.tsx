@@ -396,6 +396,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   useEffect(() => {
     if (!pendingMsgId || messages.length === 0) return
     const gen = ++scrollGenRef.current
+    console.log('[v0] pendingScroll: starting', { pendingMsgId, gen, msgCount: messages.length })
     // Prevent auto-scroll effect and handleScroll from interfering
     userScrolledRef.current = false
     programmaticScrollRef.current = true
@@ -403,9 +404,13 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     const maxAttempts = 20
     function tryScroll() {
       // If a newer toast click has started its own loop, bail out
-      if (scrollGenRef.current !== gen) return
+      if (scrollGenRef.current !== gen) {
+        console.log('[v0] pendingScroll: CANCELLED (stale gen)', { gen, currentGen: scrollGenRef.current })
+        return
+      }
       const el = document.getElementById(`msg-${pendingMsgId}`)
       if (el) {
+        console.log('[v0] pendingScroll: FOUND element', { pendingMsgId, attempts })
         // Use requestAnimationFrame to ensure layout is committed
         requestAnimationFrame(() => {
           if (scrollGenRef.current !== gen) return
@@ -413,13 +418,15 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
           clearPendingScroll(null)
         })
       } else if (++attempts < maxAttempts) {
+        console.log('[v0] pendingScroll: element not found, retrying', { pendingMsgId, attempts })
         setTimeout(tryScroll, 200)
       } else {
+        console.log('[v0] pendingScroll: GAVE UP after', maxAttempts, 'attempts for', pendingMsgId)
         clearPendingScroll(null)
         programmaticScrollRef.current = false
       }
     }
-    // Give the view switch + loadMessages time to commit
+    // Give the view switch time to commit its first render
     setTimeout(tryScroll, 150)
   }, [messages.length, pendingMsgId, clearPendingScroll, highlightMsg])
 

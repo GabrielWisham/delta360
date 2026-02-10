@@ -257,11 +257,19 @@ interface ToastItem {
   function findAlertWord(text: string, globalWords: string[], chatWords?: string[]): string | null {
   if (!text) return null
   const all = chatWords ? [...globalWords, ...chatWords] : globalWords
+  if (all.length > 0) {
+    console.log('[v0] findAlertWord checking:', { text: text.slice(0, 60), words: all })
+  }
   for (const w of all) {
     if (!w) continue
     try {
       const escaped = w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-      if (new RegExp(`\\b${escaped}\\b`, 'i').test(text)) return w
+      const regex = new RegExp(`\\b${escaped}\\b`, 'i')
+      const matched = regex.test(text)
+      if (matched) {
+        console.log('[v0] ALERT WORD MATCHED:', { word: w, text: text.slice(0, 60) })
+        return w
+      }
     } catch { continue }
   }
   return null
@@ -586,9 +594,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                 pendingSounds.push(() => { playSound('siren' as SoundName); sendDesktopNotification(notifTitle, notifBody) })
               }
               if (!isSelf && !isViewingThis) {
+                console.log('[v0] TOAST: new msg from', senderName, 'in', group.name, '| alert:', matchedAlert, '| text:', text?.slice(0, 40))
                 pendingToasts.push({ sourceKey: `group:${group.id}`, sourceName: group.name, senderName, text, messageId: lmid, viewType: 'group', viewId: group.id, originType: 'group', originId: group.id, ...(matchedAlert ? { alertWord: matchedAlert } : {}) })
               } else if (matchedAlert && !isSelf) {
-                // Alert word toast always shows even if viewing the chat
+                console.log('[v0] TOAST (alert override): alert:', matchedAlert, 'from', senderName, 'in', group.name)
                 pendingToasts.push({ sourceKey: `group:${group.id}`, sourceName: group.name, senderName, text, messageId: lmid, viewType: 'group', viewId: group.id, originType: 'group', originId: group.id, alertWord: matchedAlert })
               }
             }
@@ -823,7 +832,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const loadMessages = useCallback(async (panelIdx: number, bypassCache?: boolean, isViewSwitch?: boolean) => {
     // After sending, suppress poll-driven refreshes but allow explicit view switches
-    if (!isViewSwitch && Date.now() < suppressRefreshUntilRef.current) return
+    if (!isViewSwitch && Date.now() < suppressRefreshUntilRef.current) {
+      console.log('[v0] loadMessages: SUPPRESSED (post-send guard)')
+      return
+    }
     const view = panelIdx === 0 ? currentView : panels[panelIdx]
     if (!view) return
     const { type, id } = view
@@ -831,11 +843,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
     const cacheKey = `${type}:${id || '_'}`
     const cached = msgCache.current[cacheKey]
+    const t0 = Date.now()
+    console.log('[v0] loadMessages:', { panelIdx, type, id, cacheKey, cacheHit: !!cached, bypassCache, isViewSwitch })
 
     // Show cached messages instantly while we fetch fresh ones
     if (cached && cached.msgs.length > 0) {
       const isFresh = Date.now() - cached.ts < CACHE_TTL
       if (isFresh && !bypassCache) {
+        console.log('[v0] loadMessages: FRESH CACHE, skipping fetch')
         // Cache is fresh enough -- use cache and return
         setPanelMessages(prev => {
           const next = [...prev]
@@ -955,10 +970,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
+    console.log('[v0] loadMessages: fetch complete', { cacheKey, msgCount: msgs.length, elapsed: `${Date.now() - t0}ms` })
+
     // Only update panelMessages when something visible actually changed.
-    // The suppressRefreshUntilRef guard (set by sendMessage) prevents this
-    // from running for 5s after send, so by the time we get here the server
-    // has the real message and we can do a clean swap.
     setPanelMessages(prev => {
       const existing = prev[panelIdx] || []
 
@@ -973,8 +987,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             && m._deleted === s._deleted
         })
       ) {
+        console.log('[v0] loadMessages: shallow compare MATCH, skipping re-render')
         return prev
       }
+      console.log('[v0] loadMessages: UPDATING panelMessages', { existingLen: existing.length, newLen: msgs.length })
 
       // Preserve pending optimistic messages if the server hasn't caught up yet
       const optimistic = existing.filter(
@@ -1264,6 +1280,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     // Pre-seed knownIds from cache to prevent false "new message" alerts
     const cacheKey = `${type}:${id || '_'}`
     const cached = msgCache.current[cacheKey]
+    console.log('[v0] switchView:', { type, id, cacheKey, cacheHit: !!cached, cachedMsgCount: cached?.msgs?.length || 0, cacheAge: cached ? `${Math.round((Date.now() - cached.ts) / 1000)}s` : 'n/a' })
     knownMsgIds.current[0] = cached ? new Set(cached.msgs.map(m => m.id)) : new Set()
     panelSeeded.current[0] = cached ? true : false
 
