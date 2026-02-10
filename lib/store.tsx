@@ -226,7 +226,7 @@ interface StoreActions {
   testNotification: () => void
   removeMsgToast: (id: number) => void
   toggleToastMuted: (sourceKey: string) => void
-  loadMessages: (panelIdx: number) => Promise<void>
+  loadMessages: (panelIdx: number, notifications?: { sounds: (() => void)[]; toasts: Omit<MsgToast, 'id' | 'ts'>[] } | null) => Promise<void>
   loadUnifiedStreams: () => Promise<void>
   getPanelTitle: (type: ViewState['type'], id: string | null) => string
   renameChat: (id: string, name: string) => void
@@ -577,19 +577,23 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           }
           lastMsgTracker.current[`d:${otherId}`] = lmid
         }
-        // Refresh the feed FIRST, then fire toasts so message + toast appear together
+        // Pass the notification payload INTO the refresh functions so that
+        // setPanelMessages + setPendingNotifications happen in the same synchronous
+        // block. React batches state updates within a single synchronous call,
+        // guaranteeing messages and notifications commit in the SAME render.
+        const notifPayload = (pendingSounds.length > 0 || pendingToasts.length > 0)
+          ? { sounds: pendingSounds, toasts: pendingToasts } : null
         const refreshPromises: Promise<void>[] = []
-        if (needsFeedRefresh) refreshPromises.push(loadMessagesRef.current(0))
-        if (needsUnifiedRefresh && !unifiedLoadingRef.current) refreshPromises.push(refreshUnifiedRef.current())
+        let notifDispatched = false
+        if (needsFeedRefresh) { refreshPromises.push(loadMessagesRef.current(0, notifPayload)); notifDispatched = true }
+        if (needsUnifiedRefresh && !unifiedLoadingRef.current) { refreshPromises.push(refreshUnifiedRef.current(notifDispatched ? null : notifPayload)); notifDispatched = true }
         if (refreshPromises.length > 0) {
           await Promise.all(refreshPromises)
           setFeedRefreshTick(t => t + 1)
-        }
-        // Queue sounds + toasts as a state update. The useEffect that drains
-        // pendingNotifications fires AFTER React commits, so messages from
-        // setPanelMessages (in the refresh) are guaranteed to be in the DOM first.
-        if (pendingSounds.length > 0 || pendingToasts.length > 0) {
-          setPendingNotifications({ sounds: pendingSounds, toasts: pendingToasts })
+        } else if (notifPayload && !notifDispatched) {
+          // No feed refresh needed (e.g., viewing a different chat) but there
+          // are still notifications to show -- commit them directly.
+          setPendingNotifications(notifPayload)
         }
       } else {
         // First poll -- seed the tracker without firing notifications
@@ -733,7 +737,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const msgCache = useRef<Record<string, { msgs: GroupMeMessage[]; ts: number }>>({})
   const CACHE_TTL = 10_000 // 10s -- show cached instantly, refresh in background
 
-  const loadMessages = useCallback(async (panelIdx: number) => {
+  const loadMessages = useCallback(async (panelIdx: number, notifications?: {
+    sounds: (() => void)[]
+    toasts: Omit<MsgToast, 'id' | 'ts'>[]
+  } | null) => {
     const view = panelIdx === 0 ? currentView : panels[panelIdx]
     if (!view) return
     const { type, id } = view
@@ -865,11 +872,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
+    // Atomic: set messages + notifications in the same synchronous block
+    // so React batches them into a single render commit.
     setPanelMessages(prev => {
       const next = [...prev]
       next[panelIdx] = msgs
       return next
     })
+    if (notifications && (notifications.sounds.length > 0 || notifications.toasts.length > 0)) {
+      setPendingNotifications(notifications)
+    }
   }, [currentView, panels, groups, dmChats, approved, streams, user])
 
   // Load more (older) messages for the current panel using before_id pagination
@@ -996,12 +1008,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setUnifiedLoading(false)
   }, [fetchUnifiedMessages])
 
-  // Silent refresh: no spinner, atomically swaps messages in place
-  const refreshUnifiedStreams = useCallback(async () => {
+  // Silent refresh: no spinner, atomically swaps messages in place.
+  // Accepts optional notification payload to commit in the SAME synchronous
+  // block as setPanelMessages, guaranteeing React batches them into one render.
+  const refreshUnifiedStreams = useCallback(async (notifications?: {
+    sounds: (() => void)[]
+    toasts: Omit<MsgToast, 'id' | 'ts'>[]
+  } | null) => {
     const version = ++unifiedVersion.current
     const ready = await fetchUnifiedMessages(version)
     if (ready === null || version !== unifiedVersion.current) return
-    // Notifications now handled by pollLoop for instant sync
     unifiedKnownIds.current = new Set(ready.map(m => m.id))
     // Detect new likes on the user's own messages in unified feed
     if (user && likeTrackerSeeded.current) {
@@ -1027,7 +1043,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         likeTracker.current[m.id] = new Set(curr)
       }
     }
+    // Atomic: set messages + notifications in the same synchronous block
     setPanelMessages(prev => { const n = [...prev]; n[0] = ready; return n })
+    if (notifications && (notifications.sounds.length > 0 || notifications.toasts.length > 0)) {
+      setPendingNotifications(notifications)
+    }
   }, [fetchUnifiedMessages, user, groups])
   const refreshUnifiedRef = useRef(refreshUnifiedStreams)
   refreshUnifiedRef.current = refreshUnifiedStreams
