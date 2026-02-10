@@ -4,7 +4,7 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import { useStore } from '@/lib/store'
 import { api } from '@/lib/groupme-api'
 import { formatTimestamp, getFullDate } from '@/lib/date-helpers'
-import { Hash, Search, X, Loader2, ArrowRight, Clock, ChevronDown } from 'lucide-react'
+import { Hash, Search, X, Loader2, ArrowRight, Clock } from 'lucide-react'
 import type { GroupMeMessage } from '@/lib/types'
 
 const WEEK_SECS = 7 * 24 * 60 * 60
@@ -22,7 +22,6 @@ export function OrderSearch() {
   const [progress, setProgress] = useState({ done: 0, total: 0 })
   const [searched, setSearched] = useState(false)
   const [daysBack, setDaysBack] = useState(7)
-  const [showDays, setShowDays] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const abortRef = useRef(false)
 
@@ -166,37 +165,26 @@ export function OrderSearch() {
             </button>
           </div>
 
-          {/* Range selector */}
+          {/* Range selector -- inline toggle buttons */}
           <div className="flex items-center gap-2">
             <Clock className="w-3 h-3 text-muted-foreground/50" />
-            <span className="text-[10px] text-muted-foreground" style={{ fontFamily: 'var(--font-mono)' }}>Search range:</span>
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setShowDays(!showDays)}
-                className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded border border-border text-foreground hover:bg-secondary/40 transition-colors"
-                style={{ fontFamily: 'var(--font-mono)' }}
-              >
-                {DAY_LABELS.find(d => d.value === daysBack)?.label || `${daysBack} days`}
-                <ChevronDown className="w-2.5 h-2.5" />
-              </button>
-              {showDays && (
-                <div className="absolute top-full left-0 mt-1 rounded-lg border border-border bg-card shadow-lg z-10 min-w-[100px]">
-                  {DAY_LABELS.map(d => (
-                    <button
-                      key={d.value}
-                      type="button"
-                      onClick={() => { setDaysBack(d.value); setShowDays(false) }}
-                      className={`w-full text-left px-3 py-1.5 text-[10px] hover:bg-secondary/40 transition-colors ${
-                        daysBack === d.value ? 'text-[var(--d360-orange)] font-semibold' : 'text-foreground'
-                      }`}
-                      style={{ fontFamily: 'var(--font-mono)' }}
-                    >
-                      {d.label}
-                    </button>
-                  ))}
-                </div>
-              )}
+            <span className="text-[10px] text-muted-foreground" style={{ fontFamily: 'var(--font-mono)' }}>Range:</span>
+            <div className="flex items-center rounded-lg border border-border overflow-hidden">
+              {DAY_LABELS.map(d => (
+                <button
+                  key={d.value}
+                  type="button"
+                  onClick={() => setDaysBack(d.value)}
+                  className={`px-2.5 py-1 text-[10px] transition-colors ${
+                    daysBack === d.value
+                      ? 'bg-[var(--d360-orange)]/15 text-[var(--d360-orange)] font-semibold'
+                      : 'text-muted-foreground hover:bg-secondary/40 hover:text-foreground'
+                  }`}
+                  style={{ fontFamily: 'var(--font-mono)' }}
+                >
+                  {d.label}
+                </button>
+              ))}
             </div>
           </div>
         </form>
