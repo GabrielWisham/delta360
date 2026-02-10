@@ -287,6 +287,9 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
         ref={scrollRef}
         onScroll={handleScroll}
         className="flex-1 overflow-y-auto px-3 py-2 flex flex-col gap-2 min-h-0"
+        style={store.boardGradient ? {
+          background: `linear-gradient(${store.boardGradient.angle}deg, rgb(${store.boardGradient.start.join(',')}), rgb(${store.boardGradient.end.join(',')}))`
+        } : undefined}
       >
         {/* Unified streams loading gate: show ONLY spinner while syncing */}
         {store.unifiedLoading && view?.type === 'unified_streams' ? (

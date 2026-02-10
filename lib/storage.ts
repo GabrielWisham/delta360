@@ -142,6 +142,10 @@ export const storage = {
   getClipboardPos: () => get<{ x: number; y: number }>('gm_v3_cbpos', { x: 100, y: 100 }),
   setClipboardPos: (v: { x: number; y: number }) => set('gm_v3_cbpos', v),
 
+  // Board gradient colors [r,g,b] for start and end
+  getBoardGradient: () => get<{ start: [number, number, number]; end: [number, number, number]; angle: number } | null>('gm_v3_boardgrad', null),
+  setBoardGradient: (v: { start: [number, number, number]; end: [number, number, number]; angle: number } | null) => set('gm_v3_boardgrad', v),
+
   // Global mute
   getGlobalMute: () => getString('gm_v3_gmute') === '1',
   setGlobalMute: (v: boolean) => setString('gm_v3_gmute', v ? '1' : '0'),

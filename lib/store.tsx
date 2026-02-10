@@ -62,6 +62,7 @@ interface StoreState {
   dmMuted: boolean
   unifiedMuted: boolean
   allNotif: boolean
+  boardGradient: { start: [number, number, number]; end: [number, number, number]; angle: number } | null
   // Tracking
   lastSeen: Record<string, number>
   approved: Record<string, boolean>
@@ -138,6 +139,7 @@ interface StoreActions {
   setDmMuted: (v: boolean) => void
   setUnifiedMuted: (v: boolean) => void
   setAllNotif: (v: boolean) => void
+  setBoardGradient: (v: { start: [number, number, number]; end: [number, number, number]; angle: number } | null) => void
   markSeen: (id: string) => void
   isUnread: (id: string, ts: number) => boolean
   approveDM: (uid: string) => void
@@ -225,6 +227,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [dmMuted, setDmMutedState] = useState(false)
   const [unifiedMuted, setUnifiedMutedState] = useState(false)
   const [allNotif, setAllNotifState] = useState(false)
+  const [boardGradient, setBoardGradientState] = useState<{ start: [number, number, number]; end: [number, number, number]; angle: number } | null>(null)
   const [lastSeen, setLastSeen] = useState<Record<string, number>>({})
   const [approved, setApproved] = useState<Record<string, boolean>>({})
   const [pinnedMessages, setPinnedMessages] = useState<Record<string, number>>({})
@@ -276,6 +279,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setDmMutedState(storage.getDmMuted())
     setUnifiedMutedState(storage.getUnifiedMuted())
     setAllNotifState(storage.getAllNotif())
+    setBoardGradientState(storage.getBoardGradient())
     setLastSeen(storage.getLastSeen())
     setApproved(storage.getApproved())
     setPinnedMessages(storage.getPinned())
@@ -976,6 +980,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     dmMuted,
     unifiedMuted,
     allNotif,
+    boardGradient,
     lastSeen,
     approved,
     pinnedMessages,
@@ -1084,6 +1089,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setDmMuted: (v: boolean) => { setDmMutedState(v); storage.setDmMuted(v) },
     setUnifiedMuted: (v: boolean) => { setUnifiedMutedState(v); storage.setUnifiedMuted(v) },
     setAllNotif: (v: boolean) => { setAllNotifState(v); storage.setAllNotif(v) },
+    setBoardGradient: (v: { start: [number, number, number]; end: [number, number, number]; angle: number } | null) => { setBoardGradientState(v); storage.setBoardGradient(v) },
     markSeen,
     isUnread,
     approveDM,

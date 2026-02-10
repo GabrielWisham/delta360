@@ -17,15 +17,18 @@ import {
   Check,
   VolumeOff,
   Search,
+  Palette,
+  RotateCcw,
 } from 'lucide-react'
 
-type Tab = 'streams' | 'templates' | 'alerts' | 'audio'
+type Tab = 'streams' | 'templates' | 'alerts' | 'audio' | 'theme'
 
 const TABS: { key: Tab; label: string; Icon: typeof Radio }[] = [
   { key: 'streams', label: 'Streams', Icon: Radio },
   { key: 'templates', label: 'Templates', Icon: MessageSquareText },
   { key: 'alerts', label: 'Alerts', Icon: Bell },
   { key: 'audio', label: 'Audio', Icon: Volume2 },
+  { key: 'theme', label: 'Theme', Icon: Palette },
 ]
 
 export function ConfigPanel() {
@@ -209,6 +212,11 @@ export function ConfigPanel() {
           {activeTab === 'audio' && (
             <div className="h-full overflow-y-auto">
               <AudioTab store={store} />
+            </div>
+          )}
+          {activeTab === 'theme' && (
+            <div className="h-full overflow-y-auto">
+              <ThemeTab store={store} />
             </div>
           )}
         </div>
@@ -598,6 +606,181 @@ function SoundRow({
       >
         {muted ? <VolumeOff className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
       </button>
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/*  Tab: Theme                                                         */
+/* ------------------------------------------------------------------ */
+
+const PRESETS: { name: string; start: [number, number, number]; end: [number, number, number]; angle: number }[] = [
+  { name: 'Midnight', start: [15, 23, 42], end: [30, 41, 59], angle: 180 },
+  { name: 'Deep Ocean', start: [10, 25, 47], end: [17, 46, 81], angle: 180 },
+  { name: 'Ember', start: [40, 15, 10], end: [60, 25, 15], angle: 180 },
+  { name: 'Forest', start: [12, 30, 20], end: [20, 45, 30], angle: 180 },
+  { name: 'Slate', start: [30, 32, 38], end: [45, 48, 55], angle: 180 },
+  { name: 'Ultraviolet', start: [20, 10, 40], end: [40, 20, 65], angle: 180 },
+  { name: 'Charcoal', start: [25, 25, 28], end: [40, 40, 44], angle: 180 },
+  { name: 'Warm Sand', start: [50, 42, 30], end: [65, 55, 40], angle: 180 },
+]
+
+type RGB = [number, number, number]
+
+function rgbToHex(r: number, g: number, b: number) {
+  return '#' + [r, g, b].map(c => c.toString(16).padStart(2, '0')).join('')
+}
+
+function hexToRgb(hex: string): RGB {
+  const h = hex.replace('#', '')
+  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]
+}
+
+function ThemeTab({ store }: { store: ReturnType<typeof useStore> }) {
+  const grad = store.boardGradient
+  const [start, setStart] = useState<RGB>(grad?.start ?? [15, 23, 42])
+  const [end, setEnd] = useState<RGB>(grad?.end ?? [30, 41, 59])
+  const [angle, setAngle] = useState(grad?.angle ?? 180)
+
+  function apply(s: RGB, e: RGB, a: number) {
+    setStart(s)
+    setEnd(e)
+    setAngle(a)
+    store.setBoardGradient({ start: s, end: e, angle: a })
+  }
+
+  function reset() {
+    setStart([15, 23, 42])
+    setEnd([30, 41, 59])
+    setAngle(180)
+    store.setBoardGradient(null)
+  }
+
+  const previewGrad = `linear-gradient(${angle}deg, rgb(${start.join(',')}), rgb(${end.join(',')}))`
+
+  return (
+    <div className="space-y-5">
+      <SectionLabel>Board Gradient</SectionLabel>
+
+      {/* Live preview */}
+      <div
+        className="w-full h-16 rounded-lg border border-border overflow-hidden relative"
+        style={{ background: previewGrad }}
+      >
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="text-[10px] uppercase tracking-widest text-white/60 font-semibold" style={{ fontFamily: 'var(--font-mono)' }}>
+            Preview
+          </span>
+        </div>
+      </div>
+
+      {/* Presets */}
+      <SectionLabel>Presets</SectionLabel>
+      <div className="grid grid-cols-4 gap-1.5">
+        {PRESETS.map(p => (
+          <button
+            key={p.name}
+            onClick={() => apply(p.start, p.end, p.angle)}
+            className="group flex flex-col items-center gap-1 p-1.5 rounded-lg hover:bg-secondary/40 transition-colors"
+          >
+            <div
+              className="w-full h-6 rounded border border-border"
+              style={{ background: `linear-gradient(${p.angle}deg, rgb(${p.start.join(',')}), rgb(${p.end.join(',')}))` }}
+            />
+            <span className="text-[8px] uppercase tracking-wider text-muted-foreground group-hover:text-foreground" style={{ fontFamily: 'var(--font-mono)' }}>
+              {p.name}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      {/* Color pickers + sliders */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <SectionLabel>Start Color</SectionLabel>
+          <input
+            type="color"
+            value={rgbToHex(...start)}
+            onChange={e => { const c = hexToRgb(e.target.value); apply(c, end, angle) }}
+            className="w-full h-8 rounded-lg border border-border cursor-pointer bg-transparent"
+          />
+          <RGBSliders rgb={start} onChange={c => apply(c, end, angle)} />
+        </div>
+        <div className="space-y-2">
+          <SectionLabel>End Color</SectionLabel>
+          <input
+            type="color"
+            value={rgbToHex(...end)}
+            onChange={e => { const c = hexToRgb(e.target.value); apply(start, c, angle) }}
+            className="w-full h-8 rounded-lg border border-border cursor-pointer bg-transparent"
+          />
+          <RGBSliders rgb={end} onChange={c => apply(start, c, angle)} />
+        </div>
+      </div>
+
+      {/* Angle slider */}
+      <div className="space-y-2">
+        <SectionLabel>Angle ({angle}deg)</SectionLabel>
+        <input
+          type="range"
+          min={0}
+          max={360}
+          value={angle}
+          onChange={e => apply(start, end, Number(e.target.value))}
+          className="w-full h-1.5 rounded-full appearance-none bg-secondary/50 accent-[var(--d360-orange)]"
+        />
+      </div>
+
+      {/* Dark/Light toggle + Reset */}
+      <div className="flex items-center gap-2 pt-2 border-t border-border">
+        <button
+          onClick={() => store.toggleTheme()}
+          className="flex-1 text-[10px] uppercase tracking-widest py-2 rounded-lg border border-border text-foreground hover:bg-secondary/40 transition-colors"
+          style={{ fontFamily: 'var(--font-mono)' }}
+        >
+          Mode: {store.theme === 'dark' ? 'Dark' : 'Light'}
+        </button>
+        <button
+          onClick={reset}
+          className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest py-2 px-3 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
+          style={{ fontFamily: 'var(--font-mono)' }}
+        >
+          <RotateCcw className="w-3 h-3" />
+          Reset
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function RGBSliders({ rgb, onChange }: { rgb: RGB; onChange: (v: RGB) => void }) {
+  const labels = ['R', 'G', 'B'] as const
+  const colors = ['#ef4444', '#22c55e', '#3b82f6']
+  return (
+    <div className="space-y-1">
+      {labels.map((label, i) => (
+        <div key={label} className="flex items-center gap-2">
+          <span className="text-[9px] w-3 text-center font-bold" style={{ color: colors[i], fontFamily: 'var(--font-mono)' }}>
+            {label}
+          </span>
+          <input
+            type="range"
+            min={0}
+            max={255}
+            value={rgb[i]}
+            onChange={e => {
+              const next: RGB = [...rgb]
+              next[i] = Number(e.target.value)
+              onChange(next)
+            }}
+            className="flex-1 h-1 rounded-full appearance-none bg-secondary/50"
+            style={{ accentColor: colors[i] }}
+          />
+          <span className="text-[9px] w-6 text-right text-muted-foreground tabular-nums" style={{ fontFamily: 'var(--font-mono)' }}>
+            {rgb[i]}
+          </span>
+        </div>
+      ))}
     </div>
   )
 }
