@@ -5,7 +5,7 @@ import { useStore } from '@/lib/store'
 import { getDayLabel, getFullDate } from '@/lib/date-helpers'
 import { MessageCard } from './message-card'
 import { EMOJIS } from '@/lib/types'
-import { ArrowDown, ArrowUp } from 'lucide-react'
+import { ArrowDown, ArrowUp, History, Loader2 } from 'lucide-react'
 import type { GroupMeMessage } from '@/lib/types'
 
 export function MessageFeed({ panelIdx }: { panelIdx: number }) {
@@ -232,6 +232,18 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     return lum > 0.5 ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.5)'
   }, [store.boardGradient])
 
+  const [noMoreMessages, setNoMoreMessages] = useState(false)
+
+  // Reset noMore when view changes
+  useEffect(() => { setNoMoreMessages(false) }, [view?.type, view?.id])
+
+  // DM recipient name for watermark
+  const dmRecipientName = useMemo(() => {
+    if (view?.type !== 'dm' || !view.id) return null
+    const chat = store.dmChats.find(d => d.other_user?.id === view.id)
+    return chat?.other_user?.name || null
+  }, [view?.type, view?.id, store.dmChats])
+
   const isSpecificView = view?.type === 'group' || view?.type === 'dm' || view?.type === 'stream'
 
   const inputSection = (
@@ -287,7 +299,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
           onKeyDown={e => {
             if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
           }}
-          placeholder={isSpecificView ? `Message ${title}...` : 'Select a chat to send messages'}
+          placeholder={isSpecificView ? `Message ${dmRecipientName || title}...` : 'Select a chat to send messages'}
           disabled={!isSpecificView}
           className="flex-1 text-sm bg-secondary/40 border border-border rounded-lg px-3 py-2 resize-none max-h-[100px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)] disabled:opacity-50"
           rows={1}
@@ -373,6 +385,18 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
           color: boardTextColor,
         } : undefined}
       >
+        {/* DM recipient watermark */}
+        {dmRecipientName && (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden z-0">
+            <span
+              className="text-[60px] font-black uppercase tracking-widest opacity-[0.03] select-none whitespace-nowrap"
+              style={{ fontFamily: 'var(--font-mono)' }}
+            >
+              {dmRecipientName}
+            </span>
+          </div>
+        )}
+
         {/* Unified streams loading gate: show ONLY spinner while syncing */}
         {store.unifiedLoading && view?.type === 'unified_streams' ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-3 py-10">
@@ -384,6 +408,29 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
           </div>
         ) : (
           <>
+            {/* Load earlier messages (at top when newest-first) */}
+            {!store.oldestFirst && (view?.type === 'group' || view?.type === 'dm') && messages.length >= 5 && !noMoreMessages && (
+              <div className="flex justify-center py-2">
+                <button
+                  onClick={async () => {
+                    const loaded = await store.loadMoreMessages(panelIdx)
+                    if (loaded === 0) setNoMoreMessages(true)
+                  }}
+                  disabled={store.loadingMore}
+                  className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest px-3 py-1.5 rounded-full border border-border text-muted-foreground hover:text-foreground hover:border-[var(--d360-orange)] transition-colors disabled:opacity-40"
+                  style={{ fontFamily: 'var(--font-mono)' }}
+                >
+                  {store.loadingMore ? <Loader2 className="w-3 h-3 animate-spin" /> : <History className="w-3 h-3" />}
+                  {store.loadingMore ? 'Loading...' : 'Load Earlier Messages'}
+                </button>
+              </div>
+            )}
+            {!store.oldestFirst && noMoreMessages && (
+              <div className="text-center text-[9px] text-muted-foreground/50 py-1 uppercase tracking-widest" style={{ fontFamily: 'var(--font-mono)' }}>
+                Beginning of conversation
+              </div>
+            )}
+
             {/* Pinned zone */}
             {pinned.length > 0 && (
               <div className="mb-2">
@@ -435,6 +482,29 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
                 />
               )
             })}
+
+            {/* Load earlier messages (at bottom when oldest-first) */}
+            {store.oldestFirst && (view?.type === 'group' || view?.type === 'dm') && messages.length >= 5 && !noMoreMessages && (
+              <div className="flex justify-center py-2">
+                <button
+                  onClick={async () => {
+                    const loaded = await store.loadMoreMessages(panelIdx)
+                    if (loaded === 0) setNoMoreMessages(true)
+                  }}
+                  disabled={store.loadingMore}
+                  className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest px-3 py-1.5 rounded-full border border-border text-muted-foreground hover:text-foreground hover:border-[var(--d360-orange)] transition-colors disabled:opacity-40"
+                  style={{ fontFamily: 'var(--font-mono)' }}
+                >
+                  {store.loadingMore ? <Loader2 className="w-3 h-3 animate-spin" /> : <History className="w-3 h-3" />}
+                  {store.loadingMore ? 'Loading...' : 'Load Earlier Messages'}
+                </button>
+              </div>
+            )}
+            {store.oldestFirst && noMoreMessages && (
+              <div className="text-center text-[9px] text-muted-foreground/50 py-1 uppercase tracking-widest" style={{ fontFamily: 'var(--font-mono)' }}>
+                Beginning of conversation
+              </div>
+            )}
 
             {messages.length === 0 && (
               <div className="flex-1 flex items-center justify-center">

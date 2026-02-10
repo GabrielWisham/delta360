@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useStore } from '@/lib/store'
-import { formatTimestamp } from '@/lib/date-helpers'
+import { formatTimestamp, getFullDate } from '@/lib/date-helpers'
 import { EMOJIS } from '@/lib/types'
 import {
   CornerDownLeft,
@@ -216,8 +216,9 @@ export function MessageCard({
                 </button>
               )}
               <span
-                className="text-[8px] opacity-30 tabular-nums"
+                className="text-[8px] opacity-30 tabular-nums cursor-help"
                 style={{ fontFamily: 'var(--font-mono)' }}
+                title={getFullDate(msg.created_at)}
               >
                 {formatTimestamp(msg.created_at)}
               </span>
@@ -357,8 +358,9 @@ export function MessageCard({
             <span className="flex-1" />
 
             <span
-              className="text-[9px] opacity-30 shrink-0 tabular-nums"
+              className="text-[9px] opacity-30 shrink-0 tabular-nums cursor-help"
               style={{ fontFamily: 'var(--font-mono)' }}
+              title={getFullDate(msg.created_at)}
             >
               {formatTimestamp(msg.created_at)}
             </span>

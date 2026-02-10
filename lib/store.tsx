@@ -142,6 +142,8 @@ interface StoreActions {
   setUnifiedMuted: (v: boolean) => void
   setAllNotif: (v: boolean) => void
   setBoardGradient: (v: { start: [number, number, number]; end: [number, number, number]; angle: number } | null) => void
+  loadMoreMessages: (panelIdx: number) => Promise<number>
+  loadingMore: boolean
   markSeen: (id: string) => void
   isUnread: (id: string, ts: number) => boolean
   approveDM: (uid: string) => void
@@ -222,6 +224,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [inputBottom, setInputBottom] = useState(false)
   const [oldestFirst, setOldestFirst] = useState(false)
   const [autoScroll, setAutoScrollState] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [globalMute, setGlobalMute] = useState(false)
   const [feedSound, setFeedSoundState] = useState<SoundName>('radar')
   const [dmSound, setDmSoundState] = useState<SoundName>('chime')
@@ -557,6 +560,61 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       return next
     })
   }, [currentView, panels, groups, dmChats, approved, streams, globalMute, feedMuted, dmMuted, feedSound, dmSound])
+
+  // Load more (older) messages for the current panel using before_id pagination
+  const loadMoreMessages = useCallback(async (panelIdx: number): Promise<number> => {
+    const view = panelIdx === 0 ? currentView : panels[panelIdx]
+    if (!view) return 0
+    const { type, id } = view
+    const existing = panelMessages[panelIdx] || []
+    if (existing.length === 0) return 0
+
+    // Find the oldest message ID
+    const sorted = [...existing].sort((a, b) => a.created_at - b.created_at)
+    const oldestId = sorted[0]?.id
+    if (!oldestId) return 0
+
+    setLoadingMore(true)
+    let older: GroupMeMessage[] = []
+    try {
+      if (type === 'group' && id) {
+        const data = await api.getGroupMessages(id, 40, oldestId)
+        older = data.messages || []
+      } else if (type === 'dm' && id) {
+        const data = await api.getDMMessages(id, 40, oldestId)
+        older = data.direct_messages || []
+      }
+    } catch { /* ignore */ }
+    setLoadingMore(false)
+
+    if (older.length === 0) return 0
+
+    // Merge and deduplicate
+    const existingIds = new Set(existing.map(m => m.id))
+    const newMsgs = older.filter(m => !existingIds.has(m.id))
+    if (newMsgs.length === 0) return 0
+
+    const merged = [...existing, ...newMsgs].sort((a, b) => a.created_at - b.created_at)
+    knownMsgIds.current[panelIdx] = new Set(merged.map(m => m.id))
+
+    // Index new messages for search
+    newMsgs.forEach(m => {
+      if (m.text) {
+        setSearchIndex(prev => {
+          if (prev.find(x => x.id === m.id)) return prev
+          const next = [...prev, m]
+          return next.length > 2000 ? next.slice(-1500) : next
+        })
+      }
+    })
+
+    setPanelMessages(prev => {
+      const next = [...prev]
+      next[panelIdx] = merged
+      return next
+    })
+    return newMsgs.length
+  }, [currentView, panels, panelMessages])
 
   // Unified streams: single dedicated loader with version counter
   const unifiedKnownIds = useRef<Set<string>>(new Set())
@@ -977,6 +1035,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     inputBottom,
     oldestFirst,
     autoScroll,
+    loadingMore,
+    loadMoreMessages,
     globalMute,
     feedSound,
     dmSound,

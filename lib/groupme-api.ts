@@ -80,20 +80,20 @@ class GroupMeAPI {
 
   async getGroupMessages(
     groupId: string,
-    limit = 40
+    limit = 40,
+    beforeId?: string
   ): Promise<{ messages: GroupMeMessage[] }> {
-    return this.request<{ messages: GroupMeMessage[] }>(
-      `/groups/${groupId}/messages?limit=${limit}`
-    )
+    const params = `/groups/${groupId}/messages?limit=${limit}${beforeId ? `&before_id=${beforeId}` : ''}`
+    return this.request<{ messages: GroupMeMessage[] }>(params)
   }
 
   async getDMMessages(
     otherUserId: string,
-    limit = 40
+    limit = 40,
+    beforeId?: string
   ): Promise<{ direct_messages: GroupMeMessage[] }> {
-    return this.request<{ direct_messages: GroupMeMessage[] }>(
-      `/direct_messages?other_user_id=${otherUserId}&limit=${limit}`
-    )
+    const params = `/direct_messages?other_user_id=${otherUserId}&limit=${limit}${beforeId ? `&before_id=${beforeId}` : ''}`
+    return this.request<{ direct_messages: GroupMeMessage[] }>(params)
   }
 
   async sendGroupMessage(groupId: string, text: string, attachments: GroupMeMessage['attachments'] = []) {
