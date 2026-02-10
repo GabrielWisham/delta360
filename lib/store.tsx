@@ -250,7 +250,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [autoScroll, setAutoScrollState] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [globalMute, setGlobalMute] = useState(false)
-  const [feedSound, setFeedSoundState] = useState<SoundName>('radar')
+  const [feedSound, setFeedSoundState] = useState<SoundName>('chime')
   const [dmSound, setDmSoundState] = useState<SoundName>('chime')
   const [unifiedSound, setUnifiedSoundState] = useState<SoundName>('beacon')
   const [feedMuted, setFeedMutedState] = useState(false)

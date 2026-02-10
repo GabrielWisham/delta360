@@ -109,7 +109,7 @@ export const storage = {
   setStatus: (v: string) => setString('gm_v3_status', v),
 
   // Feed sound
-  getFeedSound: () => getString('gm_v3_feedsnd', 'radar'),
+  getFeedSound: () => getString('gm_v3_feedsnd', 'chime'),
   setFeedSound: (v: string) => setString('gm_v3_feedsnd', v),
 
   // DM sound
