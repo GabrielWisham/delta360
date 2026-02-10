@@ -207,10 +207,16 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
               if (!c) return
               if (store.oldestFirst) { c.scrollTop = c.scrollHeight } else { c.scrollTop = 0 }
               transitioningRef.current = false
+              setTimeout(() => {
+                if (!scrollRef.current) return
+                if (store.oldestFirst) { scrollRef.current.scrollTop = scrollRef.current.scrollHeight } else { scrollRef.current.scrollTop = 0 }
+              }, 100)
             })
           }
         } else {
-          // Default: jump to most recent after DOM renders
+          // Default: jump to most recent after DOM renders.
+          // Double-pass: rAF for initial scroll, then a short delay to catch
+          // any layout reflow (e.g., input section resizing the flex container).
           requestAnimationFrame(() => {
             const c = scrollRef.current
             if (!c) return
@@ -220,6 +226,14 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
               c.scrollTop = 0
             }
             transitioningRef.current = false
+            setTimeout(() => {
+              if (!scrollRef.current) return
+              if (store.oldestFirst) {
+                scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+              } else {
+                scrollRef.current.scrollTop = 0
+              }
+            }, 100)
           })
         }
       } else if (!userScrolledRef.current) {
