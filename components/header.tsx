@@ -39,25 +39,27 @@ export function Header() {
   const [viewOpen, setViewOpen] = useState(false)
   const [actionsOpen, setActionsOpen] = useState(false)
   const [statusOpen, setStatusOpen] = useState(false)
-  const trayRef = useRef<HTMLDivElement>(null)
+  const toolsRef = useRef<HTMLDivElement>(null)
+  const viewRef = useRef<HTMLDivElement>(null)
+  const actionsRef = useRef<HTMLDivElement>(null)
+  const statusRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (trayRef.current && !trayRef.current.contains(e.target as Node)) {
-        setToolsOpen(false)
-        setViewOpen(false)
-        setActionsOpen(false)
-        setStatusOpen(false)
-      }
+      const target = e.target as Node
+      if (toolsOpen && toolsRef.current && !toolsRef.current.contains(target)) setToolsOpen(false)
+      if (viewOpen && viewRef.current && !viewRef.current.contains(target)) setViewOpen(false)
+      if (actionsOpen && actionsRef.current && !actionsRef.current.contains(target)) setActionsOpen(false)
+      if (statusOpen && statusRef.current && !statusRef.current.contains(target)) setStatusOpen(false)
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
-  }, [])
+  }, [toolsOpen, viewOpen, actionsOpen, statusOpen])
 
   const currentStatus = STATUS_OPTIONS.find(s => s.value === store.myStatus) || STATUS_OPTIONS[2]
 
   return (
-    <header className="glass sticky top-0 z-50 flex items-center gap-2 px-3 py-2 border-b border-border" ref={trayRef}>
+    <header className="glass sticky top-0 z-50 flex items-center gap-2 px-3 py-2 border-b border-border">
       {/* Hamburger / sidebar toggle */}
       <button
         onClick={() => {
@@ -88,7 +90,7 @@ export function Header() {
       {/* Tray buttons - each in own relative container for proper dropdown alignment */}
       <div className="flex items-center gap-1">
         {/* Tools */}
-        <div className="relative">
+        <div className="relative" ref={toolsRef}>
           <TrayButton label="Tools" open={toolsOpen} onClick={() => { setToolsOpen(!toolsOpen); setViewOpen(false); setActionsOpen(false) }} />
           {toolsOpen && (
             <div className="absolute top-full left-0 mt-1 rounded-lg p-2 min-w-[180px] flex flex-col gap-1 z-50 shadow-xl bg-card border border-border" role="menu">
@@ -103,7 +105,7 @@ export function Header() {
         </div>
 
         {/* View */}
-        <div className="relative">
+        <div className="relative" ref={viewRef}>
           <TrayButton label="View" open={viewOpen} onClick={() => { setViewOpen(!viewOpen); setToolsOpen(false); setActionsOpen(false) }} />
           {viewOpen && (
             <div className="absolute top-full left-0 mt-1 rounded-lg p-2 min-w-[200px] flex flex-col gap-1 z-50 shadow-xl bg-card border border-border" role="menu">
@@ -137,7 +139,7 @@ export function Header() {
         </div>
 
         {/* Actions */}
-        <div className="relative">
+        <div className="relative" ref={actionsRef}>
           <TrayButton label="Actions" open={actionsOpen} onClick={() => { setActionsOpen(!actionsOpen); setToolsOpen(false); setViewOpen(false) }} />
           {actionsOpen && (
             <div className="absolute top-full left-0 mt-1 rounded-lg p-2 min-w-[200px] flex flex-col gap-1 z-50 shadow-xl bg-card border border-border" role="menu">
@@ -174,7 +176,7 @@ export function Header() {
       </button>
 
       {/* Status dropdown */}
-      <div className="relative">
+      <div className="relative" ref={statusRef}>
         <button
           onClick={() => setStatusOpen(!statusOpen)}
           className="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-secondary/60 text-xs"

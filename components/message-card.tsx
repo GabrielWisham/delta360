@@ -172,7 +172,7 @@ export function MessageCard({
         </div>
 
         {/* Bubble */}
-        <div className={`max-w-[75%] min-w-[120px] ${isSelf ? 'items-end' : 'items-start'}`}>
+        <div className={`relative max-w-[75%] min-w-[120px] ${isSelf ? 'items-end' : 'items-start'}`}>
           {/* Reply indicator */}
           {replyAttachment && (
             <button
@@ -260,19 +260,19 @@ export function MessageCard({
 
           {/* Reply input */}
           {replyInput}
-        </div>
 
-        {/* Hover action tray */}
-        <div className={`absolute ${isSelf ? 'left-1' : 'right-1'} top-0 opacity-0 group-hover/msg:opacity-100 transition-opacity flex items-center gap-0.5 bg-card border border-border rounded-full px-1.5 py-0.5 shadow-md z-10`}>
-          <CompactAction Icon={Reply} title="Reply" onClick={() => { setShowReplyInput(!showReplyInput); setTimeout(() => replyRef.current?.focus(), 50) }} />
-          <CompactAction Icon={ThumbsUp} title="Like" active={likedBy.includes(store.user?.id || '')} onClick={() => {
-            const gid = msg.group_id || ''
-            if (likedBy.includes(store.user?.id || '')) store.unlikeMessage(gid, msg.id)
-            else store.likeMessage(gid, msg.id)
-          }} />
-          <CompactAction Icon={Pin} title="Pin" active={isPinned} onClick={() => store.togglePinMessage(msg.id)} />
-          <CompactAction Icon={Forward} title="Forward" onClick={() => store.setForwardMsg({ id: msg.id, name: msg.name, text: msg.text || '', groupId: msg.group_id })} />
-          {isSelf && <CompactAction Icon={Trash2} title={confirmDelete ? 'Confirm?' : 'Delete'} danger active={confirmDelete} onClick={handleDelete} />}
+          {/* Hover action tray */}
+          <div className={`absolute ${isSelf ? 'right-full mr-1' : 'left-full ml-1'} top-0 opacity-0 group-hover/msg:opacity-100 transition-opacity flex items-center gap-0.5 bg-card border border-border rounded-full px-1.5 py-0.5 shadow-md z-10`}>
+            <CompactAction Icon={Reply} title="Reply" onClick={() => { setShowReplyInput(!showReplyInput); setTimeout(() => replyRef.current?.focus(), 50) }} />
+            <CompactAction Icon={ThumbsUp} title="Like" active={likedBy.includes(store.user?.id || '')} onClick={() => {
+              const gid = msg.group_id || ''
+              if (likedBy.includes(store.user?.id || '')) store.unlikeMessage(gid, msg.id)
+              else store.likeMessage(gid, msg.id)
+            }} />
+            <CompactAction Icon={Pin} title="Pin" active={isPinned} onClick={() => store.togglePinMessage(msg.id)} />
+            <CompactAction Icon={Forward} title="Forward" onClick={() => store.setForwardMsg({ id: msg.id, name: msg.name, text: msg.text || '', groupId: msg.group_id })} />
+            {isSelf && <CompactAction Icon={Trash2} title={confirmDelete ? 'Confirm?' : 'Delete'} danger active={confirmDelete} onClick={handleDelete} />}
+          </div>
         </div>
       </div>
     )
@@ -301,7 +301,7 @@ export function MessageCard({
       </div>
 
       {/* Bubble */}
-      <div className={`max-w-[70%] min-w-[160px] flex flex-col ${isSelf ? 'items-end' : 'items-start'}`}>
+      <div className={`relative max-w-[70%] min-w-[160px] flex flex-col ${isSelf ? 'items-end' : 'items-start'}`}>
         {/* Reply indicator */}
         {replyAttachment && (
           <button
@@ -399,19 +399,19 @@ export function MessageCard({
 
         {/* Reply input */}
         {replyInput}
-      </div>
 
-      {/* Hover action tray */}
-      <div className={`absolute ${isSelf ? 'left-1' : 'right-1'} top-0 opacity-0 group-hover/msg:opacity-100 transition-opacity flex items-center gap-0.5 bg-card border border-border rounded-full px-1.5 py-0.5 shadow-md z-10`}>
-        <CompactAction Icon={Reply} title="Reply" onClick={() => { setShowReplyInput(!showReplyInput); setTimeout(() => replyRef.current?.focus(), 50) }} />
-        <CompactAction Icon={ThumbsUp} title="Like" active={likedBy.includes(store.user?.id || '')} onClick={() => {
-          const gid = msg.group_id || ''
-          if (likedBy.includes(store.user?.id || '')) store.unlikeMessage(gid, msg.id)
-          else store.likeMessage(gid, msg.id)
-        }} />
-        <CompactAction Icon={Pin} title="Pin" active={isPinned} onClick={() => store.togglePinMessage(msg.id)} />
-        <CompactAction Icon={Forward} title="Forward" onClick={() => store.setForwardMsg({ id: msg.id, name: msg.name, text: msg.text || '', groupId: msg.group_id })} />
-        {isSelf && <CompactAction Icon={Trash2} title={confirmDelete ? 'Confirm?' : 'Delete'} danger active={confirmDelete} onClick={handleDelete} />}
+        {/* Hover action tray */}
+        <div className={`absolute ${isSelf ? 'right-full mr-1' : 'left-full ml-1'} top-0 opacity-0 group-hover/msg:opacity-100 transition-opacity flex items-center gap-0.5 bg-card border border-border rounded-full px-1.5 py-0.5 shadow-md z-10`}>
+          <CompactAction Icon={Reply} title="Reply" onClick={() => { setShowReplyInput(!showReplyInput); setTimeout(() => replyRef.current?.focus(), 50) }} />
+          <CompactAction Icon={ThumbsUp} title="Like" active={likedBy.includes(store.user?.id || '')} onClick={() => {
+            const gid = msg.group_id || ''
+            if (likedBy.includes(store.user?.id || '')) store.unlikeMessage(gid, msg.id)
+            else store.likeMessage(gid, msg.id)
+          }} />
+          <CompactAction Icon={Pin} title="Pin" active={isPinned} onClick={() => store.togglePinMessage(msg.id)} />
+          <CompactAction Icon={Forward} title="Forward" onClick={() => store.setForwardMsg({ id: msg.id, name: msg.name, text: msg.text || '', groupId: msg.group_id })} />
+          {isSelf && <CompactAction Icon={Trash2} title={confirmDelete ? 'Confirm?' : 'Delete'} danger active={confirmDelete} onClick={handleDelete} />}
+        </div>
       </div>
     </div>
   )
