@@ -238,6 +238,9 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
         }
       } else if (!userScrolledRef.current) {
         // User hasn't scrolled away -- auto-scroll to fully reveal new messages.
+        // Double rAF ensures the flex layout has fully reflowed (input bar height
+        // subtracted from scroll area) before we measure scrollHeight.
+        requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           const container = scrollRef.current
           if (!container) return
@@ -246,6 +249,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
           } else {
             container.scrollTo({ top: 0, behavior: 'smooth' })
           }
+        })
         })
       }
     }
@@ -326,12 +330,24 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   // Auto-resize textarea after every render where mainInput changes.
   // Running in useEffect (after commit) ensures React has set the controlled
   // value on the DOM element, so scrollHeight reflects the actual content.
+  // Also re-anchors scroll to bottom when input grows (inputBottom mode),
+  // so the last message stays visible above the expanding input bar.
   useEffect(() => {
     const el = textareaRef.current
     if (!el) return
+    const prevH = el.offsetHeight
     el.style.height = 'auto'
     el.style.height = Math.min(el.scrollHeight, 160) + 'px'
-  }, [mainInput])
+    const newH = el.offsetHeight
+    // If textarea grew/shrank and input is at bottom, re-anchor scroll
+    if (store.inputBottom && scrollRef.current && prevH !== newH && !userScrolledRef.current) {
+      if (store.oldestFirst) {
+        scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+      } else {
+        scrollRef.current.scrollTop = 0
+      }
+    }
+  }, [mainInput, store.inputBottom, store.oldestFirst])
 
   // Current chat's alert words
   const chatId = view?.id || ''
@@ -705,7 +721,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className={`flex-1 overflow-y-auto overflow-x-hidden px-3 py-2 flex flex-col min-h-0 ${store.compact ? 'gap-0.5' : 'gap-1.5'}`}
+        className={`flex-1 overflow-y-auto overflow-x-hidden px-3 pt-2 pb-4 flex flex-col min-h-0 ${store.compact ? 'gap-0.5' : 'gap-1.5'}`}
         style={store.boardGradient ? {
           background: `linear-gradient(${store.boardGradient.angle}deg, rgb(${store.boardGradient.start.join(',')}), rgb(${store.boardGradient.end.join(',')}))`,
           ['--board-text' as string]: boardTextColor,
