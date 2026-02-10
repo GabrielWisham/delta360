@@ -636,32 +636,38 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     // Update cache
     msgCache.current[cacheKey] = { msgs, ts: Date.now() }
 
-    // Detect new messages and play sound + desktop notification
+    // Detect new messages: sound, desktop notification, and preview toast
     const oldIds = knownMsgIds.current[panelIdx]
-    if (oldIds && oldIds.size > 0 && !globalMute) {
+    if (oldIds && oldIds.size > 0) {
       const newMsgs = msgs.filter(m => !oldIds.has(m.id))
       if (newMsgs.length > 0) {
         const latest = newMsgs[newMsgs.length - 1]
         const notifBody = latest ? `${latest.name}: ${latest.text || '(attachment)'}` : ''
 
-        if ((type === 'group' || type === 'all' || type === 'stream') && !feedMuted) {
-          if (type === 'stream' && id && streams[id]) {
-            playSound(streams[id].sound as SoundName)
-          } else {
-            playSound(feedSound)
+        // Sound + desktop notifications (respect mute settings)
+        if (!globalMute) {
+          if ((type === 'group' || type === 'all' || type === 'stream') && !feedMuted) {
+            if (type === 'stream' && id && streams[id]) {
+              playSound(streams[id].sound as SoundName)
+            } else {
+              playSound(feedSound)
+            }
+            const groupName = groups.find(g => g.id === (latest?.group_id || id))?.name || 'Group'
+            sendDesktopNotification(`Delta 360 - ${groupName}`, notifBody)
+          } else if ((type === 'dm' || type === 'dms') && !dmMuted) {
+            playSound(dmSound)
+            sendDesktopNotification('Delta 360 - DM', notifBody)
           }
-          const groupName = groups.find(g => g.id === (latest?.group_id || id))?.name || 'Group'
-          sendDesktopNotification(`Delta 360 - ${groupName}`, notifBody)
-          // Fire message preview toast
-          if (latest) {
+        }
+
+        // Message preview toasts (always fire, independent of sound mute -- has own mute via toastMutedFeeds)
+        if (latest) {
+          if (type === 'group' || type === 'all' || type === 'stream') {
+            const groupName = groups.find(g => g.id === (latest?.group_id || id))?.name || 'Group'
             const sourceKey = type === 'stream' ? `stream:${id}` : type === 'all' ? 'all' : `group:${latest.group_id || id}`
             const sourceName = type === 'stream' ? (id || 'Stream') : type === 'all' ? 'Universal Feed' : groupName
             showMsgToast({ sourceKey, sourceName, senderName: latest.name, text: latest.text || '(attachment)', viewType: type, viewId: id })
-          }
-        } else if ((type === 'dm' || type === 'dms') && !dmMuted) {
-          playSound(dmSound)
-          sendDesktopNotification('Delta 360 - DM', notifBody)
-          if (latest) {
+          } else if (type === 'dm' || type === 'dms') {
             const sourceKey = type === 'dms' ? 'dms' : `dm:${id}`
             const sourceName = type === 'dms' ? 'Direct Comms' : (dmChats.find(d => d.other_user?.id === id)?.other_user?.name || 'DM')
             showMsgToast({ sourceKey, sourceName, senderName: latest.name, text: latest.text || '(attachment)', viewType: type, viewId: id })
