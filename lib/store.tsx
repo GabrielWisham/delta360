@@ -821,8 +821,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   // and interval all call loadMessages and would otherwise cause flashes.
   const suppressRefreshUntilRef = useRef(0)
 
-  const loadMessages = useCallback(async (panelIdx: number, bypassCache?: boolean) => {
-    if (Date.now() < suppressRefreshUntilRef.current) return
+  const loadMessages = useCallback(async (panelIdx: number, bypassCache?: boolean, isViewSwitch?: boolean) => {
+    // After sending, suppress poll-driven refreshes but allow explicit view switches
+    if (!isViewSwitch && Date.now() < suppressRefreshUntilRef.current) return
     const view = panelIdx === 0 ? currentView : panels[panelIdx]
     if (!view) return
     const { type, id } = view
@@ -1264,7 +1265,17 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const cacheKey = `${type}:${id || '_'}`
     const cached = msgCache.current[cacheKey]
     knownMsgIds.current[0] = cached ? new Set(cached.msgs.map(m => m.id)) : new Set()
-    panelSeeded.current[0] = cached ? true : false // if cached, we have a baseline, allow notifications immediately
+    panelSeeded.current[0] = cached ? true : false
+
+    // Immediately populate panelMessages from cache so there's no flash of
+    // stale content from the previous view. If no cache, clear to empty so
+    // the loading spinner shows instead of old messages.
+    setPanelMessages(prev => {
+      const next = [...prev]
+      next[0] = cached ? cached.msgs : []
+      return next
+    })
+
     setSidebarMobileOpen(false)
   }, [])
 
@@ -1274,6 +1285,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const slot = !next[1] ? 1 : !next[2] ? 2 : 1
       next[slot] = { type, id }
       knownMsgIds.current[slot] = new Set()
+
+      // Pre-populate from cache for instant display
+      const cacheKey = `${type}:${id || '_'}`
+      const cached = msgCache.current[cacheKey]
+      setPanelMessages(pm => {
+        const pmNext = [...pm]
+        pmNext[slot] = cached ? cached.msgs : []
+        return pmNext
+      })
+
       return next
     })
   }, [])

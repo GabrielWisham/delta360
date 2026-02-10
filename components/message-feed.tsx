@@ -33,6 +33,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
 
   const view = panelIdx === 0 ? store.currentView : store.panels[panelIdx]
   const messages = store.panelMessages[panelIdx] || []
+  const [viewLoaded, setViewLoaded] = useState(false)
   const title = view ? store.getPanelTitle(view.type, view.id) : '--'
   const showGroupTag = view?.type === 'all' || view?.type === 'dms' || view?.type === 'stream' || view?.type === 'unified_streams'
 
@@ -48,8 +49,14 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   loadMsgRef.current = store.loadMessages
 
   // Load messages on view change or when pollLoop detects new messages for this view
+  const prevViewRef = useRef<string | null>(null)
   useEffect(() => {
-    if (view && view.type !== 'unified_streams') loadMsgRef.current(panelIdx)
+    const viewKey = `${view?.type}:${view?.id}`
+    const isViewSwitch = prevViewRef.current !== null && prevViewRef.current !== viewKey
+    prevViewRef.current = viewKey
+    // If switchView pre-populated from cache, messages are already there
+    if (messages.length > 0) setViewLoaded(true)
+    if (view && view.type !== 'unified_streams') loadMsgRef.current(panelIdx, false, isViewSwitch)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view?.type, view?.id, panelIdx, store.feedRefreshTick])
 
@@ -163,6 +170,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     userScrolledRef.current = false
     programmaticScrollRef.current = true
     setTimeout(() => { programmaticScrollRef.current = false }, 500)
+    setViewLoaded(false)
     prevMsgCountRef.current = 0
     prevLastMsgIdRef.current = null
     setShowJumpToLatest(false)
@@ -202,8 +210,8 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
 
     if (hasNewMessages) {
       if (wasEmpty) {
-        // First load: ensure scroll state is clean so subsequent new messages
-        // that arrive right after the initial load still auto-scroll.
+        // First load: mark view as loaded and ensure scroll state is clean
+        setViewLoaded(true)
         userScrolledRef.current = false
         programmaticScrollRef.current = true
         setTimeout(() => { programmaticScrollRef.current = false }, 500)
@@ -851,14 +859,16 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
       >
 
 
-        {/* Unified streams loading gate: show ONLY spinner while syncing */}
-        {store.unifiedLoading && view?.type === 'unified_streams' ? (
+        {/* Loading gate: show spinner while view is loading (empty messages before first load, or unified syncing) */}
+        {(store.unifiedLoading && view?.type === 'unified_streams') || (messages.length === 0 && view && view.type !== 'unified_streams' && !viewLoaded) ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-3 py-10">
-            <div className="relative w-10 h-10">
+            <div className="relative w-8 h-8">
               <div className="absolute inset-0 rounded-full border-2 border-border" />
               <div className="absolute inset-0 rounded-full border-2 border-t-[var(--d360-orange)] animate-spin" />
             </div>
-            <p className="text-xs text-muted-foreground font-mono uppercase tracking-widest">Syncing streams</p>
+            {view?.type === 'unified_streams' && (
+              <p className="text-xs text-muted-foreground font-mono uppercase tracking-widest">Syncing streams</p>
+            )}
           </div>
         ) : (
           <>
