@@ -509,17 +509,17 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         const cv = currentViewRef.current
         let needsFeedRefresh = false
         let needsUnifiedRefresh = false
+        // Queue toasts so they fire AFTER the feed refreshes
+        const pendingToasts: Omit<MsgToast, 'id' | 'ts'>[] = []
         // Check groups for new messages
         for (const group of g) {
           const lmid = group.messages?.last_message_id
           if (!lmid) continue
           const prevId = lastMsgTracker.current[`g:${group.id}`]
           if (prevId && prevId !== lmid) {
-            // Trigger feed refresh if this group is part of the current view
             if (cv.type === 'all' || (cv.type === 'group' && cv.id === group.id) || cv.type === 'stream') {
               needsFeedRefresh = true
             }
-            // Trigger unified streams refresh if viewing unified and this group is toggled on
             if (cv.type === 'unified_streams') {
               for (const [, s] of Object.entries(streamsRef.current)) {
                 if ((s as { ids: string[] }).ids.includes(group.id)) { needsUnifiedRefresh = true; break }
@@ -529,7 +529,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               const prev = group.messages.preview
               const senderName = prev.nickname || 'Someone'
               const text = prev.text || (prev.image_attached ? '(image)' : '(attachment)')
-              // Sound
               if (!globalMuteRef.current && !feedMutedRef.current) {
                 let customSound: SoundName | null = null
                 for (const [, s] of Object.entries(streamsRef.current)) {
@@ -538,8 +537,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                 playSound(customSound || feedSoundRef.current)
                 sendDesktopNotification(`Delta 360 - ${group.name}`, `${senderName}: ${text}`)
               }
-              // Toast
-              showMsgToastRef.current({ sourceKey: `group:${group.id}`, sourceName: group.name, senderName, text, messageId: lmid, viewType: 'group', viewId: group.id, originType: 'group', originId: group.id })
+              pendingToasts.push({ sourceKey: `group:${group.id}`, sourceName: group.name, senderName, text, messageId: lmid, viewType: 'group', viewId: group.id, originType: 'group', originId: group.id })
             }
           }
           lastMsgTracker.current[`g:${group.id}`] = lmid
@@ -563,13 +561,21 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               playSound(dmSoundRef.current)
               sendDesktopNotification('Delta 360 - DM', `${senderName}: ${text}`)
             }
-            showMsgToastRef.current({ sourceKey: `dm:${otherId}`, sourceName: dm.other_user?.name || 'DM', senderName, text, messageId: lmid, viewType: 'dm', viewId: otherId, originType: 'dm', originId: otherId })
+            pendingToasts.push({ sourceKey: `dm:${otherId}`, sourceName: dm.other_user?.name || 'DM', senderName, text, messageId: lmid, viewType: 'dm', viewId: otherId, originType: 'dm', originId: otherId })
           }
           lastMsgTracker.current[`d:${otherId}`] = lmid
         }
-        // Trigger immediate feed reload if new message is in the current view
-        if (needsFeedRefresh) setFeedRefreshTick(t => t + 1)
-        if (needsUnifiedRefresh && !unifiedLoadingRef.current) refreshUnifiedRef.current()
+        // Refresh the feed FIRST, then fire toasts so message + toast appear together
+        const refreshPromises: Promise<void>[] = []
+        if (needsFeedRefresh) refreshPromises.push(loadMessagesRef.current(0))
+        if (needsUnifiedRefresh && !unifiedLoadingRef.current) refreshPromises.push(refreshUnifiedRef.current())
+        if (refreshPromises.length > 0) {
+          await Promise.all(refreshPromises)
+          // Give React one frame to render the new messages before showing toasts
+          await new Promise(r => requestAnimationFrame(r))
+        }
+        // Now fire toasts -- messages are already in the feed
+        for (const t of pendingToasts) showMsgToastRef.current(t)
       } else {
         // First poll -- seed the tracker without firing notifications
         for (const group of g) {
@@ -936,6 +942,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, [fetchUnifiedMessages])
   const refreshUnifiedRef = useRef(refreshUnifiedStreams)
   refreshUnifiedRef.current = refreshUnifiedStreams
+  const loadMessagesRef = useRef(loadMessages)
+  loadMessagesRef.current = loadMessages
 
   // Trigger buffered load when toggles change or view switches to unified_streams
   const streamToggleCount = streamToggles.size
