@@ -16,6 +16,10 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   const [dayCue, setDayCue] = useState<string | null>(null)
   const userScrolledRef = useRef(false)
   const justSentRef = useRef(false)
+  // Guards against programmatic scrolls being misinterpreted as user scrolls.
+  // Set to true before any programmatic scroll, cleared by handleScroll when
+  // the scroll settles at the edge, or by a short timeout.
+  const programmaticScrollRef = useRef(false)
   const prevMsgCountRef = useRef(0)
   const snapshotMsgCountRef = useRef(0) // msg count when user scrolled away
   const [mainInput, setMainInput] = useState('')
@@ -78,14 +82,16 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     // Detect manual scroll away from latest edge.
     // Skip if we just sent a message -- the content reflow triggers a spurious
     // scroll event that would re-set userScrolledRef before auto-scroll fires.
-    if (!atEdge && !justSentRef.current) {
+    if (!atEdge && !justSentRef.current && !programmaticScrollRef.current) {
       if (!userScrolledRef.current) {
+        console.log('[v0] handleScroll: setting userScrolled=true', { scrollTop: el.scrollTop, scrollHeight: el.scrollHeight, clientHeight: el.clientHeight })
         userScrolledRef.current = true
         snapshotMsgCountRef.current = messages.length
       }
       setShowJumpToLatest(true)
     } else if (atEdge) {
       userScrolledRef.current = false
+      programmaticScrollRef.current = false
       setShowJumpToLatest(false)
       setNewMsgCount(0)
       snapshotMsgCountRef.current = 0
@@ -112,11 +118,13 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
 
   // Jump to latest message
   function jumpToLatest() {
-    if (!scrollRef.current) return
-    if (store.oldestFirst) {
-      scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
-    } else {
-      scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' })
+  if (!scrollRef.current) return
+  programmaticScrollRef.current = true
+  setTimeout(() => { programmaticScrollRef.current = false }, 500)
+  if (store.oldestFirst) {
+  scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
+  } else {
+  scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' })
     }
     userScrolledRef.current = false
     setShowJumpToLatest(false)
@@ -147,6 +155,8 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   useEffect(() => {
     transitioningRef.current = true
     userScrolledRef.current = false
+    programmaticScrollRef.current = true
+    setTimeout(() => { programmaticScrollRef.current = false }, 500)
     prevMsgCountRef.current = 0
     prevLastMsgIdRef.current = null
     setShowJumpToLatest(false)
@@ -184,11 +194,14 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     const hasNewMessages = newCount > prevMsgCountRef.current ||
       (newCount > 0 && lastMsgId !== prevLastMsgIdRef.current && prevLastMsgIdRef.current !== null)
 
+    console.log('[v0] auto-scroll effect', { newCount, wasEmpty, hasNewMessages, userScrolled: userScrolledRef.current, justSent: justSentRef.current, lastMsgId, prevLastMsgId: prevLastMsgIdRef.current })
     if (hasNewMessages) {
       if (wasEmpty) {
         // First load: ensure scroll state is clean so subsequent new messages
         // that arrive right after the initial load still auto-scroll.
         userScrolledRef.current = false
+        programmaticScrollRef.current = true
+        setTimeout(() => { programmaticScrollRef.current = false }, 500)
         // First load -- check if we should jump to first unread
         if (pendingJumpToUnread.current) {
           pendingJumpToUnread.current = false
@@ -244,11 +257,10 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
         }
       } else if (!userScrolledRef.current) {
         // User hasn't scrolled away -- auto-scroll to fully reveal new messages.
-        // Double rAF ensures the flex layout has fully reflowed (input bar height
-        // subtracted from scroll area) before we measure scrollHeight.
-        // Use instant scroll when justSent to avoid two competing smooth scrolls
-        // (one from optimistic insert, one from server response) causing jumpiness.
+        // Use instant scroll when justSent to avoid competing smooth scrolls.
         const useSmooth = !justSentRef.current
+        programmaticScrollRef.current = true
+        setTimeout(() => { programmaticScrollRef.current = false }, 500)
         requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           const container = scrollRef.current
@@ -274,6 +286,8 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
       // Reset userScrolled so that messages arriving right after the initial
       // load (e.g. from the first poll patchUnifiedStreams) still auto-scroll.
       userScrolledRef.current = false
+      programmaticScrollRef.current = true
+      setTimeout(() => { programmaticScrollRef.current = false }, 500)
       setShowJumpToLatest(false)
       requestAnimationFrame(() => {
         const c = scrollRef.current
