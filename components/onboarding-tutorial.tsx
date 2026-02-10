@@ -175,7 +175,7 @@ export function OnboardingTutorial({ onDismiss }: { onDismiss: () => void }) {
           <button
             onClick={() => setStep(s => Math.max(0, s - 1))}
             disabled={isFirst}
-            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-0 transition-all"
+            className="flex items-center gap-1.5 text-xs font-medium px-4 py-2 rounded-lg border border-border bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-0 disabled:pointer-events-none transition-all"
             style={{ fontFamily: 'var(--font-mono)' }}
           >
             <ChevronLeft className="w-3.5 h-3.5" />
@@ -207,16 +207,17 @@ export function OnboardingTutorial({ onDismiss }: { onDismiss: () => void }) {
           {isLast ? (
             <button
               onClick={dismiss}
-              className="flex items-center gap-1.5 text-xs font-semibold text-white px-4 py-2 rounded-lg hover:brightness-110 transition-all"
+              className="flex items-center gap-1.5 text-xs font-semibold text-white px-5 py-2.5 rounded-lg hover:brightness-110 transition-all shadow-sm"
               style={{ background: 'var(--d360-gradient)', fontFamily: 'var(--font-mono)' }}
             >
               Let's Go
+              <ChevronRight className="w-3.5 h-3.5" />
             </button>
           ) : (
             <button
               onClick={() => setStep(s => s + 1)}
-              className="flex items-center gap-1 text-xs font-semibold text-[var(--d360-orange)] hover:brightness-125 transition-colors"
-              style={{ fontFamily: 'var(--font-mono)' }}
+              className="flex items-center gap-1.5 text-xs font-semibold text-white px-5 py-2.5 rounded-lg hover:brightness-110 transition-all shadow-sm"
+              style={{ background: 'var(--d360-gradient)', fontFamily: 'var(--font-mono)' }}
             >
               Next
               <ChevronRight className="w-3.5 h-3.5" />
