@@ -157,7 +157,7 @@ export function MessageBuilder() {
   }
 
   function addLoad() {
-    if (form.loads.length >= 5) return
+    if (form.loads.length >= 7) return
     setForm(prev => ({ ...prev, loads: [...prev.loads, emptyLoad()] }))
     setTimeout(() => formScrollRef.current?.scrollTo({ top: formScrollRef.current.scrollHeight, behavior: 'smooth' }), 50)
   }
@@ -170,7 +170,10 @@ export function MessageBuilder() {
     setForm({ driverName: '', date: todayStr(), loads: [emptyLoad()] })
   }
 
-  // ── Drag & Drop ──
+  // ── Drag & Drop (mouse + touch) ──
+
+  const touchStartY = useRef<number>(0)
+  const touchDragIdx = useRef<number | null>(null)
 
   function handleDragStart(idx: number) {
     setDragIdx(idx)
@@ -183,17 +186,47 @@ export function MessageBuilder() {
 
   function handleDrop(idx: number) {
     if (dragIdx === null || dragIdx === idx) { setDragIdx(null); setOverIdx(null); return }
-    setForm(prev => {
-      const loads = [...prev.loads]
-      const [moved] = loads.splice(dragIdx, 1)
-      loads.splice(idx, 0, moved)
-      return { ...prev, loads }
-    })
+    reorderLoads(dragIdx, idx)
     setDragIdx(null)
     setOverIdx(null)
   }
 
   function handleDragEnd() {
+    setDragIdx(null)
+    setOverIdx(null)
+  }
+
+  function reorderLoads(fromIdx: number, toIdx: number) {
+    setForm(prev => {
+      const loads = [...prev.loads]
+      const [moved] = loads.splice(fromIdx, 1)
+      loads.splice(toIdx, 0, moved)
+      return { ...prev, loads }
+    })
+  }
+
+  function handleTouchStart(e: React.TouchEvent, idx: number) {
+    touchStartY.current = e.touches[0].clientY
+    touchDragIdx.current = idx
+    setDragIdx(idx)
+  }
+
+  function handleTouchMove(e: React.TouchEvent) {
+    if (touchDragIdx.current === null) return
+    const touch = e.touches[0]
+    const elements = document.elementsFromPoint(touch.clientX, touch.clientY)
+    const card = elements.find(el => el.getAttribute('data-load-idx') !== null)
+    if (card) {
+      const targetIdx = parseInt(card.getAttribute('data-load-idx')!, 10)
+      setOverIdx(targetIdx)
+    }
+  }
+
+  function handleTouchEnd() {
+    if (touchDragIdx.current !== null && overIdx !== null && touchDragIdx.current !== overIdx) {
+      reorderLoads(touchDragIdx.current, overIdx)
+    }
+    touchDragIdx.current = null
     setDragIdx(null)
     setOverIdx(null)
   }
@@ -421,11 +454,15 @@ export function MessageBuilder() {
             {form.loads.map((load, idx) => (
               <div
                 key={load.id}
+                data-load-idx={idx}
                 draggable
                 onDragStart={() => handleDragStart(idx)}
                 onDragOver={e => handleDragOver(e, idx)}
                 onDrop={() => handleDrop(idx)}
                 onDragEnd={handleDragEnd}
+                onTouchStart={e => handleTouchStart(e, idx)}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
                 className={`rounded-xl border bg-card transition-all ${
                   overIdx === idx ? 'border-[var(--d360-orange)] ring-1 ring-[var(--d360-orange)]/30' :
                   dragIdx === idx ? 'opacity-50 border-border' : 'border-border'
@@ -562,14 +599,14 @@ export function MessageBuilder() {
             ))}
 
             {/* Add load button */}
-            {form.loads.length < 5 && (
+            {form.loads.length < 7 && (
               <button
                 onClick={addLoad}
                 className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed border-border hover:border-[var(--d360-orange)] text-muted-foreground hover:text-[var(--d360-orange)] transition-colors"
                 style={mono}
               >
                 <Plus className="w-4 h-4" />
-                <span className="text-[10px] uppercase tracking-widest font-semibold">Add Load ({form.loads.length}/5)</span>
+                <span className="text-[10px] uppercase tracking-widest font-semibold">Add Load ({form.loads.length}/7)</span>
               </button>
             )}
           </div>
