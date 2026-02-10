@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useStore } from '@/lib/store'
 import { api } from '@/lib/groupme-api'
 import { storage } from '@/lib/storage'
-import { X, RefreshCw, Users, MessageCircle, Search, Check, Loader2, UserPlus, Trash2, ChevronDown } from 'lucide-react'
+import { X, RefreshCw, Users, MessageCircle, Search, Check, Loader2, UserPlus, Trash2, ChevronDown, Pencil } from 'lucide-react'
 
 interface ShiftProfile {
   name: string
@@ -27,6 +27,9 @@ export function ShiftChangeModal() {
   const [editingProfiles, setEditingProfiles] = useState(false)
   const [newName, setNewName] = useState('')
   const [newPhone, setNewPhone] = useState('')
+  const [editIdx, setEditIdx] = useState<number | null>(null)
+  const [editName, setEditName] = useState('')
+  const [editPhone, setEditPhone] = useState('')
 
   useEffect(() => {
     setProfiles(storage.getShiftProfiles())
@@ -69,6 +72,31 @@ export function ShiftChangeModal() {
     const updated = profiles.filter((_, i) => i !== idx)
     setProfiles(updated)
     storage.setShiftProfiles(updated)
+    if (editIdx === idx) setEditIdx(null)
+  }
+
+  function startEdit(idx: number) {
+    setEditIdx(idx)
+    setEditName(profiles[idx].name)
+    setEditPhone(profiles[idx].phone)
+  }
+
+  function saveEdit() {
+    if (editIdx === null || !editName.trim()) return
+    const updated = profiles.map((p, i) =>
+      i === editIdx ? { name: editName.trim(), phone: editPhone.trim() } : p
+    )
+    setProfiles(updated)
+    storage.setShiftProfiles(updated)
+    setEditIdx(null)
+    setEditName('')
+    setEditPhone('')
+  }
+
+  function cancelEdit() {
+    setEditIdx(null)
+    setEditName('')
+    setEditPhone('')
   }
 
   function saveCurrentAsProfile() {
@@ -185,34 +213,83 @@ export function ShiftChangeModal() {
               <div className="rounded-lg border border-border bg-secondary/20 overflow-hidden mb-1">
                 {/* Existing profiles */}
                 {profiles.length > 0 ? (
-                  <div className="max-h-[120px] overflow-y-auto">
+                  <div className="max-h-[160px] overflow-y-auto">
                     {profiles.map((p, i) => (
-                      <div
-                        key={i}
-                        className="flex items-center justify-between px-3 py-2 hover:bg-secondary/40 transition-colors border-b border-border/50 last:border-b-0 cursor-pointer group/prof"
-                        onClick={() => !editingProfiles && selectProfile(p)}
-                      >
-                        <div className="flex-1 min-w-0">
-                          <div className="text-xs font-semibold text-foreground truncate" style={{ fontFamily: 'var(--font-mono)' }}>
-                            {p.name}
+                      editIdx === i ? (
+                        <div key={i} className="px-3 py-2 border-b border-border/50 last:border-b-0 bg-secondary/30 space-y-1.5">
+                          <input
+                            value={editName}
+                            onChange={e => setEditName(e.target.value)}
+                            placeholder="Name"
+                            className="w-full text-[10px] bg-secondary/30 border border-border rounded-lg px-2 py-1 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)]"
+                            style={{ fontFamily: 'var(--font-mono)' }}
+                            autoFocus
+                            onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') cancelEdit() }}
+                          />
+                          <input
+                            value={editPhone}
+                            onChange={e => setEditPhone(e.target.value)}
+                            placeholder="Phone"
+                            className="w-full text-[10px] bg-secondary/30 border border-border rounded-lg px-2 py-1 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)]"
+                            style={{ fontFamily: 'var(--font-mono)' }}
+                            onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') cancelEdit() }}
+                          />
+                          <div className="flex gap-1">
+                            <button
+                              onClick={saveEdit}
+                              disabled={!editName.trim()}
+                              className="text-[8px] uppercase tracking-widest px-2 py-0.5 rounded text-white hover:brightness-110 disabled:opacity-30 transition-all"
+                              style={{ background: 'var(--d360-gradient)', fontFamily: 'var(--font-mono)' }}
+                            >
+                              Save
+                            </button>
+                            <button
+                              onClick={cancelEdit}
+                              className="text-[8px] uppercase tracking-widest px-2 py-0.5 rounded text-muted-foreground hover:text-foreground transition-colors"
+                              style={{ fontFamily: 'var(--font-mono)' }}
+                            >
+                              Cancel
+                            </button>
                           </div>
-                          {p.phone && (
-                            <div className="text-[9px] text-muted-foreground truncate" style={{ fontFamily: 'var(--font-mono)' }}>
-                              {p.phone}
+                        </div>
+                      ) : (
+                        <div
+                          key={i}
+                          className="flex items-center justify-between px-3 py-2 hover:bg-secondary/40 transition-colors border-b border-border/50 last:border-b-0 cursor-pointer group/prof"
+                          onClick={() => !editingProfiles && selectProfile(p)}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="text-xs font-semibold text-foreground truncate" style={{ fontFamily: 'var(--font-mono)' }}>
+                              {p.name}
                             </div>
+                            {p.phone && (
+                              <div className="text-[9px] text-muted-foreground truncate" style={{ fontFamily: 'var(--font-mono)' }}>
+                                {p.phone}
+                              </div>
+                            )}
+                          </div>
+                          {editingProfiles ? (
+                            <div className="flex items-center gap-0.5 shrink-0">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); startEdit(i) }}
+                                className="p-1 rounded hover:bg-secondary/60 text-muted-foreground hover:text-foreground transition-colors"
+                                title="Edit"
+                              >
+                                <Pencil className="w-3 h-3" />
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); deleteProfile(i) }}
+                                className="p-1 rounded hover:bg-destructive/20 text-destructive transition-colors"
+                                title="Delete"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            </div>
+                          ) : (
+                            <Check className="w-3 h-3 text-muted-foreground/30 group-hover/prof:text-[var(--d360-orange)] shrink-0 transition-colors" />
                           )}
                         </div>
-                        {editingProfiles ? (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); deleteProfile(i) }}
-                            className="p-1 rounded hover:bg-destructive/20 text-destructive shrink-0 transition-colors"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
-                        ) : (
-                          <Check className="w-3 h-3 text-muted-foreground/30 group-hover/prof:text-[var(--d360-orange)] shrink-0 transition-colors" />
-                        )}
-                      </div>
+                      )
                     ))}
                   </div>
                 ) : (
