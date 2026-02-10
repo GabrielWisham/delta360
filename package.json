@@ -57,14 +57,6 @@
     "vaul": "^1.1.2",
     "zod": "^3.24.1"
   },
-  "pnpm": {
-    "peerDependencyRules": {
-      "allowAny": [
-        "react",
-        "react-dom"
-      ]
-    }
-  },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.13",
     "@types/node": "^22",

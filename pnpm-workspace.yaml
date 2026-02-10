@@ -1,0 +1,9 @@
+onlyBuiltDependencies:
+  - '@next/swc-linux-x64-gnu'
+  - '@next/swc-linux-x64-musl'
+  - sharp
+
+peerDependencyRules:
+  allowAny:
+    - react
+    - react-dom
