@@ -135,6 +135,8 @@ interface StoreState {
   jumpToUnread: boolean
   // Pending scroll target from toast click
   pendingScrollToMsgId: string | null
+  // Bumped by pollLoop when it detects a new message for the current view
+  feedRefreshTick: number
   // Message preview toasts
   msgToasts: MsgToast[]
   toastMutedFeeds: Set<string>
@@ -279,6 +281,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [autoScroll, setAutoScrollState] = useState(true)
   const [jumpToUnread, setJumpToUnreadState] = useState(true)
   const [pendingScrollToMsgId, setPendingScrollToMsgId] = useState<string | null>(null)
+  const [feedRefreshTick, setFeedRefreshTick] = useState(0)
   const [loadingMore, setLoadingMore] = useState(false)
   const [globalMute, setGlobalMute] = useState(false)
   const [feedSound, setFeedSoundState] = useState<SoundName>('chime')
@@ -503,27 +506,34 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
       // --- Instant notification detection from group/DM list metadata ---
       if (trackerSeeded.current) {
+        const cv = currentViewRef.current
+        let needsFeedRefresh = false
         // Check groups for new messages
         for (const group of g) {
           const lmid = group.messages?.last_message_id
           if (!lmid) continue
           const prevId = lastMsgTracker.current[`g:${group.id}`]
-          if (prevId && prevId !== lmid && group.messages?.preview) {
-            const prev = group.messages.preview
-            const senderName = prev.nickname || 'Someone'
-            const text = prev.text || (prev.image_attached ? '(image)' : '(attachment)')
-            // Sound
-            if (!globalMuteRef.current && !feedMutedRef.current) {
-              // Check if this group belongs to a stream with a custom sound
-              let customSound: SoundName | null = null
-              for (const [, s] of Object.entries(streamsRef.current)) {
-                if (s.ids.includes(group.id)) { customSound = s.sound as SoundName; break }
-              }
-              playSound(customSound || feedSoundRef.current)
-              sendDesktopNotification(`Delta 360 - ${group.name}`, `${senderName}: ${text}`)
+          if (prevId && prevId !== lmid) {
+            // Always trigger feed refresh if this group is part of the current view
+            if (cv.type === 'all' || (cv.type === 'group' && cv.id === group.id) || cv.type === 'stream') {
+              needsFeedRefresh = true
             }
-            // Toast
-            showMsgToastRef.current({ sourceKey: `group:${group.id}`, sourceName: group.name, senderName, text, messageId: lmid, viewType: 'group', viewId: group.id, originType: 'group', originId: group.id })
+            if (group.messages?.preview) {
+              const prev = group.messages.preview
+              const senderName = prev.nickname || 'Someone'
+              const text = prev.text || (prev.image_attached ? '(image)' : '(attachment)')
+              // Sound
+              if (!globalMuteRef.current && !feedMutedRef.current) {
+                let customSound: SoundName | null = null
+                for (const [, s] of Object.entries(streamsRef.current)) {
+                  if (s.ids.includes(group.id)) { customSound = s.sound as SoundName; break }
+                }
+                playSound(customSound || feedSoundRef.current)
+                sendDesktopNotification(`Delta 360 - ${group.name}`, `${senderName}: ${text}`)
+              }
+              // Toast
+              showMsgToastRef.current({ sourceKey: `group:${group.id}`, sourceName: group.name, senderName, text, messageId: lmid, viewType: 'group', viewId: group.id, originType: 'group', originId: group.id })
+            }
           }
           lastMsgTracker.current[`g:${group.id}`] = lmid
         }
@@ -537,6 +547,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           const lmid = lm.id || `${lm.created_at}`
           const prevId = lastMsgTracker.current[`d:${otherId}`]
           if (prevId && prevId !== lmid) {
+            if (cv.type === 'dms' || (cv.type === 'dm' && cv.id === otherId)) {
+              needsFeedRefresh = true
+            }
             const senderName = lm.name || dm.other_user?.name || 'DM'
             const text = lm.text || '(attachment)'
             if (!globalMuteRef.current && !dmMutedRef.current) {
@@ -547,6 +560,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           }
           lastMsgTracker.current[`d:${otherId}`] = lmid
         }
+        // Trigger immediate feed reload if new message is in the current view
+        if (needsFeedRefresh) setFeedRefreshTick(t => t + 1)
       } else {
         // First poll -- seed the tracker without firing notifications
         for (const group of g) {
@@ -627,6 +642,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   approvedRef.current = approved
   const streamsRef = useRef(streams)
   streamsRef.current = streams
+  const currentViewRef = useRef(currentView)
+  currentViewRef.current = currentView
 
   const showMsgToast = useCallback((toast: Omit<MsgToast, 'id' | 'ts'>) => {
     if (toastMutedRef.current.has(toast.sourceKey)) return
@@ -1265,6 +1282,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   autoScroll,
   jumpToUnread,
   pendingScrollToMsgId,
+  feedRefreshTick,
   loadingMore,
     loadMoreMessages,
     globalMute,

@@ -35,11 +35,11 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   const loadMsgRef = useRef(store.loadMessages)
   loadMsgRef.current = store.loadMessages
 
-  // Load messages on view change (skip unified_streams - store's buffered effect handles it)
+  // Load messages on view change or when pollLoop detects new messages for this view
   useEffect(() => {
     if (view && view.type !== 'unified_streams') loadMsgRef.current(panelIdx)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view?.type, view?.id, panelIdx])
+  }, [view?.type, view?.id, panelIdx, store.feedRefreshTick])
 
   // Polling (unified_streams is excluded - its own effect handles loading)
   useEffect(() => {
@@ -238,12 +238,25 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   const clearPendingScroll = store.setPendingScrollToMsgId
   useEffect(() => {
     if (!pendingMsgId || messages.length === 0) return
-    // Give DOM a tick to render the messages
-    requestAnimationFrame(() => {
-      scrollToMsg(pendingMsgId)
-      clearPendingScroll(null)
-    })
-  }, [messages, pendingMsgId, scrollToMsg, clearPendingScroll])
+    // Retry up to 10 times (2s total) waiting for the message element to appear in DOM
+    let attempts = 0
+    const maxAttempts = 10
+    function tryScroll() {
+      const el = document.getElementById(`msg-${pendingMsgId}`)
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        el.classList.add('ring-2', 'ring-[var(--d360-orange)]')
+        setTimeout(() => el.classList.remove('ring-2', 'ring-[var(--d360-orange)]'), 2000)
+        clearPendingScroll(null)
+      } else if (++attempts < maxAttempts) {
+        setTimeout(tryScroll, 200)
+      } else {
+        // Give up -- message might not be in this batch; just clear the flag
+        clearPendingScroll(null)
+      }
+    }
+    requestAnimationFrame(tryScroll)
+  }, [messages, pendingMsgId, clearPendingScroll])
 
   function autoResize() {
     const el = textareaRef.current
