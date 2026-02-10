@@ -61,7 +61,7 @@ export function Header() {
   const currentStatus = STATUS_OPTIONS.find(s => s.value === store.myStatus) || STATUS_OPTIONS[2]
 
   return (
-    <header className="glass sticky top-0 z-50 flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2 border-b border-border overflow-x-auto scrollbar-none">
+    <header className="glass sticky top-0 z-50 flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2 border-b border-border">
       {/* Hamburger / sidebar toggle */}
       <button
         onClick={() => {
@@ -95,7 +95,7 @@ export function Header() {
         <div className="relative" ref={toolsRef}>
           <TrayButton label="Tools" open={toolsOpen} onClick={() => { setToolsOpen(!toolsOpen); setViewOpen(false); setActionsOpen(false) }} />
           {toolsOpen && (
-            <div className="absolute top-full left-0 mt-1 rounded-lg p-2 min-w-[180px] flex flex-col gap-1 z-50 shadow-xl bg-card border border-border" role="menu">
+            <div className="absolute top-full left-0 mt-1 rounded-lg p-2 min-w-[180px] flex flex-col gap-1 z-[60] shadow-xl bg-card border border-border" role="menu">
               <TrayItem label="Config" Icon={Settings} onClick={() => { store.setConfigOpen(true); setToolsOpen(false) }} />
               <TrayItem label="Search" Icon={Search} onClick={() => { store.setSearchOpen(true); setToolsOpen(false) }} />
               <TrayItem label="Members" Icon={Users} onClick={() => { store.setMembersOpen(true); setToolsOpen(false) }} />
@@ -111,7 +111,7 @@ export function Header() {
         <div className="relative" ref={viewRef}>
           <TrayButton label="View" open={viewOpen} onClick={() => { setViewOpen(!viewOpen); setToolsOpen(false); setActionsOpen(false) }} />
           {viewOpen && (
-            <div className="absolute top-full left-0 mt-1 rounded-lg p-2 min-w-[200px] flex flex-col gap-1 z-50 shadow-xl bg-card border border-border" role="menu">
+            <div className="absolute top-full left-0 mt-1 rounded-lg p-2 min-w-[200px] flex flex-col gap-1 z-[60] shadow-xl bg-card border border-border" role="menu">
               <TrayItem
                 label={`Theme: ${store.theme === 'dark' ? 'Dark' : 'Light'}`}
                 Icon={store.theme === 'dark' ? Moon : Sun}
@@ -145,7 +145,7 @@ export function Header() {
         <div className="relative" ref={actionsRef}>
           <TrayButton label="Actions" open={actionsOpen} onClick={() => { setActionsOpen(!actionsOpen); setToolsOpen(false); setViewOpen(false) }} />
           {actionsOpen && (
-            <div className="absolute top-full left-0 mt-1 rounded-lg p-2 min-w-[200px] flex flex-col gap-1 z-50 shadow-xl bg-card border border-border" role="menu">
+            <div className="absolute top-full left-0 mt-1 rounded-lg p-2 min-w-[200px] flex flex-col gap-1 z-[60] shadow-xl bg-card border border-border" role="menu">
               <TrayItem label="Broadcast" Icon={Megaphone} onClick={() => { store.setAdhocOpen(true); setActionsOpen(false) }} />
               <TrayItem label="Shift Change" Icon={ClipboardCheck} onClick={() => { store.setShiftChangeOpen(true); setActionsOpen(false) }} />
               <TrayItem label="Export Chat" Icon={Download} onClick={() => { exportChat(store); setActionsOpen(false) }} />
@@ -201,7 +201,7 @@ export function Header() {
           <span className="hidden sm:inline uppercase tracking-wider text-muted-foreground">{currentStatus.label}</span>
         </button>
         {statusOpen && (
-          <div className="absolute top-full right-0 mt-1 rounded-lg p-1 min-w-[140px] z-50 shadow-xl bg-card border border-border">
+          <div className="absolute top-full right-0 mt-1 rounded-lg p-1 min-w-[140px] z-[60] shadow-xl bg-card border border-border">
             {STATUS_OPTIONS.map(s => (
               <button
                 key={s.value}
