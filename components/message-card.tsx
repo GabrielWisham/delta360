@@ -19,6 +19,20 @@ import type { GroupMeMessage } from '@/lib/types'
 
 const QUICK_EMOJIS = ['\u2764\uFE0F', '\uD83D\uDD25', '\uD83D\uDE02', '\uD83D\uDC4D', '\uD83D\uDE2E', '\uD83D\uDE22']
 
+function msgEqual(a: GroupMeMessage, b: GroupMeMessage) {
+  // Allow ID changes when swapping optimistic -> real (same text, same sender)
+  const idOk = a.id === b.id
+    || (typeof a.id === 'string' && a.id.startsWith('optimistic-') && a.text === b.text)
+    || (typeof b.id === 'string' && b.id.startsWith('optimistic-') && a.text === b.text)
+  return idOk
+    && a.text === b.text
+    && a.name === b.name
+    && a._deleted === b._deleted
+    && (a.favorited_by?.length || 0) === (b.favorited_by?.length || 0)
+    && (a.attachments?.length || 0) === (b.attachments?.length || 0)
+    // Ignore avatar_url and created_at differences (optimistic vs server may differ)
+}
+
 export const MessageCard = memo(function MessageCard({
   msg,
   panelIdx,
@@ -514,6 +528,16 @@ export const MessageCard = memo(function MessageCard({
       </div>
     </div>
   )
+}, (prev, next) => {
+  // Custom comparison: only re-render when visible content changes.
+  // This prevents flashes when the optimistic msg object is swapped for
+  // the real server msg (which may have a different avatar_url or id).
+  return msgEqual(prev.msg, next.msg)
+    && prev.panelIdx === next.panelIdx
+    && prev.showGroupTag === next.showGroupTag
+    && prev.onScrollToMsg === next.onScrollToMsg
+    && prev.onReply === next.onReply
+    && prev.replyNameMap === next.replyNameMap
 })
 
 /* ======================================= */
