@@ -130,7 +130,11 @@ export const MessageCard = memo(function MessageCard({
                     const uid = msg.user_id || msg.sender_id
                     if (uid && uid !== store.user?.id) store.switchView('dm', uid)
                   }}
-                  className="text-[10px] font-bold uppercase tracking-wide hover:underline decoration-1 underline-offset-2"
+                  className={`hover:underline decoration-1 underline-offset-2 ${
+                    !msg.group_id
+                      ? 'text-[8px] font-medium tracking-wide opacity-40'
+                      : 'text-[10px] font-bold uppercase tracking-wide'
+                  }`}
                   style={{ fontFamily: 'var(--font-mono)', color: accentColor }}
                 >
                   {msg.name}
@@ -274,7 +278,11 @@ export const MessageCard = memo(function MessageCard({
                   const uid = msg.user_id || msg.sender_id
                   if (uid && uid !== store.user?.id) store.switchView('dm', uid)
                 }}
-                className="text-[11px] uppercase tracking-wider font-semibold hover:underline decoration-1 underline-offset-2"
+                className={`hover:underline decoration-1 underline-offset-2 ${
+                  !msg.group_id
+                    ? 'text-[9px] font-medium tracking-wide opacity-40'
+                    : 'text-[11px] uppercase tracking-wider font-semibold'
+                }`}
                 style={{ fontFamily: 'var(--font-mono)', color: accentColor }}
               >
                 {msg.name}
