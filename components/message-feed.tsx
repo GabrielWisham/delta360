@@ -638,7 +638,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className={`flex-1 overflow-y-auto px-3 py-2 flex flex-col min-h-0 ${store.compact ? 'gap-0.5' : 'gap-1.5'}`}
+        className={`flex-1 overflow-y-auto overflow-x-hidden px-3 py-2 flex flex-col min-h-0 ${store.compact ? 'gap-0.5' : 'gap-1.5'}`}
         style={store.boardGradient ? {
           background: `linear-gradient(${store.boardGradient.angle}deg, rgb(${store.boardGradient.start.join(',')}), rgb(${store.boardGradient.end.join(',')}))`,
           ['--board-text' as string]: boardTextColor,

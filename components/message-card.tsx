@@ -92,7 +92,7 @@ export const MessageCard = memo(function MessageCard({
         </div>
 
         {/* Bubble */}
-        <div className={`relative max-w-[75%] min-w-[120px] ${isSelf ? 'items-end' : 'items-start'}`}>
+        <div className={`relative max-w-[75%] min-w-0 ${isSelf ? 'items-end' : 'items-start'}`}>
           {/* Reply indicator */}
           {replyAttachment && (
             <button
@@ -149,7 +149,7 @@ export const MessageCard = memo(function MessageCard({
             {msg.text && (
               <p className={`text-xs leading-relaxed whitespace-pre-wrap break-words ${
                 isAlertMsg ? 'font-semibold' : ''
-              }`} style={isAlertMsg ? { color: 'var(--d360-red)' } : undefined}>
+              }`} style={{ overflowWrap: 'anywhere', ...(isAlertMsg ? { color: 'var(--d360-red)' } : undefined) }}>
                 {msg.text}
               </p>
             )}
@@ -229,7 +229,7 @@ export const MessageCard = memo(function MessageCard({
       </div>
 
       {/* Bubble */}
-      <div className={`relative max-w-[70%] min-w-[160px] flex flex-col ${isSelf ? 'items-end' : 'items-start'}`}>
+      <div className={`relative max-w-[70%] min-w-0 flex flex-col ${isSelf ? 'items-end' : 'items-start'}`}>
         {/* Reply indicator */}
         {replyAttachment && (
           <button
@@ -298,7 +298,7 @@ export const MessageCard = memo(function MessageCard({
           {msg.text && (
             <p className={`whitespace-pre-wrap break-words text-sm leading-6 ${
               isAlertMsg ? 'font-semibold' : ''
-            }`} style={isAlertMsg ? { color: 'var(--d360-red)' } : undefined}>
+            }`} style={{ overflowWrap: 'anywhere', ...(isAlertMsg ? { color: 'var(--d360-red)' } : undefined) }}>
               {msg.text}
             </p>
           )}
