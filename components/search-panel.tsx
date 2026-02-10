@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useStore } from '@/lib/store'
 import { formatTimestamp } from '@/lib/date-helpers'
 import { api } from '@/lib/groupme-api'
+import { Search, X } from 'lucide-react'
 import type { GroupMeMessage } from '@/lib/types'
 
 export function SearchPanel() {
@@ -14,22 +15,29 @@ export function SearchPanel() {
   const inputRef = useRef<HTMLInputElement>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Keyboard shortcut
+  // Keyboard shortcut: "/" to open, Escape to close
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
       if (e.key === '/' && !['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)) {
         e.preventDefault()
         store.setSearchOpen(true)
       }
+      if (e.key === 'Escape' && store.searchOpen) {
+        store.setSearchOpen(false)
+      }
     }
     document.addEventListener('keydown', handleKey)
     return () => document.removeEventListener('keydown', handleKey)
-  }, [store])
+  }, [store, store.searchOpen])
 
-  // Auto focus
+  // Auto focus when opened
   useEffect(() => {
     if (store.searchOpen) {
       setTimeout(() => inputRef.current?.focus(), 100)
+    } else {
+      // Reset state when closed
+      setQuery('')
+      setResults([])
     }
   }, [store.searchOpen])
 
@@ -88,85 +96,133 @@ export function SearchPanel() {
 
   return (
     <div
-      className="glass absolute inset-0 z-40 flex flex-col overflow-hidden"
+      className="fixed inset-0 z-50 flex items-start justify-center pt-[10vh]"
       onClick={(e) => {
         if (e.target === e.currentTarget) store.setSearchOpen(false)
       }}
     >
-      <div className="p-3 border-b border-border flex items-center gap-2">
-        <span className="text-sm">{'\u{1F50D}'}</span>
-        <input
-          ref={inputRef}
-          value={query}
-          onChange={handleChange}
-          placeholder="Search messages..."
-          className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
-          style={{ fontFamily: 'var(--font-jetbrains)' }}
-        />
-        <button
-          onClick={() => store.setSearchOpen(false)}
-          className="text-muted-foreground hover:text-foreground text-sm"
-        >
-          {'\u2715'}
-        </button>
-      </div>
+      {/* Opaque backdrop */}
+      <div className="absolute inset-0 bg-black/60" />
 
-      <div className="flex-1 overflow-y-auto p-3 space-y-2">
-        {loading && (
-          <p className="text-xs text-muted-foreground" style={{ fontFamily: 'var(--font-jetbrains)' }}>
-            Searching...
-          </p>
-        )}
+      {/* Search modal */}
+      <div className="relative w-full max-w-[540px] mx-4 rounded-xl bg-card border border-border shadow-2xl flex flex-col max-h-[70vh] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        {/* Search input */}
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
+          <Search className="w-4 h-4 text-muted-foreground shrink-0" />
+          <input
+            ref={inputRef}
+            value={query}
+            onChange={handleChange}
+            placeholder="Search messages..."
+            className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none"
+            style={{ fontFamily: 'var(--font-mono)' }}
+          />
+          <kbd
+            className="hidden sm:inline-flex items-center gap-0.5 text-[10px] text-muted-foreground border border-border rounded px-1.5 py-0.5"
+            style={{ fontFamily: 'var(--font-mono)' }}
+          >
+            ESC
+          </kbd>
+          <button
+            onClick={() => store.setSearchOpen(false)}
+            className="p-1 rounded hover:bg-secondary/60 text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
 
-        {!loading && query && results.length === 0 && (
-          <p className="text-xs text-muted-foreground" style={{ fontFamily: 'var(--font-jetbrains)' }}>
-            No results found
-          </p>
-        )}
-
-        {results.map(msg => {
-          const groupName = msg.group_id
-            ? store.groups.find(g => g.id === msg.group_id)?.name
-            : 'DM'
-
-          return (
-            <button
-              key={msg.id}
-              onClick={() => {
-                if (msg.group_id) store.switchView('group', msg.group_id)
-                store.setSearchOpen(false)
-              }}
-              className="w-full text-left px-3 py-2 rounded-lg hover:bg-secondary/40 transition-colors"
-            >
-              <div className="flex items-center gap-2 mb-0.5">
-                <span
-                  className="text-[10px] uppercase tracking-wider text-foreground font-semibold"
-                  style={{ fontFamily: 'var(--font-jetbrains)' }}
-                >
-                  {msg.name}
-                </span>
-                {groupName && (
-                  <span
-                    className="text-[9px] px-1.5 py-0.5 rounded-full bg-secondary/60 text-muted-foreground"
-                    style={{ fontFamily: 'var(--font-jetbrains)' }}
-                  >
-                    {groupName}
-                  </span>
-                )}
-                <span className="flex-1" />
-                <span
-                  className="text-[9px] text-muted-foreground"
-                  style={{ fontFamily: 'var(--font-jetbrains)' }}
-                >
-                  {formatTimestamp(msg.created_at)}
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground line-clamp-2">
-                {highlightMatch(msg.text || '', query)}
+        {/* Results */}
+        <div className="flex-1 overflow-y-auto">
+          {/* Empty state */}
+          {!query && (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <Search className="w-8 h-8 text-muted-foreground/30 mb-3" />
+              <p className="text-xs text-muted-foreground" style={{ fontFamily: 'var(--font-mono)' }}>
+                Type to search across all your messages
               </p>
-            </button>
-          )
-        })}
+              <p className="text-[10px] text-muted-foreground/50 mt-1" style={{ fontFamily: 'var(--font-mono)' }}>
+                {'Press / anywhere to open search'}
+              </p>
+            </div>
+          )}
+
+          {/* Loading */}
+          {loading && (
+            <div className="flex items-center gap-2 px-4 py-6">
+              <div className="w-3 h-3 rounded-full border-2 border-[var(--d360-orange)] border-t-transparent animate-spin" />
+              <span className="text-xs text-muted-foreground" style={{ fontFamily: 'var(--font-mono)' }}>
+                Searching...
+              </span>
+            </div>
+          )}
+
+          {/* No results */}
+          {!loading && query && results.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <p className="text-xs text-muted-foreground" style={{ fontFamily: 'var(--font-mono)' }}>
+                No results for &ldquo;{query}&rdquo;
+              </p>
+            </div>
+          )}
+
+          {/* Result list */}
+          {results.length > 0 && (
+            <div className="divide-y divide-border/50">
+              {results.map(msg => {
+                const groupName = msg.group_id
+                  ? store.groups.find(g => g.id === msg.group_id)?.name
+                  : 'DM'
+
+                return (
+                  <button
+                    key={msg.id}
+                    onClick={() => {
+                      if (msg.group_id) store.switchView('group', msg.group_id)
+                      store.setSearchOpen(false)
+                    }}
+                    className="w-full text-left px-4 py-3 hover:bg-secondary/40 transition-colors"
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <span
+                        className="text-[10px] uppercase tracking-wider text-foreground font-semibold"
+                        style={{ fontFamily: 'var(--font-mono)' }}
+                      >
+                        {msg.name}
+                      </span>
+                      {groupName && (
+                        <span
+                          className="text-[9px] px-1.5 py-0.5 rounded-full bg-secondary/60 text-muted-foreground"
+                          style={{ fontFamily: 'var(--font-mono)' }}
+                        >
+                          {groupName}
+                        </span>
+                      )}
+                      <span className="flex-1" />
+                      <span
+                        className="text-[9px] text-muted-foreground"
+                        style={{ fontFamily: 'var(--font-mono)' }}
+                      >
+                        {formatTimestamp(msg.created_at)}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground line-clamp-2">
+                      {highlightMatch(msg.text || '', query)}
+                    </p>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Result count footer */}
+          {results.length > 0 && (
+            <div className="px-4 py-2 border-t border-border/50">
+              <span className="text-[10px] text-muted-foreground" style={{ fontFamily: 'var(--font-mono)' }}>
+                {results.length} result{results.length !== 1 ? 's' : ''} found
+              </span>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

@@ -64,7 +64,6 @@ export function DispatchApp() {
             {/* Primary panel (always visible) */}
             <div className="flex-1 flex flex-col min-h-0 min-w-0 border-r border-border relative">
               <MessageFeed panelIdx={0} />
-              <SearchPanel />
             </div>
 
             {/* Secondary panels */}
@@ -85,6 +84,7 @@ export function DispatchApp() {
       </div>
 
       {/* Floating & Modal overlays */}
+      <SearchPanel />
       {store.configOpen && <ConfigPanel />}
       <FloatingClipboard />
       {store.membersOpen && <MembersPanel />}
