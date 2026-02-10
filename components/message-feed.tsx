@@ -655,7 +655,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
           {mainEmojiOpen && (
             <div className={`absolute right-0 rounded-xl p-3 grid grid-cols-6 gap-1.5 shadow-xl bg-card border border-border ${
               store.inputBottom ? 'bottom-full mb-2' : 'top-full mt-2'
-            }`} style={{ zIndex: 9999 }}>
+            }`} style={{ zIndex: 9999, minWidth: '232px' }}>
               {EMOJIS.map(e => (
                 <button
                   key={e}
