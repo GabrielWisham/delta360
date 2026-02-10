@@ -131,6 +131,8 @@ interface StoreState {
   chatSounds: Record<string, SoundName>
   // Unified streams loading
   unifiedLoading: boolean
+  // Jump behavior on unread
+  jumpToUnread: boolean
   // Message preview toasts
   msgToasts: MsgToast[]
   toastMutedFeeds: Set<string>
@@ -168,6 +170,7 @@ interface StoreActions {
   toggleInputBottom: () => void
   toggleOldestFirst: () => void
   setAutoScroll: (v: boolean) => void
+  setJumpToUnread: (v: boolean) => void
   toggleGlobalMute: () => void
   toggleSidebar: () => void
   toggleSidebarMobile: () => void
@@ -269,6 +272,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [inputBottom, setInputBottom] = useState(true)
   const [oldestFirst, setOldestFirst] = useState(true)
   const [autoScroll, setAutoScrollState] = useState(true)
+  const [jumpToUnread, setJumpToUnreadState] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [globalMute, setGlobalMute] = useState(false)
   const [feedSound, setFeedSoundState] = useState<SoundName>('chime')
@@ -336,8 +340,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setCompact(storage.getCompact())
     setInputBottom(storage.getInputBottom())
     setOldestFirst(storage.getOldestFirst())
-    setAutoScrollState(storage.getAutoScroll())
-    setGlobalMute(storage.getGlobalMute())
+  setAutoScrollState(storage.getAutoScroll())
+  setJumpToUnreadState(storage.getJumpToUnread())
+  setGlobalMute(storage.getGlobalMute())
     setFeedSoundState(storage.getFeedSound() as SoundName)
     setDmSoundState(storage.getDmSound() as SoundName)
     setUnifiedSoundState(storage.getUnifiedSound() as SoundName)
@@ -1214,8 +1219,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     compact,
     inputBottom,
     oldestFirst,
-    autoScroll,
-    loadingMore,
+  autoScroll,
+  jumpToUnread,
+  loadingMore,
     loadMoreMessages,
     globalMute,
     feedSound,
@@ -1311,8 +1317,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         return next
       })
     },
-    setAutoScroll: (v: boolean) => { setAutoScrollState(v); storage.setAutoScroll(v) },
-    toggleGlobalMute: () => {
+  setAutoScroll: (v: boolean) => { setAutoScrollState(v); storage.setAutoScroll(v) },
+  setJumpToUnread: (v: boolean) => { setJumpToUnreadState(v); storage.setJumpToUnread(v) },
+  toggleGlobalMute: () => {
       setGlobalMute(prev => {
         const next = !prev
         storage.setGlobalMute(next)

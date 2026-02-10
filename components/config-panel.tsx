@@ -557,6 +557,30 @@ function AudioTab({ store }: { store: ReturnType<typeof useStore> }) {
         muted={store.unifiedMuted}
         onMute={v => store.setUnifiedMuted(v)}
       />
+
+      <div className="border-t border-border" />
+
+      {/* Navigation behavior */}
+      <SectionLabel>Navigation</SectionLabel>
+      <label className="flex items-center justify-between cursor-pointer group rounded-lg border border-border bg-secondary/20 px-4 py-3">
+        <div>
+          <span className="text-xs text-foreground font-medium" style={{ fontFamily: 'var(--font-mono)' }}>
+            Jump to Unread
+          </span>
+          <p className="text-[10px] text-muted-foreground mt-0.5">
+            When entering a chat with unread messages, scroll to the first unread instead of the most recent
+          </p>
+        </div>
+        <div className={`w-9 h-5 rounded-full relative transition-colors shrink-0 ml-3 ${store.jumpToUnread ? 'bg-[var(--d360-orange)]' : 'bg-muted'}`}>
+          <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${store.jumpToUnread ? 'translate-x-4' : 'translate-x-0.5'}`} />
+        </div>
+        <input
+          type="checkbox"
+          checked={store.jumpToUnread}
+          onChange={e => store.setJumpToUnread(e.target.checked)}
+          className="sr-only"
+        />
+      </label>
     </div>
   )
 }

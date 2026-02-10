@@ -72,6 +72,7 @@ export const MessageCard = memo(function MessageCard({
     return (
       <div
         id={`msg-${msg.id}`}
+        data-msg-id={msg.id}
         className={`group/msg relative flex items-start gap-2 py-1 px-2 rounded-xl transition-colors hover:bg-white/5 ${
           isSelf ? 'flex-row-reverse' : ''
         }`}
@@ -210,6 +211,7 @@ export const MessageCard = memo(function MessageCard({
   return (
     <div
       id={`msg-${msg.id}`}
+      data-msg-id={msg.id}
       className={`group/msg relative flex items-start gap-2.5 ${isSelf ? 'flex-row-reverse' : ''}`}
     >
       {/* Avatar */}

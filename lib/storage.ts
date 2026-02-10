@@ -100,6 +100,10 @@ export const storage = {
   getOldestFirst: () => { const v = getString('gm_v3_oldest'); return v === '' ? true : v === '1' },
   setOldestFirst: (v: boolean) => setString('gm_v3_oldest', v ? '1' : '0'),
 
+  // Jump to unread (default true -- jump to first unread on entering a chat)
+  getJumpToUnread: () => { const v = getString('gm_v3_jump_unread'); return v === '' ? true : v === '1' },
+  setJumpToUnread: (v: boolean) => setString('gm_v3_jump_unread', v ? '1' : '0'),
+
   // Sidebar sort
   getSortMode: () => getString('gm_v3_sortmode', 'recent') as 'recent' | 'heat',
   setSortMode: (v: string) => setString('gm_v3_sortmode', v),

@@ -135,17 +135,28 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     return ordered.filter(m => !store.pinnedMessages[m.id])
   }, [ordered, store.pinnedMessages])
 
-  // Auto-scroll on view change (always) and on new messages (when autoScroll is on)
+  // On view change: jump to most recent OR first unread, depending on setting
+  const pendingJumpToUnread = useRef(false)
   useEffect(() => {
     if (!scrollRef.current) return
     userScrolledRef.current = false
     setShowJumpToLatest(false)
-    if (store.oldestFirst) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+    setNewMsgCount(0)
+    snapshotMsgCountRef.current = 0
+
+    const chatId = view?.id
+    if (store.jumpToUnread && chatId && store.lastSeen[chatId]) {
+      // Defer the scroll-to-unread until messages render
+      pendingJumpToUnread.current = true
     } else {
-      scrollRef.current.scrollTop = 0
+      // Default: jump to most recent
+      if (store.oldestFirst) {
+        scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+      } else {
+        scrollRef.current.scrollTop = 0
+      }
     }
-  }, [view?.type, view?.id, store.oldestFirst])
+  }, [view?.type, view?.id, store.oldestFirst, store.jumpToUnread, store.lastSeen])
 
   // Auto-scroll when new messages arrive (including first load)
   useEffect(() => {
@@ -155,11 +166,41 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
 
     if (newCount > prevMsgCountRef.current) {
       if (wasEmpty) {
-        // First load -- always jump to latest immediately (no smooth, avoid visual lag)
-        if (store.oldestFirst) {
-          scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+        // First load -- check if we should jump to first unread
+        if (pendingJumpToUnread.current) {
+          pendingJumpToUnread.current = false
+          const chatId = view?.id
+          const seenTs = chatId ? (store.lastSeen[chatId] || 0) : 0
+          // Find the first unread message (created_at > lastSeen)
+          const firstUnreadIdx = messages.findIndex(m => m.created_at > seenTs)
+          if (firstUnreadIdx > 0) {
+            // Scroll to the unread message element after a microtask so DOM is ready
+            requestAnimationFrame(() => {
+              const container = scrollRef.current
+              if (!container) return
+              const msgElements = container.querySelectorAll('[data-msg-id]')
+              const target = msgElements[firstUnreadIdx]
+              if (target) {
+                target.scrollIntoView({ block: 'start' })
+                // Nudge up a bit so it's not flush with the top
+                container.scrollTop = Math.max(0, container.scrollTop - 40)
+              }
+            })
+          } else {
+            // All messages are read or no match -- jump to latest
+            if (store.oldestFirst) {
+              scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+            } else {
+              scrollRef.current.scrollTop = 0
+            }
+          }
         } else {
-          scrollRef.current.scrollTop = 0
+          // Default: jump to latest immediately (no smooth, avoid visual lag)
+          if (store.oldestFirst) {
+            scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+          } else {
+            scrollRef.current.scrollTop = 0
+          }
         }
       } else if (store.autoScroll) {
         // Subsequent messages -- smooth scroll if autoScroll is on
