@@ -309,12 +309,15 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     requestAnimationFrame(tryScroll)
   }, [messages, pendingMsgId, clearPendingScroll, highlightMsg])
 
-  function autoResize() {
+  // Auto-resize textarea after every render where mainInput changes.
+  // Running in useEffect (after commit) ensures React has set the controlled
+  // value on the DOM element, so scrollHeight reflects the actual content.
+  useEffect(() => {
     const el = textareaRef.current
     if (!el) return
     el.style.height = 'auto'
     el.style.height = Math.min(el.scrollHeight, 160) + 'px'
-  }
+  }, [mainInput])
 
   // Current chat's alert words
   const chatId = view?.id || ''
@@ -511,7 +514,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
           {store.templates.map((tpl, i) => (
             <button
               key={i}
-              onClick={() => { setMainInput(prev => prev ? `${prev} ${tpl}` : tpl); autoResize() }}
+              onClick={() => setMainInput(prev => prev ? `${prev} ${tpl}` : tpl)}
               className="text-[10px] px-2 py-0.5 rounded-full border border-border text-muted-foreground hover:text-foreground hover:border-[var(--d360-orange)] transition-colors"
               style={{ fontFamily: 'var(--font-mono)' }}
             >
@@ -598,7 +601,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
         <textarea
           ref={textareaRef}
           value={mainInput}
-          onChange={e => { setMainInput(e.target.value); autoResize() }}
+          onChange={e => setMainInput(e.target.value)}
           onKeyDown={e => {
             if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); if (textareaRef.current) { textareaRef.current.style.height = 'auto' } }
           }}
@@ -629,7 +632,6 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
                   onClick={() => {
                     setMainInput(prev => prev + e)
                     setMainEmojiOpen(false)
-                    autoResize()
                   }}
                   className="text-base hover:scale-125 transition-transform w-8 h-8 flex items-center justify-center rounded-lg hover:bg-secondary/60"
                 >
