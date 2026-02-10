@@ -248,6 +248,19 @@ function StreamsTab({
   onSave: () => void
 }) {
   const [groupFilter, setGroupFilter] = useState('')
+  const groupListRef = useRef<HTMLDivElement>(null)
+
+  // Preserve scroll position across re-renders (state changes, poll updates)
+  const scrollPosRef = useRef(0)
+  useEffect(() => {
+    const el = groupListRef.current
+    if (!el) return
+    // Restore scroll position after re-render
+    el.scrollTop = scrollPosRef.current
+    const onScroll = () => { scrollPosRef.current = el.scrollTop }
+    el.addEventListener('scroll', onScroll, { passive: true })
+    return () => el.removeEventListener('scroll', onScroll)
+  })
 
   const sortedGroups = groups
     .slice()
@@ -307,7 +320,7 @@ function StreamsTab({
       </div>
 
       {/* Group list fills remaining space */}
-      <div className="flex-1 min-h-0 overflow-y-auto rounded-lg border border-border bg-secondary/20">
+      <div ref={groupListRef} className="flex-1 min-h-0 overflow-y-auto rounded-lg border border-border bg-secondary/20">
         {sortedGroups.length === 0 ? (
           <div className="flex items-center justify-center h-full text-xs text-muted-foreground">
             No groups match your search.
