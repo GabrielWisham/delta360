@@ -331,7 +331,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   })
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const knownMsgIds = useRef<Set<string>[]>([new Set(), new Set(), new Set()])
-  const panelSeeded = useRef<boolean[]>([false, false, false]) // tracks whether first load is done
+  const panelSeeded = useRef<boolean[]>([false, false, false])
+  // Track last_message_id per group/DM for instant notifications from pollLoop
+  const lastMsgTracker = useRef<Record<string, string>>({})
+  const trackerSeeded = useRef(false)
+  // Ref for showMsgToast so pollLoop (defined before the useCallback) can access it
+  const showMsgToastRef = useRef<(toast: Omit<MsgToast, 'id' | 'ts'>) => void>(() => {})
   const isLoggingInRef = useRef(false)
 
   // Load persisted settings on mount
@@ -479,6 +484,67 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const [g, d] = await Promise.all([api.getGroups(), api.getDMChats()])
       setGroups(g)
       setDmChats(d)
+
+      // --- Instant notification detection from group/DM list metadata ---
+      if (trackerSeeded.current) {
+        // Check groups for new messages
+        for (const group of g) {
+          const lmid = group.messages?.last_message_id
+          if (!lmid) continue
+          const prevId = lastMsgTracker.current[`g:${group.id}`]
+          if (prevId && prevId !== lmid && group.messages?.preview) {
+            const prev = group.messages.preview
+            const senderName = prev.nickname || 'Someone'
+            const text = prev.text || (prev.image_attached ? '(image)' : '(attachment)')
+            // Sound
+            if (!globalMuteRef.current && !feedMutedRef.current) {
+              // Check if this group belongs to a stream with a custom sound
+              let customSound: SoundName | null = null
+              for (const [, s] of Object.entries(streamsRef.current)) {
+                if (s.ids.includes(group.id)) { customSound = s.sound as SoundName; break }
+              }
+              playSound(customSound || feedSoundRef.current)
+              sendDesktopNotification(`Delta 360 - ${group.name}`, `${senderName}: ${text}`)
+            }
+            // Toast
+            showMsgToastRef.current({ sourceKey: `group:${group.id}`, sourceName: group.name, senderName, text, viewType: 'group', viewId: group.id, originType: 'group', originId: group.id })
+          }
+          lastMsgTracker.current[`g:${group.id}`] = lmid
+        }
+        // Check DMs for new messages
+        const approvedNow = approvedRef.current
+        for (const dm of d) {
+          const lm = dm.last_message
+          if (!lm) continue
+          const otherId = dm.other_user?.id || ''
+          if (approvedNow[otherId] === false) continue
+          const lmid = lm.id || `${lm.created_at}`
+          const prevId = lastMsgTracker.current[`d:${otherId}`]
+          if (prevId && prevId !== lmid) {
+            const senderName = lm.name || dm.other_user?.name || 'DM'
+            const text = lm.text || '(attachment)'
+            if (!globalMuteRef.current && !dmMutedRef.current) {
+              playSound(dmSoundRef.current)
+              sendDesktopNotification('Delta 360 - DM', `${senderName}: ${text}`)
+            }
+            showMsgToastRef.current({ sourceKey: `dm:${otherId}`, sourceName: dm.other_user?.name || 'DM', senderName, text, viewType: 'dm', viewId: otherId, originType: 'dm', originId: otherId })
+          }
+          lastMsgTracker.current[`d:${otherId}`] = lmid
+        }
+      } else {
+        // First poll -- seed the tracker without firing notifications
+        for (const group of g) {
+          const lmid = group.messages?.last_message_id
+          if (lmid) lastMsgTracker.current[`g:${group.id}`] = lmid
+        }
+        for (const dm of d) {
+          const lm = dm.last_message
+          const otherId = dm.other_user?.id || ''
+          if (lm) lastMsgTracker.current[`d:${otherId}`] = lm.id || `${lm.created_at}`
+        }
+        trackerSeeded.current = true
+      }
+
       const sync = g.find(gr => gr.name.toLowerCase() === 'dispatch')
       if (sync) {
         setSyncGroupId(sync.id)
@@ -528,9 +594,23 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setToasts(prev => prev.filter(t => t.id !== id))
   }, [])
 
-  // Use ref for toastMutedFeeds to avoid stale closures in loadMessages
+  // Use refs for notification settings to avoid stale closures in pollLoop/loadMessages
   const toastMutedRef = useRef(toastMutedFeeds)
   toastMutedRef.current = toastMutedFeeds
+  const globalMuteRef = useRef(globalMute)
+  globalMuteRef.current = globalMute
+  const feedMutedRef = useRef(feedMuted)
+  feedMutedRef.current = feedMuted
+  const dmMutedRef = useRef(dmMuted)
+  dmMutedRef.current = dmMuted
+  const feedSoundRef = useRef(feedSound)
+  feedSoundRef.current = feedSound
+  const dmSoundRef = useRef(dmSound)
+  dmSoundRef.current = dmSound
+  const approvedRef = useRef(approved)
+  approvedRef.current = approved
+  const streamsRef = useRef(streams)
+  streamsRef.current = streams
 
   const showMsgToast = useCallback((toast: Omit<MsgToast, 'id' | 'ts'>) => {
     if (toastMutedRef.current.has(toast.sourceKey)) return
@@ -541,6 +621,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       setMsgToasts(prev => prev.filter(t => t.id !== id))
     }, 10000)
   }, [])
+  showMsgToastRef.current = showMsgToast
 
   const removeMsgToast = useCallback((id: number) => {
     setMsgToasts(prev => prev.filter(t => t.id !== id))
@@ -650,49 +731,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     // Update cache
     msgCache.current[cacheKey] = { msgs, ts: Date.now() }
 
-    // Detect new messages: sound, desktop notification, and preview toast
-    const oldIds = knownMsgIds.current[panelIdx]
-    if (panelSeeded.current[panelIdx]) {
-      const newMsgs = msgs.filter(m => !oldIds.has(m.id))
-      if (newMsgs.length > 0) {
-        const latest = newMsgs[newMsgs.length - 1]
-        const notifBody = latest ? `${latest.name}: ${latest.text || '(attachment)'}` : ''
-
-        // Sound + desktop notifications (respect mute settings)
-        if (!globalMute) {
-          if ((type === 'group' || type === 'all' || type === 'stream') && !feedMuted) {
-            if (type === 'stream' && id && streams[id]) {
-              playSound(streams[id].sound as SoundName)
-            } else {
-              playSound(feedSound)
-            }
-            const groupName = groups.find(g => g.id === (latest?.group_id || id))?.name || 'Group'
-            sendDesktopNotification(`Delta 360 - ${groupName}`, notifBody)
-          } else if ((type === 'dm' || type === 'dms') && !dmMuted) {
-            playSound(dmSound)
-            sendDesktopNotification('Delta 360 - DM', notifBody)
-          }
-        }
-
-        // Message preview toasts -- fire one per new message (up to 3 most recent)
-        const toastBatch = newMsgs.slice(-3)
-        for (const m of toastBatch) {
-          if (type === 'group' || type === 'all' || type === 'stream') {
-            const gid = m.group_id || id || ''
-            const gName = groups.find(g => g.id === gid)?.name || 'Group'
-            const sourceKey = type === 'stream' ? `stream:${id}` : `group:${gid}`
-            const sourceName = type === 'stream' ? (id || 'Stream') : gName
-            showMsgToast({ sourceKey, sourceName, senderName: m.name, text: m.text || '(attachment)', viewType: 'group', viewId: gid, originType: 'group', originId: gid })
-          } else if (type === 'dm' || type === 'dms') {
-            const dmUserId = m.sender_id || m.user_id || id || ''
-            const dmChat = dmChats.find(d => d.other_user?.id === dmUserId)
-            const sourceKey = `dm:${dmUserId}`
-            const sourceName = dmChat?.other_user?.name || m.name || 'DM'
-            showMsgToast({ sourceKey, sourceName, senderName: m.name, text: m.text || '(attachment)', viewType: 'dm', viewId: dmUserId, originType: 'dm', originId: dmUserId })
-          }
-        }
-      }
-    }
+    // Update known IDs (notifications now handled by pollLoop for instant sync)
     knownMsgIds.current[panelIdx] = new Set(msgs.map(m => m.id))
     panelSeeded.current[panelIdx] = true
 
@@ -713,7 +752,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       next[panelIdx] = msgs
       return next
     })
-  }, [currentView, panels, groups, dmChats, approved, streams, globalMute, feedMuted, dmMuted, feedSound, dmSound, showMsgToast])
+  }, [currentView, panels, groups, dmChats, approved, streams])
 
   // Load more (older) messages for the current panel using before_id pagination
   const loadMoreMessages = useCallback(async (panelIdx: number): Promise<number> => {
@@ -848,24 +887,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     // Detect new messages
   if (unifiedKnownIds.current.size > 0) {
   const newMsgs = ready.filter(m => !unifiedKnownIds.current.has(m.id))
-  if (newMsgs.length > 0) {
-    // Sound (respects mute)
-    if (!globalMute && !unifiedMuted) {
-      playSound(unifiedSound)
-      const latest = newMsgs[newMsgs.length - 1]
-      if (latest) sendDesktopNotification('Delta 360 - Streams', `${latest.name}: ${latest.text || '(attachment)'}`)
-    }
-    // Toast per message (up to 3)
-    for (const m of newMsgs.slice(-3)) {
-      const gid = m.group_id || ''
-      const gName = groups.find(g => g.id === gid)?.name || 'Stream'
-      showMsgToast({ sourceKey: `group:${gid}`, sourceName: gName, senderName: m.name, text: m.text || '(attachment)', viewType: 'group', viewId: gid, originType: 'group', originId: gid })
-    }
+  // Notifications now handled by pollLoop for instant sync
   }
   }
     unifiedKnownIds.current = new Set(ready.map(m => m.id))
     setPanelMessages(prev => { const n = [...prev]; n[0] = ready; return n })
-  }, [fetchUnifiedMessages, globalMute, unifiedMuted, unifiedSound, showMsgToast])
+  }, [fetchUnifiedMessages])
 
   // Trigger buffered load when toggles change or view switches to unified_streams
   const streamToggleCount = streamToggles.size

@@ -47,7 +47,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     if (pollRef.current) clearInterval(pollRef.current)
     pollRef.current = setInterval(() => {
       loadMsgRef.current(panelIdx)
-    }, 8000)
+    }, 4000)
     return () => { if (pollRef.current) clearInterval(pollRef.current) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view?.type, view?.id, panelIdx])
