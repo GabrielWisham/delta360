@@ -221,7 +221,7 @@ interface StoreActions {
   setMsgBuilderOpen: (v: boolean) => void
   setOrderSearchOpen: (v: boolean) => void
   saveStickyNote: (key: string, text: string, expHours: number) => void
-  uploadImage: (file: File) => Promise<string | null>
+  uploadImage: (file: Blob) => Promise<string | null>
   setPendingImage: (url: string | null) => void
   showToast: (title: string, body: string, isPriority?: boolean) => void
   showMsgToast: (toast: Omit<MsgToast, 'id' | 'ts'>) => void
@@ -1654,7 +1654,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     showToast('Saved', 'Sticky note saved')
   }, [syncGroupId, showToast])
 
-  const uploadImage = useCallback(async (file: File) => {
+  const uploadImage = useCallback(async (file: Blob) => {
     try {
       const url = await api.uploadImage(file)
       setPendingImage(url)

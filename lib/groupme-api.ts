@@ -163,7 +163,7 @@ class GroupMeAPI {
     return group.members || []
   }
 
-  async uploadImage(file: File): Promise<string> {
+  async uploadImage(file: Blob): Promise<string> {
     return this.enqueue(async () => {
       const res = await fetch(`${PROXY_BASE}/pictures?token=${this.token}`, {
         method: 'POST',
