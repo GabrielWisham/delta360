@@ -170,7 +170,7 @@ export function OnboardingTutorial({ onDismiss }: { onDismiss: () => void }) {
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-6 sm:px-8 pt-5 pb-8 sm:pt-6 sm:pb-10 border-t border-border bg-secondary/5 shrink-0 safe-bottom">
+        <div className="flex items-center justify-between px-6 sm:px-8 pt-6 pb-14 sm:pt-8 sm:pb-16 border-t border-border bg-secondary/5 shrink-0 safe-bottom">
           {/* Back */}
           <button
             onClick={() => setStep(s => Math.max(0, s - 1))}
