@@ -137,10 +137,11 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     return ordered.filter(m => !store.pinnedMessages[m.id])
   }, [ordered, store.pinnedMessages])
 
-  // On view change: jump to most recent OR first unread, depending on setting
+  // On view change: reset scroll state. Actual scrolling is handled by
+  // the auto-scroll effect once messages load -- don't try to scroll here
+  // because the DOM still has stale/empty content.
   const pendingJumpToUnread = useRef(false)
   useEffect(() => {
-    if (!scrollRef.current) return
     userScrolledRef.current = false
     wasAtEdgeRef.current = true
     prevMsgCountRef.current = 0
@@ -151,18 +152,12 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
 
     const chatId = view?.id
     if (store.jumpToUnread && chatId && store.lastSeen[chatId]) {
-      // Defer the scroll-to-unread until messages render
       pendingJumpToUnread.current = true
     } else {
-      // Default: jump to most recent
-      if (store.oldestFirst) {
-        scrollRef.current.scrollTop = scrollRef.current.scrollHeight
-      } else {
-        scrollRef.current.scrollTop = 0
-      }
+      pendingJumpToUnread.current = false
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view?.type, view?.id, store.oldestFirst, store.jumpToUnread])
+  }, [view?.type, view?.id, store.jumpToUnread])
 
   // Track whether the user was at the latest edge BEFORE new messages rendered.
   // We snapshot this on every scroll event so it's always fresh.
@@ -215,11 +210,16 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
             }
           }
         } else {
-          if (store.oldestFirst) {
-            scrollRef.current.scrollTop = scrollRef.current.scrollHeight
-          } else {
-            scrollRef.current.scrollTop = 0
-          }
+          // Default: jump to most recent after DOM renders
+          requestAnimationFrame(() => {
+            const c = scrollRef.current
+            if (!c) return
+            if (store.oldestFirst) {
+              c.scrollTop = c.scrollHeight
+            } else {
+              c.scrollTop = 0
+            }
+          })
         }
       } else if (wasAtEdgeRef.current) {
         // New messages arrived while user was at the latest edge -- scroll to show them.
@@ -248,14 +248,22 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages.length, lastMsgId, store.oldestFirst])
 
-  // For unified_streams, also scroll to top when messages finish loading (buffer complete)
+  // For unified_streams, also scroll to latest when messages finish loading (buffer complete)
   const prevUnifiedLoading = useRef(store.unifiedLoading)
   useEffect(() => {
     if (view?.type === 'unified_streams' && prevUnifiedLoading.current && !store.unifiedLoading && scrollRef.current) {
-      scrollRef.current.scrollTop = 0
+      requestAnimationFrame(() => {
+        const c = scrollRef.current
+        if (!c) return
+        if (store.oldestFirst) {
+          c.scrollTop = c.scrollHeight
+        } else {
+          c.scrollTop = 0
+        }
+      })
     }
     prevUnifiedLoading.current = store.unifiedLoading
-  }, [store.unifiedLoading, view?.type])
+  }, [store.unifiedLoading, view?.type, store.oldestFirst])
 
   const highlightMsg = useCallback((el: HTMLElement) => {
     const container = scrollRef.current
