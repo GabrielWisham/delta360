@@ -405,10 +405,10 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   const chatId = view?.id || ''
   const currentChatAlerts = store.chatAlertWords[chatId] || []
 
-  function handleReplyTo(msg: GroupMeMessage) {
+  const handleReplyTo = useCallback((msg: GroupMeMessage) => {
     setReplyingTo(msg)
     setTimeout(() => textareaRef.current?.focus(), 50)
-  }
+  }, [])
 
   async function handleSend() {
     if (!mainInput.trim()) return
@@ -892,7 +892,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
               }
               return (
                 <MessageCard
-                  key={item.msg._stableKey || item.msg.id}
+                  key={item.msg.id}
                   msg={item.msg}
                   panelIdx={panelIdx}
                   showGroupTag={showGroupTag}

@@ -529,15 +529,13 @@ export const MessageCard = memo(function MessageCard({
     </div>
   )
 }, (prev, next) => {
-  // Custom comparison: only re-render when visible content changes.
-  // This prevents flashes when the optimistic msg object is swapped for
-  // the real server msg (which may have a different avatar_url or id).
+  // Only re-render when visible content changes.
+  // Callback refs (onScrollToMsg, onReply) and replyNameMap are excluded
+  // because they are recreated every render cycle; comparing them would
+  // defeat memoisation entirely and cause the flash on send.
   return msgEqual(prev.msg, next.msg)
     && prev.panelIdx === next.panelIdx
     && prev.showGroupTag === next.showGroupTag
-    && prev.onScrollToMsg === next.onScrollToMsg
-    && prev.onReply === next.onReply
-    && prev.replyNameMap === next.replyNameMap
 })
 
 /* ======================================= */

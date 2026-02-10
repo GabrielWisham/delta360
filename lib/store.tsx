@@ -954,58 +954,50 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // Only update panelMessages if something actually changed.
+    // Only update panelMessages when something visible actually changed.
+    // The suppressRefreshUntilRef guard (set by sendMessage) prevents this
+    // from running for 5s after send, so by the time we get here the server
+    // has the real message and we can do a clean swap.
     setPanelMessages(prev => {
       const existing = prev[panelIdx] || []
 
-      // Collect optimistic messages from the existing array
-      const optimisticMsgs = existing.filter(
-        m => typeof m.id === 'string' && m.id.startsWith('optimistic-')
-      )
-
-      // Match server messages to optimistic ones by text + timestamp proximity.
-      // Carry the optimistic ID as _stableKey so the React key doesn't change.
-      const matchedOptIds = new Set<string>()
-      const final = msgs.map(sm => {
-        const match = optimisticMsgs.find(opt =>
-          !matchedOptIds.has(opt.id)
-          && opt.text === sm.text
-          && Math.abs(sm.created_at - opt.created_at) < 15
-        )
-        if (match) {
-          matchedOptIds.add(match.id)
-          return { ...sm, _stableKey: match.id }
-        }
-        return sm
-      })
-
-      // Preserve optimistic messages the server hasn't confirmed yet (< 10s old)
-      const now = Math.floor(Date.now() / 1000)
-      for (const opt of optimisticMsgs) {
-        if (!matchedOptIds.has(opt.id) && (now - opt.created_at) < 10) {
-          final.push(opt)
-        }
-      }
-      if (optimisticMsgs.length > 0) {
-        final.sort((a, b) => a.created_at - b.created_at)
-      }
-
-      // Shallow-compare: skip update if nothing meaningful changed
+      // Shallow-compare by ID + text + likes -- if identical, skip re-render.
       if (
-        existing.length === final.length &&
+        existing.length === msgs.length &&
         existing.every((m, i) => {
-          const f = final[i]
-          return (m.id === f.id || m.id === f._stableKey)
-            && m.text === f.text
-            && (m.favorited_by?.length || 0) === (f.favorited_by?.length || 0)
-            && m._deleted === f._deleted
+          const s = msgs[i]
+          return m.id === s.id
+            && m.text === s.text
+            && (m.favorited_by?.length || 0) === (s.favorited_by?.length || 0)
+            && m._deleted === s._deleted
         })
       ) {
-        return prev // identical -- skip re-render
+        return prev
+      }
+
+      // Preserve pending optimistic messages if the server hasn't caught up yet
+      const optimistic = existing.filter(
+        m => typeof m.id === 'string' && m.id.startsWith('optimistic-')
+      )
+      if (optimistic.length > 0) {
+        const serverIds = new Set(msgs.map(m => m.id))
+        const now = Math.floor(Date.now() / 1000)
+        const pending = optimistic.filter(o =>
+          !serverIds.has(o.id) && (now - o.created_at) < 10
+          // Also check if a server msg has the same text (real version arrived)
+          && !msgs.some(s => s.text === o.text && Math.abs(s.created_at - o.created_at) < 15)
+        )
+        if (pending.length > 0) {
+          const merged = [...msgs, ...pending]
+          merged.sort((a, b) => a.created_at - b.created_at)
+          const next = [...prev]
+          next[panelIdx] = merged
+          return next
+        }
       }
 
       const next = [...prev]
-      next[panelIdx] = final
+      next[panelIdx] = msgs
       return next
     })
   }, [currentView, panels, groups, dmChats, approved, streams, user])
