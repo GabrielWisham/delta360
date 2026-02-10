@@ -1130,6 +1130,33 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const view = panelIdx === 0 ? currentView : panels[panelIdx]
     if (!view) return
     const { type, id } = view
+    // Optimistic insert so the message appears instantly
+    const optimisticId = `optimistic-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    if (user && id) {
+      const optimisticMsg: GroupMeMessage = {
+        id: optimisticId,
+        source_guid: optimisticId,
+        created_at: Math.floor(Date.now() / 1000),
+        user_id: user.id,
+        sender_id: user.id,
+        group_id: type === 'group' ? id : undefined,
+        recipient_id: type === 'dm' ? id : undefined,
+        name: user.name,
+        avatar_url: user.avatar_url,
+        text,
+        system: false,
+        favorited_by: [],
+        attachments: attachments || [],
+      }
+      setPanelMessages(prev => {
+        const next = [...prev]
+        const msgs = [...(next[panelIdx] || [])]
+        if (oldestFirst) { msgs.push(optimisticMsg) } else { msgs.unshift(optimisticMsg) }
+        next[panelIdx] = msgs
+        return next
+      })
+      setFeedRefreshTick(t => t + 1)
+    }
     try {
       if (type === 'group' && id) {
         await api.sendGroupMessage(id, text, attachments)
@@ -1137,13 +1164,48 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         await api.sendDM(id, text, attachments)
       }
       setPendingImage(null)
+      // Immediately refresh to replace optimistic msg with server-confirmed version
+      loadMessagesRef.current(panelIdx)
     } catch {
+      // Remove optimistic message on failure
+      setPanelMessages(prev => {
+        const next = [...prev]
+        next[panelIdx] = (next[panelIdx] || []).filter(m => m.id !== optimisticId)
+        return next
+      })
       showToast('Error', 'Failed to send message')
     }
-  }, [currentView, panels, showToast])
+  }, [currentView, panels, showToast, user, oldestFirst])
 
   // Send a message directly to a specific group/DM (used when replying from aggregate views)
   const sendMessageDirect = useCallback(async (targetType: 'group' | 'dm', targetId: string, text: string, attachments: GroupMeMessage['attachments'] = []) => {
+    // Optimistic insert
+    const optimisticId = `optimistic-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    if (user) {
+      const optimisticMsg: GroupMeMessage = {
+        id: optimisticId,
+        source_guid: optimisticId,
+        created_at: Math.floor(Date.now() / 1000),
+        user_id: user.id,
+        sender_id: user.id,
+        group_id: targetType === 'group' ? targetId : undefined,
+        recipient_id: targetType === 'dm' ? targetId : undefined,
+        name: user.name,
+        avatar_url: user.avatar_url,
+        text,
+        system: false,
+        favorited_by: [],
+        attachments: attachments || [],
+      }
+      setPanelMessages(prev => {
+        const next = [...prev]
+        const msgs = [...(next[0] || [])]
+        if (oldestFirst) { msgs.push(optimisticMsg) } else { msgs.unshift(optimisticMsg) }
+        next[0] = msgs
+        return next
+      })
+      setFeedRefreshTick(t => t + 1)
+    }
     try {
       if (targetType === 'group') {
         await api.sendGroupMessage(targetId, text, attachments)
@@ -1151,10 +1213,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         await api.sendDM(targetId, text, attachments)
       }
       setPendingImage(null)
+      loadMessagesRef.current(0)
     } catch {
+      setPanelMessages(prev => {
+        const next = [...prev]
+        next[0] = (next[0] || []).filter(m => m.id !== optimisticId)
+        return next
+      })
       showToast('Error', 'Failed to send message')
     }
-  }, [showToast])
+  }, [showToast, user, oldestFirst])
 
   const markSeen = useCallback((id: string) => {
     setLastSeen(prev => {
