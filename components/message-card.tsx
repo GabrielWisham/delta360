@@ -46,7 +46,14 @@ export const MessageCard = memo(function MessageCard({
   const chatId = msg.group_id || (isDm ? (isSelf ? msg.recipient_id : msg.sender_id) : '') || ''
   const chatAlerts = store.chatAlertWords?.[chatId] || []
   const allAlerts = [...store.alertWords, ...chatAlerts]
-  const isAlertMsg = allAlerts.some(w => msg.text?.toLowerCase().includes(w.toLowerCase()))
+  // Only highlight other people's messages, and use word boundaries so
+  // "help" doesn't match "helpful", "helper", etc.
+  const isAlertMsg = !isSelf && allAlerts.length > 0 && allAlerts.some(w => {
+    try {
+      const escaped = w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      return new RegExp(`\\b${escaped}\\b`, 'i').test(msg.text || '')
+    } catch { return false }
+  })
   const compact = store.compact
 
   const replyAttachment = msg.attachments?.find(a => a.type === 'reply')

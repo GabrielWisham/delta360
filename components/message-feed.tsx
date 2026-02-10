@@ -892,7 +892,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
               }
               return (
                 <MessageCard
-                  key={item.msg.id}
+                  key={item.msg._stableKey || item.msg.id}
                   msg={item.msg}
                   panelIdx={panelIdx}
                   showGroupTag={showGroupTag}

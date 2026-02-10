@@ -254,15 +254,18 @@ interface ToastItem {
 
 /** Check message text against global and per-chat alert words (case-insensitive).
  *  Returns the first matched alert word or null. */
-function findAlertWord(text: string, globalWords: string[], chatWords?: string[]): string | null {
+  function findAlertWord(text: string, globalWords: string[], chatWords?: string[]): string | null {
   if (!text) return null
-  const lower = text.toLowerCase()
   const all = chatWords ? [...globalWords, ...chatWords] : globalWords
   for (const w of all) {
-    if (w && lower.includes(w.toLowerCase())) return w
+    if (!w) continue
+    try {
+      const escaped = w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      if (new RegExp(`\\b${escaped}\\b`, 'i').test(text)) return w
+    } catch { continue }
   }
   return null
-}
+  }
 
 const StoreContext = createContext<(StoreState & StoreActions & { toasts: ToastItem[]; removeToast: (id: number) => void }) | null>(null)
 
@@ -950,56 +953,52 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setPanelMessages(prev => {
       const existing = prev[panelIdx] || []
 
-      // Preserve pending optimistic messages the server hasn't confirmed yet.
-      // An optimistic msg is "pending" if no server msg matches its text and
-      // approximate timestamp (within 10s).
-      const now = Math.floor(Date.now() / 1000)
-      const optimistic = existing.filter(
-        m => typeof m.id === 'string' && m.id.startsWith('optimistic-') && (now - m.created_at) < 10
-      )
-      const pendingOptimistic = optimistic.filter(opt =>
-        !msgs.some(s => s.text === opt.text && Math.abs(s.created_at - opt.created_at) < 10)
-      )
-
-      let final: typeof msgs
-      if (pendingOptimistic.length > 0) {
-        final = [...msgs, ...pendingOptimistic]
-        final.sort((a, b) => a.created_at - b.created_at)
-      } else {
-        final = msgs
+      // Build a map of optimistic messages so we can match them to real ones
+      const optimisticMap = new Map<string, typeof existing[0]>()
+      for (const m of existing) {
+        if (typeof m.id === 'string' && m.id.startsWith('optimistic-')) {
+          optimisticMap.set(`${m.text}::${m.created_at}`, m)
+        }
       }
 
-      // Shallow-compare: skip update if IDs, likes, and text all match.
-      // Treat optimistic -> real swaps (same text, close timestamp) as matches
-      // so we don't trigger a full re-render for that transition.
-      if (existing.length === final.length) {
-        let same = true
-        for (let i = 0; i < existing.length; i++) {
-          const m = existing[i]
+      // Build final array. For server msgs that match an optimistic msg,
+      // carry the optimistic _stableKey so the React key doesn't change.
+      const usedOptimistic = new Set<string>()
+      const final = msgs.map(sm => {
+        const key = `${sm.text}::${sm.created_at}`
+        const opt = optimisticMap.get(key)
+        if (opt && !usedOptimistic.has(key) && Math.abs(sm.created_at - opt.created_at) < 10) {
+          usedOptimistic.add(key)
+          // Return the server message but keep the optimistic _stableKey
+          return { ...sm, _stableKey: opt.id }
+        }
+        return sm
+      })
+
+      // Preserve pending optimistic messages the server hasn't confirmed yet.
+      const now = Math.floor(Date.now() / 1000)
+      const pendingOptimistic = existing.filter(m =>
+        typeof m.id === 'string' && m.id.startsWith('optimistic-')
+        && (now - m.created_at) < 10
+        && !usedOptimistic.has(`${m.text}::${m.created_at}`)
+      )
+      if (pendingOptimistic.length > 0) {
+        final.push(...pendingOptimistic)
+        final.sort((a, b) => a.created_at - b.created_at)
+      }
+
+      // Shallow-compare: skip update if nothing meaningful changed
+      if (
+        existing.length === final.length &&
+        existing.every((m, i) => {
           const f = final[i]
-          const idMatch = m.id === f.id
-          const optimisticSwap = (
-            (typeof m.id === 'string' && m.id.startsWith('optimistic-') && m.text === f.text && Math.abs(m.created_at - f.created_at) < 10)
-          )
-          if (
-            (idMatch || optimisticSwap)
+          return (m.id === f.id || m.id === f._stableKey)
             && m.text === f.text
             && (m.favorited_by?.length || 0) === (f.favorited_by?.length || 0)
             && m._deleted === f._deleted
-          ) {
-            // If it's an optimistic swap, silently update the ID in-place
-            // so the next comparison uses the real ID.
-            if (optimisticSwap && !idMatch) {
-              m.id = f.id
-              // Also copy over any server-only fields
-              if (f.favorited_by) m.favorited_by = f.favorited_by
-            }
-            continue
-          }
-          same = false
-          break
-        }
-        if (same) return prev // identical -- skip re-render
+        })
+      ) {
+        return prev // identical -- skip re-render
       }
 
       const next = [...prev]
