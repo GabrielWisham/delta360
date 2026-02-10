@@ -613,8 +613,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             const isViewingThis = cv.type === 'dm' && cv.id === otherId
             const senderName = lm.name || dm.other_user?.name || 'DM'
             const text = lm.text || '(attachment)'
-            // Check alert words (global + per-chat)
-            const matchedAlert = findAlertWord(text, alertWordsRef.current, chatAlertWordsRef.current[`dm:${otherId}`])
+            // Check alert words (global + per-chat). DM chat alert key is
+            // just otherId (matching the view.id used in the config UI).
+            const matchedAlert = findAlertWord(text, alertWordsRef.current, chatAlertWordsRef.current[otherId])
             if (!isSelf && !isViewingThis && !globalMuteRef.current && !dmMutedRef.current) {
               const soundToPlay = matchedAlert ? ('siren' as SoundName) : dmSoundRef.current
               const notifTitle = matchedAlert ? `ALERT: "${matchedAlert}" - DM` : 'Delta 360 - DM'

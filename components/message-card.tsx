@@ -39,7 +39,8 @@ export const MessageCard = memo(function MessageCard({
 
   const isSelf = msg.user_id === store.user?.id || msg.sender_id === store.user?.id
   const isPinned = !!store.pinnedMessages[msg.id]
-  const chatId = msg.group_id || msg.recipient_id || msg.sender_id || ''
+  // For DMs, chatId should always be the OTHER user's ID (matching view.id)
+  const chatId = msg.group_id || (isDm ? (isSelf ? msg.recipient_id : msg.sender_id) : '') || ''
   const chatAlerts = store.chatAlertWords?.[chatId] || []
   const allAlerts = [...store.alertWords, ...chatAlerts]
   const isAlertMsg = allAlerts.some(w => msg.text?.toLowerCase().includes(w.toLowerCase()))
