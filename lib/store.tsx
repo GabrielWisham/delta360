@@ -1617,7 +1617,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       if (fromIdx < 0 || fromIdx >= keys.length || toIdx < 0 || toIdx >= keys.length) return prev
       const [moved] = keys.splice(fromIdx, 1)
       keys.splice(toIdx, 0, moved)
-      const next: Record<string, { ids: string[]; sound: string }> = {}
+      const next: StreamsMap = {}
       keys.forEach(k => { next[k] = prev[k] })
       storage.setStreams(next)
       return next
