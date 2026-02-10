@@ -13,6 +13,7 @@ import {
   FileText,
   MapPin,
   Play,
+  Pencil,
 } from 'lucide-react'
 import type { GroupMeMessage } from '@/lib/types'
 
@@ -31,6 +32,8 @@ export const MessageCard = memo(function MessageCard({
 }) {
   const store = useStore()
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editText, setEditText] = useState('')
 
   const isSelf = msg.user_id === store.user?.id || msg.sender_id === store.user?.id
   const isPinned = !!store.pinnedMessages[msg.id]
@@ -70,6 +73,38 @@ export const MessageCard = memo(function MessageCard({
     if (!confirmDelete) { setConfirmDelete(true); return }
     await store.deleteMessage(msg.group_id || '', msg.id)
     setConfirmDelete(false)
+  }
+
+  function startEdit() {
+    setEditText(msg.text?.replace(/ \[edited\]$/, '') || '')
+    setIsEditing(true)
+  }
+
+  async function submitEdit() {
+    const trimmed = editText.trim()
+    if (!trimmed || trimmed === msg.text?.replace(/ \[edited\]$/, '')) {
+      setIsEditing(false)
+      return
+    }
+    const newText = `${trimmed} [edited]`
+    const groupId = msg.group_id || ''
+    // For DMs, find the other user's ID (the recipient)
+    const otherUserId = msg.recipient_id || (
+      msg.sender_id !== store.user?.id ? msg.sender_id :
+      msg.user_id !== store.user?.id ? msg.user_id : ''
+    ) || ''
+    // Delete old, send new
+    await store.deleteMessage(groupId, msg.id)
+    if (groupId) {
+      await store.sendMessageDirect('group', groupId, newText, msg.attachments || [])
+    } else if (otherUserId) {
+      // In a DM we sent, the recipient is the other user
+      const dmTarget = msg.conversation_id
+        ? msg.conversation_id.split('+').find(id => id !== store.user?.id) || otherUserId
+        : otherUserId
+      await store.sendMessageDirect('dm', dmTarget, newText, msg.attachments || [])
+    }
+    setIsEditing(false)
   }
 
   /* ======================================= */
@@ -158,14 +193,30 @@ export const MessageCard = memo(function MessageCard({
               </span>
             </div>
 
-            {/* Text */}
-            {msg.text && (
+            {/* Text / Inline edit */}
+            {isEditing ? (
+              <div className="flex flex-col gap-1 w-full">
+                <textarea
+                  autoFocus
+                  value={editText}
+                  onChange={e => setEditText(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitEdit() } if (e.key === 'Escape') setIsEditing(false) }}
+                  className="w-full text-xs leading-relaxed bg-background/60 border border-border rounded px-2 py-1 resize-none focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)]"
+                  rows={2}
+                />
+                <div className="flex items-center gap-1.5">
+                  <button onClick={submitEdit} className="text-[9px] font-medium px-2 py-0.5 rounded bg-[var(--d360-orange)] text-white hover:opacity-80 transition-opacity" style={{ fontFamily: 'var(--font-mono)' }}>Save</button>
+                  <button onClick={() => setIsEditing(false)} className="text-[9px] font-medium px-2 py-0.5 rounded border border-border text-muted-foreground hover:bg-muted/40 transition-colors" style={{ fontFamily: 'var(--font-mono)' }}>Cancel</button>
+                  <span className="text-[8px] text-muted-foreground/40 ml-auto" style={{ fontFamily: 'var(--font-mono)' }}>esc to cancel</span>
+                </div>
+              </div>
+            ) : msg.text ? (
               <p className={`text-xs leading-relaxed whitespace-pre-wrap break-words ${
                 isAlertMsg ? 'font-semibold' : ''
               }`} style={{ overflowWrap: 'anywhere', ...(isAlertMsg ? { color: 'var(--d360-red)' } : undefined) }}>
                 {msg.text}
               </p>
-            )}
+            ) : null}
 
             {/* Attachments */}
             {hasMediaAttachments && (
@@ -210,6 +261,7 @@ export const MessageCard = memo(function MessageCard({
             }} />
             <CompactAction Icon={Pin} title="Pin" active={isPinned} onClick={() => store.togglePinMessage(msg.id)} />
             <CompactAction Icon={Forward} title="Forward" onClick={() => store.setForwardMsg({ id: msg.id, name: msg.name, text: msg.text || '', groupId: msg.group_id })} />
+            {isSelf && <CompactAction Icon={Pencil} title="Edit" onClick={startEdit} />}
             {isSelf && <CompactAction Icon={Trash2} title={confirmDelete ? 'Confirm?' : 'Delete'} danger active={confirmDelete} onClick={handleDelete} />}
           </div>
         </div>
@@ -312,14 +364,30 @@ export const MessageCard = memo(function MessageCard({
             </span>
           </div>
 
-          {/* Body */}
-          {msg.text && (
+          {/* Body / Inline edit */}
+          {isEditing ? (
+            <div className="flex flex-col gap-1.5 w-full">
+              <textarea
+                autoFocus
+                value={editText}
+                onChange={e => setEditText(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitEdit() } if (e.key === 'Escape') setIsEditing(false) }}
+                className="w-full text-sm leading-6 bg-background/60 border border-border rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)]"
+                rows={3}
+              />
+              <div className="flex items-center gap-2">
+                <button onClick={submitEdit} className="text-[10px] font-medium px-3 py-1 rounded-md bg-[var(--d360-orange)] text-white hover:opacity-80 transition-opacity" style={{ fontFamily: 'var(--font-mono)' }}>Save</button>
+                <button onClick={() => setIsEditing(false)} className="text-[10px] font-medium px-3 py-1 rounded-md border border-border text-muted-foreground hover:bg-muted/40 transition-colors" style={{ fontFamily: 'var(--font-mono)' }}>Cancel</button>
+                <span className="text-[9px] text-muted-foreground/40 ml-auto" style={{ fontFamily: 'var(--font-mono)' }}>esc to cancel</span>
+              </div>
+            </div>
+          ) : msg.text ? (
             <p className={`whitespace-pre-wrap break-words text-sm leading-6 ${
               isAlertMsg ? 'font-semibold' : ''
             }`} style={{ overflowWrap: 'anywhere', ...(isAlertMsg ? { color: 'var(--d360-red)' } : undefined) }}>
               {msg.text}
             </p>
-          )}
+          ) : null}
 
           {/* Attachments */}
           {hasMediaAttachments && (
@@ -361,6 +429,7 @@ export const MessageCard = memo(function MessageCard({
           }} />
           <CompactAction Icon={Pin} title="Pin" active={isPinned} onClick={() => store.togglePinMessage(msg.id)} />
           <CompactAction Icon={Forward} title="Forward" onClick={() => store.setForwardMsg({ id: msg.id, name: msg.name, text: msg.text || '', groupId: msg.group_id })} />
+          {isSelf && <CompactAction Icon={Pencil} title="Edit" onClick={startEdit} />}
           {isSelf && <CompactAction Icon={Trash2} title={confirmDelete ? 'Confirm?' : 'Delete'} danger active={confirmDelete} onClick={handleDelete} />}
         </div>
       </div>

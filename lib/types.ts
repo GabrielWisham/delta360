@@ -95,6 +95,8 @@ export interface GroupMeMessage {
   attachments: GroupMeAttachment[]
   sender_type?: string
   platform?: string
+  conversation_id?: string
+  chat_id?: string
 }
 
 export type ViewType = 'all' | 'dms' | 'group' | 'dm' | 'stream' | 'unified_streams'
