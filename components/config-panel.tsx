@@ -384,6 +384,12 @@ function TemplatesTab({
 
       <div className="flex gap-2 items-end">
         <textarea
+          ref={el => {
+            if (el) {
+              el.style.height = 'auto'
+              el.style.height = Math.min(el.scrollHeight, 120) + 'px'
+            }
+          }}
           value={newTemplate}
           onChange={e => setNewTemplate(e.target.value)}
           onKeyDown={e => {
@@ -392,9 +398,9 @@ function TemplatesTab({
               addTemplate()
             }
           }}
-          rows={2}
-          placeholder="Type a template message... (Shift+Enter for new line)"
-          className="flex-1 text-xs bg-secondary/30 border border-border rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)] resize-none"
+          rows={1}
+          placeholder="Type a template... (Shift+Enter for new line)"
+          className="flex-1 text-xs bg-secondary/30 border border-border rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)] resize-none overflow-hidden"
           style={{ fontFamily: 'var(--font-mono)' }}
         />
         <button
