@@ -205,6 +205,33 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     return items
   }, [unpinned])
 
+  // Compute adaptive text color from board gradient
+  const boardTextColor = useMemo(() => {
+    if (!store.boardGradient) return undefined
+    const { start, end } = store.boardGradient
+    // Average the gradient midpoint
+    const avg = [
+      (start[0] + end[0]) / 2,
+      (start[1] + end[1]) / 2,
+      (start[2] + end[2]) / 2,
+    ]
+    // Relative luminance
+    const lum = (0.299 * avg[0] + 0.587 * avg[1] + 0.114 * avg[2]) / 255
+    return lum > 0.5 ? 'rgba(0,0,0,0.85)' : 'rgba(255,255,255,0.92)'
+  }, [store.boardGradient])
+
+  const boardMutedColor = useMemo(() => {
+    if (!store.boardGradient) return undefined
+    const { start, end } = store.boardGradient
+    const avg = [
+      (start[0] + end[0]) / 2,
+      (start[1] + end[1]) / 2,
+      (start[2] + end[2]) / 2,
+    ]
+    const lum = (0.299 * avg[0] + 0.587 * avg[1] + 0.114 * avg[2]) / 255
+    return lum > 0.5 ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.5)'
+  }, [store.boardGradient])
+
   const isSpecificView = view?.type === 'group' || view?.type === 'dm' || view?.type === 'stream'
 
   const inputSection = (
@@ -338,9 +365,12 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto px-3 py-2 flex flex-col gap-2 min-h-0"
+        className={`flex-1 overflow-y-auto px-3 py-2 flex flex-col min-h-0 ${store.compact ? 'gap-0.5' : 'gap-1.5'}`}
         style={store.boardGradient ? {
-          background: `linear-gradient(${store.boardGradient.angle}deg, rgb(${store.boardGradient.start.join(',')}), rgb(${store.boardGradient.end.join(',')}))`
+          background: `linear-gradient(${store.boardGradient.angle}deg, rgb(${store.boardGradient.start.join(',')}), rgb(${store.boardGradient.end.join(',')}))`,
+          ['--board-text' as string]: boardTextColor,
+          ['--board-muted' as string]: boardMutedColor,
+          color: boardTextColor,
         } : undefined}
       >
         {/* Unified streams loading gate: show ONLY spinner while syncing */}

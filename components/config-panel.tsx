@@ -659,7 +659,7 @@ function ThemeTab({ store }: { store: ReturnType<typeof useStore> }) {
   const previewGrad = `linear-gradient(${angle}deg, rgb(${start.join(',')}), rgb(${end.join(',')}))`
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 pr-2">
       <SectionLabel>Board Gradient</SectionLabel>
 
       {/* Live preview */}
