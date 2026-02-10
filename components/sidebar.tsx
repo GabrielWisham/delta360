@@ -254,8 +254,8 @@ export function Sidebar() {
   /* Active dots-menu ID for highlighting */
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
 
-  const feedMuted = !!store.mutedGroups['__universal_feed__']
-  const dmsMuted = !!store.mutedGroups['__direct_comms__']
+  const feedMuted = store.feedMuted
+  const dmsMuted = store.dmMuted
 
   const sortedGroups = useMemo(() => {
     const items = store.groups.map(g => ({
@@ -345,7 +345,7 @@ export function Sidebar() {
               Universal Feed
             </button>
             <button
-              onClick={(e) => { e.stopPropagation(); store.toggleMuteGroup('__universal_feed__') }}
+              onClick={(e) => { e.stopPropagation(); store.setFeedMuted(!feedMuted) }}
               className={`p-1 shrink-0 transition-colors ${feedMuted ? 'text-[var(--d360-red)]' : 'text-muted-foreground/40 hover:text-muted-foreground'}`}
               title={feedMuted ? 'Unmute feed' : 'Mute feed'}
             >
@@ -369,7 +369,7 @@ export function Sidebar() {
               Direct Comms
             </button>
             <button
-              onClick={(e) => { e.stopPropagation(); store.toggleMuteGroup('__direct_comms__') }}
+              onClick={(e) => { e.stopPropagation(); store.setDmMuted(!dmsMuted) }}
               className={`p-1 shrink-0 transition-colors ${dmsMuted ? 'text-[var(--d360-red)]' : 'text-muted-foreground/40 hover:text-muted-foreground'}`}
               title={dmsMuted ? 'Unmute DMs' : 'Mute DMs'}
             >
@@ -379,7 +379,7 @@ export function Sidebar() {
           {/* Unified Streams */}
           {hasStreams && (() => {
             const toggledCount = Object.keys(store.streams).filter(k => store.streamToggles.has(k)).length
-            const unifiedMuted = !!store.mutedGroups['__unified_streams__']
+            const unifiedMuted = store.unifiedMuted
             return (
               <div className="flex items-center gap-1 mb-0.5">
                 <button
@@ -400,7 +400,7 @@ export function Sidebar() {
                   </span>
                 </button>
                 <button
-                  onClick={(e) => { e.stopPropagation(); store.toggleMuteGroup('__unified_streams__') }}
+                  onClick={(e) => { e.stopPropagation(); store.setUnifiedMuted(!unifiedMuted) }}
                   className={`p-1 shrink-0 transition-colors ${unifiedMuted ? 'text-[var(--d360-red)]' : 'text-muted-foreground/40 hover:text-muted-foreground'}`}
                   title={unifiedMuted ? 'Unmute unified streams' : 'Mute unified streams'}
                 >
