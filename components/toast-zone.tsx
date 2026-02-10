@@ -42,7 +42,8 @@ export function ToastZone() {
           <button
             onClick={() => {
               removeMsgToast(t.id)
-              switchView(t.viewType, t.viewId)
+              // Navigate to the specific group/DM, not the aggregate feed
+              switchView(t.originType, t.originId)
             }}
             className="w-full text-left px-3 py-2.5 hover:bg-secondary/30 transition-colors"
           >

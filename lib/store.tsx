@@ -144,6 +144,9 @@ export type MsgToast = {
   text: string
   viewType: ViewState['type']
   viewId: string | null
+  // Navigate to the specific group/DM on click (resolves aggregate feeds)
+  originType: 'group' | 'dm'
+  originId: string
   ts: number
 }
 
@@ -663,14 +666,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         // Message preview toasts (always fire, independent of sound mute -- has own mute via toastMutedFeeds)
         if (latest) {
           if (type === 'group' || type === 'all' || type === 'stream') {
-            const groupName = groups.find(g => g.id === (latest?.group_id || id))?.name || 'Group'
-            const sourceKey = type === 'stream' ? `stream:${id}` : type === 'all' ? 'all' : `group:${latest.group_id || id}`
+            const gid = latest.group_id || id || ''
+            const groupName = groups.find(g => g.id === gid)?.name || 'Group'
+            const sourceKey = type === 'stream' ? `stream:${id}` : type === 'all' ? 'all' : `group:${gid}`
             const sourceName = type === 'stream' ? (id || 'Stream') : type === 'all' ? 'Universal Feed' : groupName
-            showMsgToast({ sourceKey, sourceName, senderName: latest.name, text: latest.text || '(attachment)', viewType: type, viewId: id })
+            showMsgToast({ sourceKey, sourceName, senderName: latest.name, text: latest.text || '(attachment)', viewType: type, viewId: id, originType: 'group', originId: gid })
           } else if (type === 'dm' || type === 'dms') {
+            // For DMs, the origin is the other user's ID. In 'dms' aggregate, derive from sender.
+            const dmUserId = type === 'dm' ? (id || '') : (latest.sender_id || latest.user_id || '')
+            const dmChat = dmChats.find(d => d.other_user?.id === dmUserId)
             const sourceKey = type === 'dms' ? 'dms' : `dm:${id}`
-            const sourceName = type === 'dms' ? 'Direct Comms' : (dmChats.find(d => d.other_user?.id === id)?.other_user?.name || 'DM')
-            showMsgToast({ sourceKey, sourceName, senderName: latest.name, text: latest.text || '(attachment)', viewType: type, viewId: id })
+            const sourceName = type === 'dms' ? (dmChat?.other_user?.name || 'DM') : (dmChat?.other_user?.name || 'DM')
+            showMsgToast({ sourceKey, sourceName, senderName: latest.name, text: latest.text || '(attachment)', viewType: type, viewId: id, originType: 'dm', originId: dmUserId })
           }
         }
       }
@@ -834,7 +841,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const latest = newMsgs[newMsgs.length - 1]
     if (latest) {
       sendDesktopNotification('Delta 360 - Streams', `${latest.name}: ${latest.text || '(attachment)'}`)
-      showMsgToast({ sourceKey: 'unified_streams', sourceName: 'Unified Streams', senderName: latest.name, text: latest.text || '(attachment)', viewType: 'unified_streams', viewId: null })
+      showMsgToast({ sourceKey: 'unified_streams', sourceName: 'Unified Streams', senderName: latest.name, text: latest.text || '(attachment)', viewType: 'unified_streams', viewId: null, originType: 'group', originId: latest.group_id || '' })
     }
   }
   }
