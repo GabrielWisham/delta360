@@ -186,6 +186,9 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
 
     if (hasNewMessages) {
       if (wasEmpty) {
+        // First load: ensure scroll state is clean so subsequent new messages
+        // that arrive right after the initial load still auto-scroll.
+        userScrolledRef.current = false
         // First load -- check if we should jump to first unread
         if (pendingJumpToUnread.current) {
           pendingJumpToUnread.current = false
@@ -268,6 +271,10 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   const prevUnifiedLoading = useRef(store.unifiedLoading)
   useEffect(() => {
     if (view?.type === 'unified_streams' && prevUnifiedLoading.current && !store.unifiedLoading && scrollRef.current) {
+      // Reset userScrolled so that messages arriving right after the initial
+      // load (e.g. from the first poll patchUnifiedStreams) still auto-scroll.
+      userScrolledRef.current = false
+      setShowJumpToLatest(false)
       requestAnimationFrame(() => {
         const c = scrollRef.current
         if (!c) return
