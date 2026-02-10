@@ -697,17 +697,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
           color: boardTextColor,
         } : undefined}
       >
-        {/* DM recipient watermark */}
-        {dmRecipientName && (
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden z-0">
-            <span
-              className="text-[60px] font-black uppercase tracking-widest opacity-[0.03] select-none whitespace-nowrap"
-              style={{ fontFamily: 'var(--font-mono)' }}
-            >
-              {dmRecipientName}
-            </span>
-          </div>
-        )}
+
 
         {/* Unified streams loading gate: show ONLY spinner while syncing */}
         {store.unifiedLoading && view?.type === 'unified_streams' ? (
