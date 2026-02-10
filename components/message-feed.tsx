@@ -67,9 +67,10 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     }
   }
 
-  // Scroll tracking
+  // Scroll tracking -- suppressed during view transitions to prevent glitchy
+  // state updates (day cue, jump-to-latest) from stale scroll positions.
   function handleScroll() {
-    if (!scrollRef.current) return
+    if (!scrollRef.current || transitioningRef.current) return
     const el = scrollRef.current
     const atEdge = isAtLatestEdge(el)
 
@@ -135,16 +136,19 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     return ordered.filter(m => !store.pinnedMessages[m.id])
   }, [ordered, store.pinnedMessages])
 
-  // On view change: reset scroll state. Actual scrolling is handled by
-  // the auto-scroll effect once messages load -- don't try to scroll here
-  // because the DOM still has stale/empty content.
+  // On view change: reset scroll state and suppress scroll side-effects until
+  // messages load. The `transitioningRef` guard prevents handleScroll from
+  // flashing stale day-cue or "jump to latest" button during the transition.
   const pendingJumpToUnread = useRef(false)
+  const transitioningRef = useRef(false)
   useEffect(() => {
+    transitioningRef.current = true
     userScrolledRef.current = false
     prevMsgCountRef.current = 0
     prevLastMsgIdRef.current = null
     setShowJumpToLatest(false)
     setNewMsgCount(0)
+    setDayCue(null)
     snapshotMsgCountRef.current = 0
 
     const chatId = view?.id
@@ -154,7 +158,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
       pendingJumpToUnread.current = false
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view?.type, view?.id, store.jumpToUnread])
+  }, [view?.type, view?.id, store.oldestFirst, store.jumpToUnread])
 
   const prevLastMsgIdRef = useRef<string | null>(null)
 
@@ -195,13 +199,15 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
                 target.scrollIntoView({ block: 'start' })
                 container.scrollTop = Math.max(0, container.scrollTop - 40)
               }
+              transitioningRef.current = false
             })
           } else {
-            if (store.oldestFirst) {
-              scrollRef.current.scrollTop = scrollRef.current.scrollHeight
-            } else {
-              scrollRef.current.scrollTop = 0
-            }
+            requestAnimationFrame(() => {
+              const c = scrollRef.current
+              if (!c) return
+              if (store.oldestFirst) { c.scrollTop = c.scrollHeight } else { c.scrollTop = 0 }
+              transitioningRef.current = false
+            })
           }
         } else {
           // Default: jump to most recent after DOM renders
@@ -213,6 +219,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
             } else {
               c.scrollTop = 0
             }
+            transitioningRef.current = false
           })
         }
       } else if (!userScrolledRef.current) {
