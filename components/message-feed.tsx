@@ -331,33 +331,45 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     const container = scrollRef.current
     if (!container) return
 
-    // Calculate target scroll position manually against our scroll container
-    // instead of using scrollIntoView (which can scroll parent containers too).
+    programmaticScrollRef.current = true
+
+    // Calculate where the element is relative to the scroll container
     const containerRect = container.getBoundingClientRect()
     const elRect = el.getBoundingClientRect()
-    const padding = 32
+    const padding = 48 // generous padding to ensure full visibility
 
     const msgH = el.offsetHeight
     const viewportH = container.clientHeight
 
+    // Offset of the element's top edge relative to the container's scroll position
+    const elTopInScroll = container.scrollTop + (elRect.top - containerRect.top)
+
     let targetScrollTop: number
-    if (msgH > viewportH * 0.6) {
-      // Large message: align its top with container top + padding
-      targetScrollTop = container.scrollTop + (elRect.top - containerRect.top) - padding
+    if (msgH > viewportH - padding * 2) {
+      // Message is taller than visible area: align top with padding
+      targetScrollTop = elTopInScroll - padding
     } else {
-      // Normal message: center it vertically in the container
-      const elCenterRelative = (elRect.top - containerRect.top) + msgH / 2
-      targetScrollTop = container.scrollTop + elCenterRelative - viewportH / 2
+      // Center the message vertically
+      targetScrollTop = elTopInScroll - (viewportH / 2) + (msgH / 2)
     }
 
     // Clamp to valid scroll range
     const maxScroll = container.scrollHeight - container.clientHeight
     targetScrollTop = Math.max(0, Math.min(targetScrollTop, maxScroll))
 
-    // Use instant scroll so the message is visible immediately (no fighting with smooth)
-    programmaticScrollRef.current = true
     container.scrollTo({ top: targetScrollTop, behavior: 'instant' })
-    setTimeout(() => { programmaticScrollRef.current = false }, 300)
+
+    // Verify after scroll that the full message is visible; nudge if clipped
+    requestAnimationFrame(() => {
+      const rect2 = el.getBoundingClientRect()
+      const cRect2 = container.getBoundingClientRect()
+      if (rect2.bottom > cRect2.bottom - 16) {
+        container.scrollTop += (rect2.bottom - cRect2.bottom) + 24
+      } else if (rect2.top < cRect2.top + 16) {
+        container.scrollTop -= (cRect2.top - rect2.top) + 24
+      }
+      setTimeout(() => { programmaticScrollRef.current = false }, 200)
+    })
 
     el.setAttribute('data-highlight', '')
     setTimeout(() => el.removeAttribute('data-highlight'), 2200)
@@ -368,31 +380,40 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     if (el) highlightMsg(el)
   }, [highlightMsg])
 
-  // After messages load, if there's a pending scroll target (from toast click), scroll to it
+  // After messages load, if there's a pending scroll target (from toast click), scroll to it.
+  // We use a ref + generation counter so rapid toast clicks cancel stale retry loops.
   const pendingMsgId = store.pendingScrollToMsgId
   const clearPendingScroll = store.setPendingScrollToMsgId
+  const scrollGenRef = useRef(0)
   useEffect(() => {
     if (!pendingMsgId || messages.length === 0) return
+    const gen = ++scrollGenRef.current
     // Prevent auto-scroll effect and handleScroll from interfering
     userScrolledRef.current = false
     programmaticScrollRef.current = true
     let attempts = 0
-    const maxAttempts = 15
+    const maxAttempts = 20
     function tryScroll() {
+      // If a newer toast click has started its own loop, bail out
+      if (scrollGenRef.current !== gen) return
       const el = document.getElementById(`msg-${pendingMsgId}`)
       if (el) {
-        highlightMsg(el)
-        clearPendingScroll(null)
+        // Use requestAnimationFrame to ensure layout is committed
+        requestAnimationFrame(() => {
+          if (scrollGenRef.current !== gen) return
+          highlightMsg(el)
+          clearPendingScroll(null)
+        })
       } else if (++attempts < maxAttempts) {
-        setTimeout(tryScroll, 250)
+        setTimeout(tryScroll, 200)
       } else {
         clearPendingScroll(null)
         programmaticScrollRef.current = false
       }
     }
-    // Give the view switch time to commit its first render
-    setTimeout(tryScroll, 100)
-  }, [messages, pendingMsgId, clearPendingScroll, highlightMsg])
+    // Give the view switch + loadMessages time to commit
+    setTimeout(tryScroll, 150)
+  }, [messages.length, pendingMsgId, clearPendingScroll, highlightMsg])
 
   // Auto-resize textarea after every render where mainInput changes.
   // Running in useEffect (after commit) ensures React has set the controlled
