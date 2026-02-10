@@ -15,6 +15,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   const [newMsgCount, setNewMsgCount] = useState(0)
   const [dayCue, setDayCue] = useState<string | null>(null)
   const userScrolledRef = useRef(false)
+  const justSentRef = useRef(false)
   const prevMsgCountRef = useRef(0)
   const snapshotMsgCountRef = useRef(0) // msg count when user scrolled away
   const [mainInput, setMainInput] = useState('')
@@ -74,14 +75,16 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     const el = scrollRef.current
     const atEdge = isAtLatestEdge(el)
 
-    // Detect manual scroll away from latest edge
-    if (!atEdge) {
+    // Detect manual scroll away from latest edge.
+    // Skip if we just sent a message -- the content reflow triggers a spurious
+    // scroll event that would re-set userScrolledRef before auto-scroll fires.
+    if (!atEdge && !justSentRef.current) {
       if (!userScrolledRef.current) {
         userScrolledRef.current = true
         snapshotMsgCountRef.current = messages.length
       }
       setShowJumpToLatest(true)
-    } else {
+    } else if (atEdge) {
       userScrolledRef.current = false
       setShowJumpToLatest(false)
       setNewMsgCount(0)
@@ -368,55 +371,56 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
       attachments.push({ type: 'reply', reply_id: replyingTo.id, base_reply_id: replyingTo.id })
     }
 
+    // Clear input immediately so the user sees feedback right away
+    const textToSend = mainInput.trim()
+    const replyRef = replyingTo
+    const pendingImg = store.pendingImage
+    setMainInput('')
+    setReplyingTo(null)
+    store.setPendingImage(null)
+
+    // Reset scroll state so the auto-scroll effect picks up the new message.
+    // justSentRef prevents the scroll handler from re-setting userScrolledRef
+    // when the DOM reflow fires a spurious scroll event after the optimistic insert.
+    userScrolledRef.current = false
+    justSentRef.current = true
+    setShowJumpToLatest(false)
+    setNewMsgCount(0)
+    snapshotMsgCountRef.current = 0
+    // Clear justSent after a short delay to allow the auto-scroll to complete
+    setTimeout(() => { justSentRef.current = false }, 500)
+
     // If replying from an aggregate view (all, dms, stream, unified_streams),
     // route the message directly to the replied-to message's group or DM
     const isAggregate = view?.type === 'all' || view?.type === 'dms' || view?.type === 'stream' || view?.type === 'unified_streams'
-  if (replyingTo && isAggregate) {
-  const groupId = replyingTo.group_id
+  if (replyRef && isAggregate) {
+  const groupId = replyRef.group_id
   if (groupId) {
-  await store.sendMessageDirect('group', groupId, mainInput.trim(), attachments)
+  store.sendMessageDirect('group', groupId, textToSend, attachments)
   } else {
   // For DMs: find the other user. If the sender is us, use recipient_id or
   // extract from conversation_id. If the sender is someone else, reply to them.
-  const senderId = replyingTo.sender_id || replyingTo.user_id
+  const senderId = replyRef.sender_id || replyRef.user_id
   const isSelfMsg = senderId === store.user?.id
   let dmTarget = ''
   if (isSelfMsg) {
     // We sent this message -- find the other user from conversation_id or recipient_id
-    dmTarget = replyingTo.recipient_id || ''
-    if (!dmTarget && replyingTo.conversation_id) {
-      dmTarget = replyingTo.conversation_id.split('+').find(id => id !== store.user?.id) || ''
+    dmTarget = replyRef.recipient_id || ''
+    if (!dmTarget && replyRef.conversation_id) {
+      dmTarget = replyRef.conversation_id.split('+').find(id => id !== store.user?.id) || ''
     }
   } else {
     dmTarget = senderId || ''
   }
   if (dmTarget) {
-    await store.sendMessageDirect('dm', dmTarget, mainInput.trim(), attachments)
+    store.sendMessageDirect('dm', dmTarget, textToSend, attachments)
   }
   }
     } else {
-      await store.sendMessage(panelIdx, mainInput.trim(), attachments)
+      // Fire-and-forget: sendMessage inserts an optimistic message synchronously
+      // via setPanelMessages before the await, so the message appears immediately.
+      store.sendMessage(panelIdx, textToSend, attachments)
     }
-
-    setMainInput('')
-    setReplyingTo(null)
-    store.setPendingImage(null)
-    // Always scroll to latest after sending -- the user expects to see their own message
-    userScrolledRef.current = false
-    setShowJumpToLatest(false)
-    setNewMsgCount(0)
-    snapshotMsgCountRef.current = 0
-    requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      const c = scrollRef.current
-      if (!c) return
-      if (store.oldestFirst) {
-        c.scrollTo({ top: c.scrollHeight, behavior: 'smooth' })
-      } else {
-        c.scrollTo({ top: 0, behavior: 'smooth' })
-      }
-    })
-    })
   }
 
   function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
