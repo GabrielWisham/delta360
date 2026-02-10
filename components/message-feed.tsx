@@ -203,8 +203,8 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
             scrollRef.current.scrollTop = 0
           }
         }
-      } else if (store.autoScroll) {
-        // Subsequent messages -- smooth scroll if autoScroll is on
+      } else if (store.autoScroll || isAtLatestEdge(scrollRef.current)) {
+        // Subsequent messages -- smooth scroll if autoScroll is on or user is already at the latest edge
         if (store.oldestFirst) {
           scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
         } else {
