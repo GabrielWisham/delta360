@@ -16,6 +16,7 @@ import { FloatingClipboard } from './floating-clipboard'
 import { ForwardModal } from './forward-modal'
 import { BroadcastModal } from './broadcast-modal'
 import { ShiftChangeModal } from './shift-change-modal'
+import { MessageBuilder } from './message-builder'
 import { ToastZone } from './toast-zone'
 import { Lightbox } from './lightbox'
 
@@ -92,6 +93,7 @@ export function DispatchApp() {
       {store.forwardMsg && <ForwardModal />}
       {store.adhocOpen && <BroadcastModal />}
       {store.shiftChangeOpen && <ShiftChangeModal />}
+      {store.msgBuilderOpen && <MessageBuilder />}
       {store.lightboxUrl && <Lightbox />}
       <ToastZone />
     </div>

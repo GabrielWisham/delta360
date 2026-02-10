@@ -24,6 +24,7 @@ import {
   LogOut,
   Volume2,
   VolumeOff,
+  Truck,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -100,6 +101,7 @@ export function Header() {
               <TrayItem label="Contacts" Icon={BookUser} onClick={() => { store.setContactsOpen(true); setToolsOpen(false) }} />
               <TrayItem label="Clipboard" Icon={ClipboardList} onClick={() => { store.setClipboardOpen(!store.clipboardOpen); setToolsOpen(false) }} />
               <TrayItem label="Sticky Notes" Icon={StickyNote} onClick={() => { store.setStickyOpen(!store.stickyOpen); setToolsOpen(false) }} />
+              <TrayItem label="Msg Builder" Icon={Truck} onClick={() => { store.setMsgBuilderOpen(true); setToolsOpen(false) }} />
             </div>
           )}
         </div>

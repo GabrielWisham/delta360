@@ -95,6 +95,7 @@ interface StoreState {
   forwardMsg: { id: string; name: string; text: string; groupId?: string } | null
   adhocOpen: boolean
   shiftChangeOpen: boolean
+  msgBuilderOpen: boolean
   // Pending image
   pendingImage: string | null
   // Search
@@ -171,6 +172,7 @@ interface StoreActions {
   setForwardMsg: (msg: StoreState['forwardMsg']) => void
   setAdhocOpen: (v: boolean) => void
   setShiftChangeOpen: (v: boolean) => void
+  setMsgBuilderOpen: (v: boolean) => void
   saveStickyNote: (key: string, text: string, expHours: number) => void
   uploadImage: (file: File) => Promise<string | null>
   setPendingImage: (url: string | null) => void
@@ -262,6 +264,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [forwardMsg, setForwardMsg] = useState<StoreState['forwardMsg']>(null)
   const [adhocOpen, setAdhocOpen] = useState(false)
   const [shiftChangeOpen, setShiftChangeOpen] = useState(false)
+  const [msgBuilderOpen, setMsgBuilderOpen] = useState(false)
   const [pendingImage, setPendingImage] = useState<string | null>(null)
   const [searchIndex, setSearchIndex] = useState<GroupMeMessage[]>([])
   const [chatSounds, setChatSounds] = useState<Record<string, SoundName>>({})
@@ -1078,6 +1081,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     forwardMsg,
     adhocOpen,
     shiftChangeOpen,
+    msgBuilderOpen,
     pendingImage,
     searchIndex,
     chatRenames,
@@ -1206,6 +1210,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setForwardMsg,
     setAdhocOpen,
     setShiftChangeOpen,
+    setMsgBuilderOpen,
     saveStickyNote,
     uploadImage,
     setPendingImage,
