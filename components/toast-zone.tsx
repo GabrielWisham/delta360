@@ -68,8 +68,8 @@ export function ToastZone() {
               </span>
             </div>
           </button>
-          {/* Action row */}
-          <div className="flex items-center border-t border-border/30 opacity-0 group-hover:opacity-100 transition-opacity">
+          {/* Action row -- pointer-events-none when hidden so clicks pass through to the body button */}
+          <div className="flex items-center border-t border-border/30 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity">
             <button
               onClick={() => {
                 toggleToastMuted(t.sourceKey)

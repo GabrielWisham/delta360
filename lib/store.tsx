@@ -521,15 +521,19 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setToasts(prev => prev.filter(t => t.id !== id))
   }, [])
 
+  // Use ref for toastMutedFeeds to avoid stale closures in loadMessages
+  const toastMutedRef = useRef(toastMutedFeeds)
+  toastMutedRef.current = toastMutedFeeds
+
   const showMsgToast = useCallback((toast: Omit<MsgToast, 'id' | 'ts'>) => {
-    if (toastMutedFeeds.has(toast.sourceKey)) return
+    if (toastMutedRef.current.has(toast.sourceKey)) return
     const id = ++msgToastIdRef.current
     const entry: MsgToast = { ...toast, id, ts: Date.now() }
-    setMsgToasts(prev => [...prev.slice(-4), entry]) // max 5 visible
+    setMsgToasts(prev => [...prev.slice(-6), entry]) // max 7 visible
     setTimeout(() => {
       setMsgToasts(prev => prev.filter(t => t.id !== id))
-    }, 6000)
-  }, [toastMutedFeeds])
+    }, 10000) // 10s visible
+  }, [])
 
   const removeMsgToast = useCallback((id: number) => {
     setMsgToasts(prev => prev.filter(t => t.id !== id))
@@ -663,21 +667,21 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           }
         }
 
-        // Message preview toasts (always fire, independent of sound mute -- has own mute via toastMutedFeeds)
-        if (latest) {
+        // Message preview toasts -- fire one per new message (up to 3 most recent)
+        const toastBatch = newMsgs.slice(-3)
+        for (const m of toastBatch) {
           if (type === 'group' || type === 'all' || type === 'stream') {
-            const gid = latest.group_id || id || ''
-            const groupName = groups.find(g => g.id === gid)?.name || 'Group'
-            const sourceKey = type === 'stream' ? `stream:${id}` : type === 'all' ? 'all' : `group:${gid}`
-            const sourceName = type === 'stream' ? (id || 'Stream') : type === 'all' ? 'Universal Feed' : groupName
-            showMsgToast({ sourceKey, sourceName, senderName: latest.name, text: latest.text || '(attachment)', viewType: type, viewId: id, originType: 'group', originId: gid })
+            const gid = m.group_id || id || ''
+            const gName = groups.find(g => g.id === gid)?.name || 'Group'
+            const sourceKey = type === 'stream' ? `stream:${id}` : `group:${gid}`
+            const sourceName = type === 'stream' ? (id || 'Stream') : gName
+            showMsgToast({ sourceKey, sourceName, senderName: m.name, text: m.text || '(attachment)', viewType: 'group', viewId: gid, originType: 'group', originId: gid })
           } else if (type === 'dm' || type === 'dms') {
-            // For DMs, the origin is the other user's ID. In 'dms' aggregate, derive from sender.
-            const dmUserId = type === 'dm' ? (id || '') : (latest.sender_id || latest.user_id || '')
+            const dmUserId = m.sender_id || m.user_id || id || ''
             const dmChat = dmChats.find(d => d.other_user?.id === dmUserId)
-            const sourceKey = type === 'dms' ? 'dms' : `dm:${id}`
-            const sourceName = type === 'dms' ? (dmChat?.other_user?.name || 'DM') : (dmChat?.other_user?.name || 'DM')
-            showMsgToast({ sourceKey, sourceName, senderName: latest.name, text: latest.text || '(attachment)', viewType: type, viewId: id, originType: 'dm', originId: dmUserId })
+            const sourceKey = `dm:${dmUserId}`
+            const sourceName = dmChat?.other_user?.name || m.name || 'DM'
+            showMsgToast({ sourceKey, sourceName, senderName: m.name, text: m.text || '(attachment)', viewType: 'dm', viewId: dmUserId, originType: 'dm', originId: dmUserId })
           }
         }
       }
@@ -833,15 +837,21 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const version = ++unifiedVersion.current
     const ready = await fetchUnifiedMessages(version)
     if (ready === null || version !== unifiedVersion.current) return
-    // Play sound if new messages detected
-  if (unifiedKnownIds.current.size > 0 && !globalMute && !unifiedMuted) {
+    // Detect new messages
+  if (unifiedKnownIds.current.size > 0) {
   const newMsgs = ready.filter(m => !unifiedKnownIds.current.has(m.id))
   if (newMsgs.length > 0) {
-    playSound(unifiedSound)
-    const latest = newMsgs[newMsgs.length - 1]
-    if (latest) {
-      sendDesktopNotification('Delta 360 - Streams', `${latest.name}: ${latest.text || '(attachment)'}`)
-      showMsgToast({ sourceKey: 'unified_streams', sourceName: 'Unified Streams', senderName: latest.name, text: latest.text || '(attachment)', viewType: 'unified_streams', viewId: null, originType: 'group', originId: latest.group_id || '' })
+    // Sound (respects mute)
+    if (!globalMute && !unifiedMuted) {
+      playSound(unifiedSound)
+      const latest = newMsgs[newMsgs.length - 1]
+      if (latest) sendDesktopNotification('Delta 360 - Streams', `${latest.name}: ${latest.text || '(attachment)'}`)
+    }
+    // Toast per message (up to 3)
+    for (const m of newMsgs.slice(-3)) {
+      const gid = m.group_id || ''
+      const gName = groups.find(g => g.id === gid)?.name || 'Stream'
+      showMsgToast({ sourceKey: `group:${gid}`, sourceName: gName, senderName: m.name, text: m.text || '(attachment)', viewType: 'group', viewId: gid, originType: 'group', originId: gid })
     }
   }
   }
