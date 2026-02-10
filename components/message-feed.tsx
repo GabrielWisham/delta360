@@ -12,9 +12,11 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   const store = useStore()
   const scrollRef = useRef<HTMLDivElement>(null)
   const [showJumpToLatest, setShowJumpToLatest] = useState(false)
+  const [newMsgCount, setNewMsgCount] = useState(0)
   const [dayCue, setDayCue] = useState<string | null>(null)
   const userScrolledRef = useRef(false)
   const prevMsgCountRef = useRef(0)
+  const snapshotMsgCountRef = useRef(0) // msg count when user scrolled away
   const [mainInput, setMainInput] = useState('')
   const [mainEmojiOpen, setMainEmojiOpen] = useState(false)
   const [showChatAlerts, setShowChatAlerts] = useState(false)
@@ -73,12 +75,15 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     if (!isAtLatestEdge(el)) {
       if (!userScrolledRef.current) {
         userScrolledRef.current = true
+        snapshotMsgCountRef.current = messages.length
         if (store.autoScroll) store.setAutoScroll(false)
       }
       setShowJumpToLatest(true)
     } else {
       userScrolledRef.current = false
       setShowJumpToLatest(false)
+      setNewMsgCount(0)
+      snapshotMsgCountRef.current = 0
     }
 
     // Day cue
@@ -93,6 +98,13 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     setDayCue(currentDay)
   }
 
+  // Track new messages arriving while user is scrolled away
+  useEffect(() => {
+    if (userScrolledRef.current && snapshotMsgCountRef.current > 0 && messages.length > snapshotMsgCountRef.current) {
+      setNewMsgCount(messages.length - snapshotMsgCountRef.current)
+    }
+  }, [messages.length])
+
   // Jump to latest message
   function jumpToLatest() {
     if (!scrollRef.current) return
@@ -103,6 +115,8 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     }
     userScrolledRef.current = false
     setShowJumpToLatest(false)
+    setNewMsgCount(0)
+    snapshotMsgCountRef.current = 0
   }
 
   // Order messages
@@ -629,15 +643,21 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
         </div>
       )}
 
-      {/* Jump to latest button */}
+      {/* Jump to latest / new messages button */}
       {showJumpToLatest && (
         <button
           onClick={jumpToLatest}
-          className="absolute bottom-16 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-white text-[10px] uppercase tracking-widest font-semibold shadow-lg hover:brightness-110 transition-all z-10"
-          style={{ background: 'var(--d360-gradient)', fontFamily: 'var(--font-mono)' }}
+          className={`absolute right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-white text-[10px] uppercase tracking-widest font-semibold shadow-lg hover:brightness-110 transition-all z-10 ${
+            store.inputBottom ? 'bottom-16' : 'bottom-4'
+          } ${newMsgCount > 0 ? 'animate-pulse' : ''}`}
+          style={{ background: newMsgCount > 0 ? 'var(--d360-orange)' : 'var(--d360-gradient)', fontFamily: 'var(--font-mono)' }}
         >
           {store.oldestFirst ? <ArrowDown className="w-3 h-3" /> : <ArrowUp className="w-3 h-3" />}
-          Latest
+          {newMsgCount > 0 ? (
+            <>{newMsgCount} new message{newMsgCount !== 1 ? 's' : ''}</>
+          ) : (
+            <>Latest</>
+          )}
         </button>
       )}
     </div>
