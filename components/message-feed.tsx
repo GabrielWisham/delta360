@@ -371,14 +371,29 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     // If replying from an aggregate view (all, dms, stream, unified_streams),
     // route the message directly to the replied-to message's group or DM
     const isAggregate = view?.type === 'all' || view?.type === 'dms' || view?.type === 'stream' || view?.type === 'unified_streams'
-    if (replyingTo && isAggregate) {
-      const groupId = replyingTo.group_id
-      const senderId = replyingTo.sender_id || replyingTo.user_id
-      if (groupId) {
-        await store.sendMessageDirect('group', groupId, mainInput.trim(), attachments)
-      } else if (senderId) {
-        await store.sendMessageDirect('dm', senderId, mainInput.trim(), attachments)
-      }
+  if (replyingTo && isAggregate) {
+  const groupId = replyingTo.group_id
+  if (groupId) {
+  await store.sendMessageDirect('group', groupId, mainInput.trim(), attachments)
+  } else {
+  // For DMs: find the other user. If the sender is us, use recipient_id or
+  // extract from conversation_id. If the sender is someone else, reply to them.
+  const senderId = replyingTo.sender_id || replyingTo.user_id
+  const isSelfMsg = senderId === store.user?.id
+  let dmTarget = ''
+  if (isSelfMsg) {
+    // We sent this message -- find the other user from conversation_id or recipient_id
+    dmTarget = replyingTo.recipient_id || ''
+    if (!dmTarget && replyingTo.conversation_id) {
+      dmTarget = replyingTo.conversation_id.split('+').find(id => id !== store.user?.id) || ''
+    }
+  } else {
+    dmTarget = senderId || ''
+  }
+  if (dmTarget) {
+    await store.sendMessageDirect('dm', dmTarget, mainInput.trim(), attachments)
+  }
+  }
     } else {
       await store.sendMessage(panelIdx, mainInput.trim(), attachments)
     }
@@ -466,6 +481,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   }, [view?.type, view?.id, store.dmChats, store.groups])
 
   const isSpecificView = view?.type === 'group' || view?.type === 'dm' || view?.type === 'stream'
+  const canSend = isSpecificView || !!replyingTo
 
   const inputSection = (
     <div className={`${store.compact ? 'px-2 py-1.5' : 'px-3 py-2'} border-b border-border bg-card relative z-20 overflow-visible`}>
@@ -569,10 +585,10 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
               >
                 {replyingTo.name}
               </span>
-              {isAggregate && replyGroupName && (
-                <span className="text-[9px] text-muted-foreground/60" style={{ fontFamily: 'var(--font-mono)' }}>
-                  in {replyGroupName}
-                </span>
+            {isAggregate && (replyGroupName || !replyingTo.group_id) && (
+              <span className="text-[9px] text-muted-foreground/60" style={{ fontFamily: 'var(--font-mono)' }}>
+                {replyGroupName ? `in ${replyGroupName}` : 'in DM'}
+              </span>
               )}
             </div>
             <span
@@ -635,8 +651,8 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
           onKeyDown={e => {
             if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); if (textareaRef.current) { textareaRef.current.style.height = 'auto' } }
           }}
-          placeholder={isSpecificView ? `Message ${dmRecipientName || title}...` : 'Select a chat to send messages'}
-          disabled={!isSpecificView}
+  placeholder={canSend ? (replyingTo && !isSpecificView ? `Reply to ${replyingTo.name}...` : `Message ${dmRecipientName || title}...`) : 'Select a chat or reply to a message'}
+  disabled={!canSend}
           className="flex-1 text-sm bg-secondary/30 border border-border rounded-lg px-3 py-2 resize-none text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)] disabled:opacity-50 transition-all"
           style={{ fontFamily: 'var(--font-mono)', maxHeight: '160px', overflow: 'auto' }}
           rows={1}
@@ -675,7 +691,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
         {/* Send */}
         <button
           onClick={() => { handleSend(); if (textareaRef.current) textareaRef.current.style.height = 'auto' }}
-          disabled={!mainInput.trim() || !isSpecificView}
+          disabled={!mainInput.trim() || !canSend}
           className="p-2 rounded-lg disabled:opacity-30 transition-all hover:brightness-110 shrink-0 text-white"
           style={{ background: 'var(--d360-gradient)' }}
           title="Send (Enter)"
