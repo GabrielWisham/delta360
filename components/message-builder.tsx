@@ -20,6 +20,7 @@ interface LoadData {
   product: string
   gallons: string
   deliveryTo: string
+  address: string
   locationWell: string
   city: string
   gps: string
@@ -58,6 +59,7 @@ function emptyLoad(): LoadData {
     product: '',
     gallons: '',
     deliveryTo: '',
+    address: '',
     locationWell: '',
     city: '',
     gps: '',
@@ -245,18 +247,22 @@ export function MessageBuilder() {
       msg += `\n\u2981 Acct #: ${load.account}`
       msg += `\n\u2981 Product: ${load.gallons ? `${load.gallons}-gal ` : ''}${load.product}`
       msg += `\n\u2981 Delivery To: ${load.deliveryTo}`
+      if (load.address.trim()) {
+        msg += `\n\u2981 Address: ${load.address}`
+      }
       msg += `\n\u2981 Location/Well: ${load.locationWell}`
       msg += `\n\u2981 City: ${load.city}`
 
       if (load.gps.trim()) {
         msg += `\n\u2981 GPS: ${load.gps}`
+        const query = encodeURIComponent(load.gps.trim())
+        msg += `\n\uD83D\uDCCD Google Maps: https://www.google.com/maps/search/?api=1&query=${query}`
+      } else if (load.address.trim()) {
+        const query = encodeURIComponent(`${load.address.trim()}, ${load.city.trim()}`.replace(/,\s*$/, ''))
+        msg += `\n\uD83D\uDCCD Google Maps: https://www.google.com/maps/search/?api=1&query=${query}`
       }
       if (load.directions.trim()) {
         msg += `\n Driver Directions: ${load.directions}`
-      }
-      if (load.gps.trim()) {
-        const query = load.gps.replace(/\s+/g, '')
-        msg += `\nGoogle Maps Link: https://www.google.com/maps/search/?api=1&query=${query}`
       }
 
       msg += `\n${divider}`
@@ -523,16 +529,22 @@ export function MessageBuilder() {
                       </div>
                     </div>
 
-                    {/* City */}
-                    <div className="space-y-1">
-                      <label className={labelCls} style={mono}>City</label>
-                      <input value={load.city} onChange={e => updateLoad(idx, 'city', e.target.value)} placeholder="City" className={inputCls} style={mono} />
+                    {/* Address + City */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <label className={labelCls} style={mono}>Address <span className="text-muted-foreground/60">(street / building)</span></label>
+                        <input value={load.address} onChange={e => updateLoad(idx, 'address', e.target.value)} placeholder="1234 Industrial Blvd, Bldg C" className={inputCls} style={mono} />
+                      </div>
+                      <div className="space-y-1">
+                        <label className={labelCls} style={mono}>City</label>
+                        <input value={load.city} onChange={e => updateLoad(idx, 'city', e.target.value)} placeholder="City" className={inputCls} style={mono} />
+                      </div>
                     </div>
 
                     {/* GPS + Directions */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <div className="space-y-1">
-                        <label className={labelCls} style={mono}>GPS Coordinates <span className="text-muted-foreground/60">(optional)</span></label>
+                        <label className={labelCls} style={mono}>GPS Coordinates <span className="text-muted-foreground/60">(auto-links Maps)</span></label>
                         <input value={load.gps} onChange={e => updateLoad(idx, 'gps', e.target.value)} placeholder="31.9686, -99.9018" className={inputCls} style={mono} />
                       </div>
                       <div className="space-y-1">
