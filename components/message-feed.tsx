@@ -401,6 +401,22 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     setMainInput('')
     setReplyingTo(null)
     store.setPendingImage(null)
+    // Always scroll to latest after sending -- the user expects to see their own message
+    userScrolledRef.current = false
+    setShowJumpToLatest(false)
+    setNewMsgCount(0)
+    snapshotMsgCountRef.current = 0
+    requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      const c = scrollRef.current
+      if (!c) return
+      if (store.oldestFirst) {
+        c.scrollTo({ top: c.scrollHeight, behavior: 'smooth' })
+      } else {
+        c.scrollTo({ top: 0, behavior: 'smooth' })
+      }
+    })
+    })
   }
 
   function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
