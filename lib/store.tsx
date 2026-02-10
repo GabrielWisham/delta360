@@ -816,8 +816,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   // Message cache: keyed by "type:id" to avoid refetching when switching back
   const msgCache = useRef<Record<string, { msgs: GroupMeMessage[]; ts: number }>>({})
   const CACHE_TTL = 10_000 // 10s -- show cached instantly, refresh in background
+  // After sending, suppress loadMessages for a few seconds so the optimistic
+  // message stays on-screen undisturbed. The poll, feedRefreshTick effect,
+  // and interval all call loadMessages and would otherwise cause flashes.
+  const suppressRefreshUntilRef = useRef(0)
 
   const loadMessages = useCallback(async (panelIdx: number, bypassCache?: boolean) => {
+    if (Date.now() < suppressRefreshUntilRef.current) return
     const view = panelIdx === 0 ? currentView : panels[panelIdx]
     if (!view) return
     const { type, id } = view
@@ -1297,6 +1302,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const view = panelIdx === 0 ? currentView : panels[panelIdx]
     if (!view) return
     const { type, id } = view
+    // Suppress all loadMessages calls for 5s so the optimistic message
+    // stays on-screen without flashing from poll/tick/interval refetches.
+    suppressRefreshUntilRef.current = Date.now() + 5000
     // Optimistic insert so the message appears instantly
     const optimisticId = `optimistic-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     if (user && id) {
@@ -1351,6 +1359,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   // Send a message directly to a specific group/DM (used when replying from aggregate views)
   const sendMessageDirect = useCallback(async (targetType: 'group' | 'dm', targetId: string, text: string, attachments: GroupMeMessage['attachments'] = []) => {
+    // Suppress all loadMessages calls for 5s so the optimistic message stays stable
+    suppressRefreshUntilRef.current = Date.now() + 5000
     // Optimistic insert
     const optimisticId = `optimistic-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     if (user) {
