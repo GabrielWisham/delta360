@@ -192,8 +192,9 @@ export function MessageCard({
             className={`rounded-2xl px-3.5 py-2 ${
               isSelf
                 ? 'rounded-tr-sm bg-[var(--d360-orange)]/12 border border-[var(--d360-orange)]/15'
-                : 'rounded-tl-sm bg-secondary/50 border border-border/50'
+                : 'rounded-tl-sm border border-white/[0.08]'
             } ${isPinned ? 'ring-1 ring-[var(--d360-yellow)]/40' : ''}`}
+            style={!isSelf ? { background: `color-mix(in srgb, ${accentColor} 8%, transparent)` } : undefined}
           >
             {/* Sender + timestamp header */}
             <div className={`flex items-center gap-1.5 mb-0.5 ${isSelf ? 'justify-end' : ''}`}>
@@ -322,8 +323,9 @@ export function MessageCard({
           className={`rounded-2xl px-4 py-2.5 transition-all ${
             isSelf
               ? 'rounded-tr-sm bg-[var(--d360-orange)]/12 border border-[var(--d360-orange)]/15'
-              : 'rounded-tl-sm bg-secondary/50 border border-border/50'
+              : 'rounded-tl-sm border border-white/[0.08]'
           } ${isPinned ? 'ring-1 ring-[var(--d360-yellow)]/40' : ''}`}
+          style={!isSelf ? { background: `color-mix(in srgb, ${accentColor} 8%, transparent)` } : undefined}
         >
           {/* Pinned badge */}
           {isPinned && (
