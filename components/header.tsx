@@ -34,6 +34,7 @@ import type { LucideIcon } from 'lucide-react'
 
 const MAX_PINS = 4
 const PINS_KEY = 'd360_pinned_tools'
+const DEFAULT_PINS = ['config', 'search', 'clipboard']
 
 type ToolDef = {
   id: string
@@ -60,7 +61,7 @@ function loadPins(): string[] {
     const raw = localStorage.getItem(PINS_KEY)
     if (raw) return JSON.parse(raw)
   } catch { /* empty */ }
-  return []
+  return DEFAULT_PINS
 }
 
 function savePins(pins: string[]) {
