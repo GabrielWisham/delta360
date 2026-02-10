@@ -88,7 +88,6 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
       return el.scrollTop < threshold
     }
   }
-  }
 
   // Scroll tracking -- suppressed during view transitions to prevent glitchy
   // state updates (day cue, jump-to-latest) from stale scroll positions.
@@ -823,8 +822,9 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
         </button>
       </div>
     </div>
-  );
+  )
 
+  // Main component return
   return (
     <div className="flex flex-col h-full min-h-0 relative">
       {/* Panel header */}
