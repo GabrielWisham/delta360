@@ -571,8 +571,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         if (needsUnifiedRefresh && !unifiedLoadingRef.current) refreshPromises.push(refreshUnifiedRef.current())
         if (refreshPromises.length > 0) {
           await Promise.all(refreshPromises)
-          // Give React one frame to render the new messages before showing toasts
-          await new Promise(r => requestAnimationFrame(r))
+          // Bump tick so the feed auto-scroll effect re-evaluates with fresh messages
+          setFeedRefreshTick(t => t + 1)
+          // Give React two frames to render the new messages before showing toasts
+          await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
         }
         // Now fire toasts -- messages are already in the feed
         for (const t of pendingToasts) showMsgToastRef.current(t)

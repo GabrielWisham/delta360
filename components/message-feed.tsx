@@ -172,6 +172,16 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     : null
   useEffect(() => {
     if (!scrollRef.current) return
+    console.log("[v0] auto-scroll effect:", {
+      viewType: view?.type,
+      msgLen: messages.length,
+      prevCount: prevMsgCountRef.current,
+      lastMsgId,
+      prevLastMsgId: prevLastMsgIdRef.current,
+      wasAtEdge: wasAtEdgeRef.current,
+      pendingScroll: store.pendingScrollToMsgId,
+      oldestFirst: store.oldestFirst,
+    })
     // If a pending scroll target is set (toast click), skip auto-scroll
     if (store.pendingScrollToMsgId) {
       prevMsgCountRef.current = messages.length
@@ -182,6 +192,8 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     const wasEmpty = prevMsgCountRef.current === 0
     const hasNewMessages = newCount > prevMsgCountRef.current ||
       (newCount > 0 && lastMsgId !== prevLastMsgIdRef.current && prevLastMsgIdRef.current !== null)
+
+    console.log("[v0] auto-scroll check:", { wasEmpty, hasNewMessages, newCount, prevCount: prevMsgCountRef.current })
 
     if (hasNewMessages) {
       if (wasEmpty) {
@@ -210,6 +222,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
             }
           }
         } else {
+          console.log("[v0] auto-scroll: first load, jumping to most recent")
           // Default: jump to most recent after DOM renders
           requestAnimationFrame(() => {
             const c = scrollRef.current
@@ -221,7 +234,8 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
             }
           })
         }
-      } else if (wasAtEdgeRef.current) {
+      } else if (wasAtEdgeRef.current || !userScrolledRef.current) {
+        console.log("[v0] auto-scroll: subsequent msg, scrolling to latest", { wasAtEdge: wasAtEdgeRef.current, userScrolled: userScrolledRef.current })
         // New messages arrived while user was at the latest edge -- scroll to show them.
         // For long messages, scroll so the TOP of the newest message is visible.
         requestAnimationFrame(() => {
@@ -243,10 +257,13 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
         })
       }
     }
+    if (!hasNewMessages && newCount > 0) {
+      console.log("[v0] auto-scroll: no new messages detected, skipping scroll")
+    }
     prevMsgCountRef.current = newCount
     prevLastMsgIdRef.current = lastMsgId
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages.length, lastMsgId, store.oldestFirst])
+  }, [messages.length, lastMsgId, store.oldestFirst, store.feedRefreshTick])
 
   // For unified_streams, also scroll to latest when messages finish loading (buffer complete)
   const prevUnifiedLoading = useRef(store.unifiedLoading)
