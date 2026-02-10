@@ -227,9 +227,9 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   useEffect(() => {
     if (!scrollRef.current) return
     // If a pending scroll target is set (toast click), skip auto-scroll
+    // but do NOT update prevMsgCountRef -- otherwise the first-load branch
+    // that sets viewReady will never fire when pendingScroll clears.
     if (store.pendingScrollToMsgId) {
-      prevMsgCountRef.current = messages.length
-      prevLastMsgIdRef.current = lastMsgId
       return
     }
     const newCount = messages.length
@@ -319,7 +319,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     prevMsgCountRef.current = newCount
     prevLastMsgIdRef.current = lastMsgId
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages.length, lastMsgId, store.oldestFirst])
+  }, [messages.length, lastMsgId, store.oldestFirst, store.pendingScrollToMsgId])
 
   // After sending: snap scroll to the latest edge synchronously on the same
   // frame React commits the optimistic message. useLayoutEffect runs before
@@ -350,6 +350,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
       programmaticScrollRef.current = true
       setTimeout(() => { programmaticScrollRef.current = false }, 500)
       setShowJumpToLatest(false)
+      setViewLoaded(true)
       requestAnimationFrame(() => {
         const c = scrollRef.current
         if (!c) return
@@ -358,6 +359,8 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
         } else {
           c.scrollTop = 0
         }
+        transitioningRef.current = false
+        setViewReady(true)
       })
     }
     prevUnifiedLoading.current = store.unifiedLoading
@@ -446,9 +449,16 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
       } else if (++attempts < maxAttempts) {
         setTimeout(tryScroll, 200)
       } else {
-        // Element never appeared -- just clear and show latest
+        // Element never appeared -- clear pending, open view, scroll to latest
         clearPendingScroll(null)
         programmaticScrollRef.current = false
+        transitioningRef.current = false
+        setViewReady(true)
+        setViewLoaded(true)
+        const c = scrollRef.current
+        if (c) {
+          if (store.oldestFirst) { c.scrollTop = c.scrollHeight } else { c.scrollTop = 0 }
+        }
       }
     }
     // Small delay for DOM to settle after messages render

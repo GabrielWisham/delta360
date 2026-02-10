@@ -44,11 +44,7 @@
     color: var(--color-foreground);
     font-family: var(--font-sans);
   }
-  /* Performance: skip layout/paint for off-screen message cards */
-  [data-msg-id] {
-    content-visibility: auto;
-    contain-intrinsic-size: auto 56px;
-  }
+
 }
 
 /* ===== Custom brand tokens ===== */
