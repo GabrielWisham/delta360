@@ -296,12 +296,12 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
       if (store.oldestFirst) { c.scrollTop = c.scrollHeight }
       else { c.scrollTop = 0 }
     }
-    // Keep guards active long enough for the deferred server refresh (600ms)
-    // to land without the auto-scroll effect or handleScroll interfering.
+    // Keep guards active briefly so the scroll settles before handleScroll
+    // or the auto-scroll effect can interfere.
     setTimeout(() => {
       programmaticScrollRef.current = false
       justSentRef.current = false
-    }, 1000)
+    }, 300)
   })
 
   // For unified_streams, also scroll to latest when messages finish loading (buffer complete)

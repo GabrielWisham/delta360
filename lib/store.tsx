@@ -1301,10 +1301,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         await api.sendDM(id, text, attachments)
       }
       setPendingImage(null)
-      // Delay the server refresh slightly so the optimistic scroll finishes
-      // first. This prevents two competing setPanelMessages calls from
-      // triggering duplicate auto-scroll effects that cause jumpiness.
-      setTimeout(() => loadMessagesRef.current(panelIdx, true), 600)
+      // No eager refetch -- the optimistic message is already displayed and
+      // the regular poll cycle (~4s) will reconcile with the server, swapping
+      // out the optimistic ID for the real one. Eager refetches cause a full
+      // array replace that visually "reloads" every message card.
     } catch {
       // Remove optimistic message on failure
       setPanelMessages(prev => {
@@ -1352,8 +1352,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         await api.sendDM(targetId, text, attachments)
       }
       setPendingImage(null)
-      // Delay the server refresh so the optimistic scroll completes first
-      setTimeout(() => loadMessagesRef.current(0, true), 600)
+      // No eager refetch -- poll cycle reconciles naturally
     } catch {
       setPanelMessages(prev => {
         const next = [...prev]
