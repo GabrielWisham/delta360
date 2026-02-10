@@ -92,12 +92,12 @@ export const storage = {
   getLayout: () => getString('gm_v3_layout', 'landscape') as 'landscape' | 'portrait',
   setLayout: (v: string) => setString('gm_v3_layout', v),
 
-  // Input at bottom
-  getInputBottom: () => getString('gm_v3_inputbot') === '1',
+  // Input at bottom (default true -- standard chat convention)
+  getInputBottom: () => { const v = getString('gm_v3_inputbot'); return v === '' ? true : v === '1' },
   setInputBottom: (v: boolean) => setString('gm_v3_inputbot', v ? '1' : '0'),
 
-  // Oldest first
-  getOldestFirst: () => getString('gm_v3_oldest') === '1',
+  // Oldest first (default true -- newest at bottom like standard chat)
+  getOldestFirst: () => { const v = getString('gm_v3_oldest'); return v === '' ? true : v === '1' },
   setOldestFirst: (v: boolean) => setString('gm_v3_oldest', v ? '1' : '0'),
 
   // Sidebar sort
