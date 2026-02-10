@@ -77,13 +77,16 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view?.id])
 
-  // Check if scrolled to the "latest" edge (bottom if oldestFirst, top if newestFirst)
-  function isAtLatestEdge(el: HTMLDivElement, threshold = 80) {
+  // Check if scrolled to the "latest" edge (bottom if oldestFirst, top if newestFirst).
+  // Use a generous threshold so smooth-scroll intermediate frames and small
+  // layout shifts don't falsely trigger "user scrolled away" detection.
+  function isAtLatestEdge(el: HTMLDivElement, threshold = 250) {
     if (store.oldestFirst) {
       return el.scrollHeight - el.scrollTop - el.clientHeight < threshold
     } else {
       return el.scrollTop < threshold
     }
+  }
   }
 
   // Scroll tracking -- suppressed during view transitions to prevent glitchy
@@ -268,20 +271,23 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
             }, 100)
           })
         }
-      } else if (!userScrolledRef.current) {
-        // User hasn't scrolled away -- auto-scroll to reveal new messages.
-        // During justSent, skip entirely -- handleSend owns the single scroll.
-        if (!justSentRef.current) {
+      } else {
+        // Auto-scroll to reveal new messages if user hasn't deliberately
+        // scrolled far away. Also scrolls if they're near the edge even if
+        // userScrolledRef is true (mouse hover can cause minor drift).
+        const container = scrollRef.current
+        const nearEdge = container ? isAtLatestEdge(container) : false
+        if ((!userScrolledRef.current || nearEdge) && !justSentRef.current) {
           programmaticScrollRef.current = true
-          setTimeout(() => { programmaticScrollRef.current = false }, 500)
+          setTimeout(() => { programmaticScrollRef.current = false }, 1200)
           requestAnimationFrame(() => {
           requestAnimationFrame(() => {
-            const container = scrollRef.current
-            if (!container) return
+            const c = scrollRef.current
+            if (!c) return
             if (store.oldestFirst) {
-              container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' })
+              c.scrollTo({ top: c.scrollHeight, behavior: 'smooth' })
             } else {
-              container.scrollTo({ top: 0, behavior: 'smooth' })
+              c.scrollTo({ top: 0, behavior: 'smooth' })
             }
           })
           })
