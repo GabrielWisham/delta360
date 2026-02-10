@@ -282,6 +282,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [jumpToUnread, setJumpToUnreadState] = useState(true)
   const [pendingScrollToMsgId, setPendingScrollToMsgId] = useState<string | null>(null)
   const [feedRefreshTick, setFeedRefreshTick] = useState(0)
+  // Queue of sounds+toasts that fire only AFTER React commits the matching messages
+  const [pendingNotifications, setPendingNotifications] = useState<{
+    sounds: (() => void)[]
+    toasts: Omit<MsgToast, 'id' | 'ts'>[]
+  } | null>(null)
   const [loadingMore, setLoadingMore] = useState(false)
   const [globalMute, setGlobalMute] = useState(false)
   const [feedSound, setFeedSoundState] = useState<SoundName>('chime')
@@ -578,15 +583,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         if (needsUnifiedRefresh && !unifiedLoadingRef.current) refreshPromises.push(refreshUnifiedRef.current())
         if (refreshPromises.length > 0) {
           await Promise.all(refreshPromises)
-          // Bump tick so the feed auto-scroll effect re-evaluates with fresh messages
           setFeedRefreshTick(t => t + 1)
         }
-        // Wait for React to flush state updates and commit to DOM before showing toasts.
-        // A triple rAF gives React enough time to commit.
-        await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(r))))
-        // Now fire sounds + toasts together -- messages should be rendered in the feed
-        for (const fn of pendingSounds) fn()
-        for (const t of pendingToasts) showMsgToastRef.current(t)
+        // Queue sounds + toasts as a state update. The useEffect that drains
+        // pendingNotifications fires AFTER React commits, so messages from
+        // setPanelMessages (in the refresh) are guaranteed to be in the DOM first.
+        if (pendingSounds.length > 0 || pendingToasts.length > 0) {
+          setPendingNotifications({ sounds: pendingSounds, toasts: pendingToasts })
+        }
       } else {
         // First poll -- seed the tracker without firing notifications
         for (const group of g) {
@@ -681,6 +685,17 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, [])
   showMsgToastRef.current = showMsgToast
 
+  // Drain pending notifications AFTER React commits (messages are in the DOM).
+  // Because setPendingNotifications is batched with setPanelMessages in the same
+  // tick, React commits both in a single render. This useEffect fires after that
+  // commit, guaranteeing the messages are visible before sounds/toasts play.
+  useEffect(() => {
+    if (!pendingNotifications) return
+    for (const fn of pendingNotifications.sounds) fn()
+    for (const t of pendingNotifications.toasts) showMsgToast(t)
+    setPendingNotifications(null)
+  }, [pendingNotifications, showMsgToast])
+  
   const removeMsgToast = useCallback((id: number) => {
     setMsgToasts(prev => prev.filter(t => t.id !== id))
   }, [])
