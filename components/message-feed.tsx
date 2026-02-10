@@ -698,7 +698,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
         <button
           onClick={jumpToLatest}
           className={`absolute right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-white text-[10px] uppercase tracking-widest font-semibold shadow-lg hover:brightness-110 transition-all z-10 ${
-            store.inputBottom ? 'bottom-16' : 'bottom-4'
+            store.inputBottom ? (replyingTo ? 'bottom-32' : 'bottom-20') : 'bottom-4'
           } ${newMsgCount > 0 ? 'animate-pulse' : ''}`}
           style={{ background: newMsgCount > 0 ? 'var(--d360-orange)' : 'var(--d360-gradient)', fontFamily: 'var(--font-mono)' }}
         >

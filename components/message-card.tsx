@@ -168,20 +168,28 @@ export const MessageCard = memo(function MessageCard({
               </div>
             )}
 
-            {/* Likes */}
-            {likeNames.length > 0 && (
-              <div className="flex items-center gap-1 mt-0.5">
-                <ThumbsUp className="w-2.5 h-2.5 opacity-40" />
-                <span className="text-[8px] opacity-40" style={{ fontFamily: 'var(--font-mono)' }}>
-                  {likeNames.length}
+            {/* Always-visible reply + likes */}
+            <div className="flex items-center gap-2 mt-0.5">
+              <button
+                onClick={() => onReply?.(msg)}
+                className="text-muted-foreground/30 hover:text-[var(--d360-orange)] transition-colors"
+                title="Reply"
+              >
+                <Reply className="w-3 h-3" />
+              </button>
+              {likeNames.length > 0 && (
+                <span className="flex items-center gap-1">
+                  <ThumbsUp className="w-2.5 h-2.5 opacity-40" />
+                  <span className="text-[8px] opacity-40" style={{ fontFamily: 'var(--font-mono)' }}>
+                    {likeNames.length}
+                  </span>
                 </span>
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
-          {/* Hover action tray */}
+          {/* Hover action tray (like, pin, forward, delete) */}
           <div className={`absolute ${isSelf ? 'right-full mr-1' : 'left-full ml-1'} top-0 opacity-0 group-hover/msg:opacity-100 transition-opacity flex items-center gap-0.5 bg-card border border-border rounded-full px-1.5 py-0.5 shadow-md z-10`}>
-            <CompactAction Icon={Reply} title="Reply" onClick={() => onReply?.(msg)} />
             <CompactAction Icon={ThumbsUp} title="Like" active={likedBy.includes(store.user?.id || '')} onClick={() => {
               const gid = msg.group_id || ''
               if (likedBy.includes(store.user?.id || '')) store.unlikeMessage(gid, msg.id)
@@ -308,18 +316,28 @@ export const MessageCard = memo(function MessageCard({
             </div>
           )}
 
-          {/* Likes */}
-          {likeNames.length > 0 && (
-            <div className="flex items-center gap-1.5 mt-1.5 text-[10px] opacity-50">
-              <ThumbsUp className="w-3 h-3" />
-              <span style={{ fontFamily: 'var(--font-mono)' }}>{likeNames.join(', ')}</span>
-            </div>
-          )}
+          {/* Inline actions row -- reply is always visible */}
+          <div className="flex items-center gap-1 mt-1">
+            <button
+              onClick={() => onReply?.(msg)}
+              className="flex items-center gap-1 text-[9px] text-muted-foreground/50 hover:text-[var(--d360-orange)] transition-colors"
+              style={{ fontFamily: 'var(--font-mono)' }}
+              title="Reply"
+            >
+              <Reply className="w-3 h-3" />
+              Reply
+            </button>
+            {likeNames.length > 0 && (
+              <span className="flex items-center gap-1 text-[9px] text-muted-foreground/40 ml-1">
+                <ThumbsUp className="w-3 h-3" />
+                <span style={{ fontFamily: 'var(--font-mono)' }}>{likeNames.join(', ')}</span>
+              </span>
+            )}
+          </div>
         </div>
 
-          {/* Hover action tray */}
+          {/* Hover action tray (pin, like, forward, delete) */}
           <div className={`absolute ${isSelf ? 'right-full mr-1' : 'left-full ml-1'} top-0 opacity-0 group-hover/msg:opacity-100 transition-opacity flex items-center gap-0.5 bg-card border border-border rounded-full px-1.5 py-0.5 shadow-md z-10`}>
-            <CompactAction Icon={Reply} title="Reply" onClick={() => onReply?.(msg)} />
           <CompactAction Icon={ThumbsUp} title="Like" active={likedBy.includes(store.user?.id || '')} onClick={() => {
             const gid = msg.group_id || ''
             if (likedBy.includes(store.user?.id || '')) store.unlikeMessage(gid, msg.id)
