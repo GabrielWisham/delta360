@@ -158,7 +158,7 @@ class GroupMeAPI {
     })
   }
 
-  async getGroupMembers(groupId: string): Promise<{ id: string; user_id: string; nickname: string; image_url: string }[]> {
+  async getGroupMembers(groupId: string): Promise<{ id: string; user_id: string; nickname: string; image_url: string | null }[]> {
     const group = await this.request<GroupMeGroup>(`/groups/${groupId}`)
     return group.members || []
   }
