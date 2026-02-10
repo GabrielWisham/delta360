@@ -208,18 +208,33 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   }
 
   async function handleSend() {
-  if (!mainInput.trim()) return
-  const attachments: GroupMeMessage['attachments'] = []
-  if (store.pendingImage) {
-  attachments.push({ type: 'image', url: store.pendingImage })
-  }
-  if (replyingTo) {
-  attachments.push({ type: 'reply', reply_id: replyingTo.id, base_reply_id: replyingTo.id })
-  }
-  await store.sendMessage(panelIdx, mainInput.trim(), attachments)
-  setMainInput('')
-  setReplyingTo(null)
-  store.setPendingImage(null)
+    if (!mainInput.trim()) return
+    const attachments: GroupMeMessage['attachments'] = []
+    if (store.pendingImage) {
+      attachments.push({ type: 'image', url: store.pendingImage })
+    }
+    if (replyingTo) {
+      attachments.push({ type: 'reply', reply_id: replyingTo.id, base_reply_id: replyingTo.id })
+    }
+
+    // If replying from an aggregate view (all, dms, stream, unified_streams),
+    // route the message directly to the replied-to message's group or DM
+    const isAggregate = view?.type === 'all' || view?.type === 'dms' || view?.type === 'stream' || view?.type === 'unified_streams'
+    if (replyingTo && isAggregate) {
+      const groupId = replyingTo.group_id
+      const senderId = replyingTo.sender_id || replyingTo.user_id
+      if (groupId) {
+        await store.sendMessageDirect('group', groupId, mainInput.trim(), attachments)
+      } else if (senderId) {
+        await store.sendMessageDirect('dm', senderId, mainInput.trim(), attachments)
+      }
+    } else {
+      await store.sendMessage(panelIdx, mainInput.trim(), attachments)
+    }
+
+    setMainInput('')
+    setReplyingTo(null)
+    store.setPendingImage(null)
   }
 
   function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -383,16 +398,26 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
       )}
 
       {/* Reply context snippet */}
-      {replyingTo && (
+      {replyingTo && (() => {
+        const isAggregate = view?.type === 'all' || view?.type === 'dms' || view?.type === 'stream' || view?.type === 'unified_streams'
+        const replyGroupName = replyingTo.group_id ? store.groups.find(g => g.id === replyingTo.group_id)?.name : null
+        return (
         <div className="flex items-center gap-2 mb-2 px-2 py-1.5 rounded-lg border-l-3 border-l-[var(--d360-orange)] bg-secondary/30 border border-border">
           <Reply className="w-3.5 h-3.5 text-[var(--d360-orange)] shrink-0 rotate-180" />
           <div className="flex-1 min-w-0">
-            <span
-              className="text-[10px] font-bold text-[var(--d360-orange)] block"
-              style={{ fontFamily: 'var(--font-mono)' }}
-            >
-              {replyingTo.name}
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span
+                className="text-[10px] font-bold text-[var(--d360-orange)]"
+                style={{ fontFamily: 'var(--font-mono)' }}
+              >
+                {replyingTo.name}
+              </span>
+              {isAggregate && replyGroupName && (
+                <span className="text-[9px] text-muted-foreground/60" style={{ fontFamily: 'var(--font-mono)' }}>
+                  in {replyGroupName}
+                </span>
+              )}
+            </div>
             <span
               className="text-[10px] text-muted-foreground line-clamp-1"
               style={{ fontFamily: 'var(--font-mono)' }}
@@ -408,7 +433,8 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
-      )}
+        )
+      })()}
 
       {/* Input row */}
       <div className="flex items-end gap-1.5">

@@ -159,6 +159,7 @@ interface StoreActions {
   setActivePanel: (idx: number) => void
   refreshData: () => Promise<void>
   sendMessage: (panelIdx: number, text: string, attachments?: GroupMeMessage['attachments']) => Promise<void>
+  sendMessageDirect: (targetType: 'group' | 'dm', targetId: string, text: string, attachments?: GroupMeMessage['attachments']) => Promise<void>
   likeMessage: (groupId: string, messageId: string) => Promise<void>
   unlikeMessage: (groupId: string, messageId: string) => Promise<void>
   deleteMessage: (groupId: string, messageId: string) => Promise<void>
@@ -326,6 +327,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   })
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const knownMsgIds = useRef<Set<string>[]>([new Set(), new Set(), new Set()])
+  const panelSeeded = useRef<boolean[]>([false, false, false]) // tracks whether first load is done
   const isLoggingInRef = useRef(false)
 
   // Load persisted settings on mount
@@ -529,10 +531,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     if (toastMutedRef.current.has(toast.sourceKey)) return
     const id = ++msgToastIdRef.current
     const entry: MsgToast = { ...toast, id, ts: Date.now() }
-    setMsgToasts(prev => [...prev.slice(-6), entry]) // max 7 visible
+    setMsgToasts(prev => [...prev.slice(-6), entry])
     setTimeout(() => {
       setMsgToasts(prev => prev.filter(t => t.id !== id))
-    }, 10000) // 10s visible
+    }, 10000)
   }, [])
 
   const removeMsgToast = useCallback((id: number) => {
@@ -645,7 +647,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
     // Detect new messages: sound, desktop notification, and preview toast
     const oldIds = knownMsgIds.current[panelIdx]
-    if (oldIds && oldIds.size > 0) {
+    if (panelSeeded.current[panelIdx]) {
       const newMsgs = msgs.filter(m => !oldIds.has(m.id))
       if (newMsgs.length > 0) {
         const latest = newMsgs[newMsgs.length - 1]
@@ -687,6 +689,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
     }
     knownMsgIds.current[panelIdx] = new Set(msgs.map(m => m.id))
+    panelSeeded.current[panelIdx] = true
 
     // Batch index for search (single state update instead of per-message)
     const newForIndex = msgs.filter(m => m.text)
@@ -902,6 +905,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const cacheKey = `${type}:${id || '_'}`
     const cached = msgCache.current[cacheKey]
     knownMsgIds.current[0] = cached ? new Set(cached.msgs.map(m => m.id)) : new Set()
+    panelSeeded.current[0] = cached ? true : false // if cached, we have a baseline, allow notifications immediately
     setSidebarMobileOpen(false)
   }, [])
 
@@ -942,6 +946,20 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       showToast('Error', 'Failed to send message')
     }
   }, [currentView, panels, showToast])
+
+  // Send a message directly to a specific group/DM (used when replying from aggregate views)
+  const sendMessageDirect = useCallback(async (targetType: 'group' | 'dm', targetId: string, text: string, attachments: GroupMeMessage['attachments'] = []) => {
+    try {
+      if (targetType === 'group') {
+        await api.sendGroupMessage(targetId, text, attachments)
+      } else {
+        await api.sendDM(targetId, text, attachments)
+      }
+      setPendingImage(null)
+    } catch {
+      showToast('Error', 'Failed to send message')
+    }
+  }, [showToast])
 
   const markSeen = useCallback((id: string) => {
     setLastSeen(prev => {
@@ -1255,6 +1273,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setActivePanel: setActivePanelIdx,
     refreshData,
     sendMessage,
+    sendMessageDirect,
     likeMessage: async (gid: string, mid: string) => { try { await api.likeMessage(gid, mid) } catch {} },
     unlikeMessage: async (gid: string, mid: string) => { try { await api.unlikeMessage(gid, mid) } catch {} },
     deleteMessage: async (gid: string, mid: string) => {
