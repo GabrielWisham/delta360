@@ -505,12 +505,39 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     return '--'
   }, [groups, dmChats])
 
+  // Message cache: keyed by "type:id" to avoid refetching when switching back
+  const msgCache = useRef<Record<string, { msgs: GroupMeMessage[]; ts: number }>>({})
+  const CACHE_TTL = 10_000 // 10s -- show cached instantly, refresh in background
+
   const loadMessages = useCallback(async (panelIdx: number) => {
     const view = panelIdx === 0 ? currentView : panels[panelIdx]
     if (!view) return
     const { type, id } = view
-    // unified_streams is handled exclusively by loadUnifiedStreams - never load here
     if (type === 'unified_streams') return
+
+    const cacheKey = `${type}:${id || '_'}`
+    const cached = msgCache.current[cacheKey]
+
+    // Show cached messages instantly while we fetch fresh ones
+    if (cached && cached.msgs.length > 0) {
+      const isFresh = Date.now() - cached.ts < CACHE_TTL
+      if (isFresh) {
+        // Cache is fresh enough, just set it and return
+        setPanelMessages(prev => {
+          const next = [...prev]
+          next[panelIdx] = cached.msgs
+          return next
+        })
+        return
+      }
+      // Stale cache -- show it immediately, then refresh below
+      setPanelMessages(prev => {
+        const next = [...prev]
+        next[panelIdx] = cached.msgs
+        return next
+      })
+    }
+
     let msgs: GroupMeMessage[] = []
     try {
       if (type === 'group' && id) {
@@ -556,12 +583,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
     msgs.sort((a, b) => a.created_at - b.created_at)
 
+    // Update cache
+    msgCache.current[cacheKey] = { msgs, ts: Date.now() }
+
     // Detect new messages and play sound + desktop notification
     const oldIds = knownMsgIds.current[panelIdx]
     if (oldIds && oldIds.size > 0 && !globalMute) {
       const newMsgs = msgs.filter(m => !oldIds.has(m.id))
       if (newMsgs.length > 0) {
-        // Pick the latest new message for the notification body
         const latest = newMsgs[newMsgs.length - 1]
         const notifBody = latest ? `${latest.name}: ${latest.text || '(attachment)'}` : ''
 
@@ -581,16 +610,17 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
     knownMsgIds.current[panelIdx] = new Set(msgs.map(m => m.id))
 
-    // Index for search
-    msgs.forEach(m => {
-      if (m.text) {
-        setSearchIndex(prev => {
-          if (prev.find(x => x.id === m.id)) return prev
-          const next = [...prev, m]
-          return next.length > 2000 ? next.slice(-1500) : next
-        })
-      }
-    })
+    // Batch index for search (single state update instead of per-message)
+    const newForIndex = msgs.filter(m => m.text)
+    if (newForIndex.length > 0) {
+      setSearchIndex(prev => {
+        const existingIds = new Set(prev.map(x => x.id))
+        const toAdd = newForIndex.filter(m => !existingIds.has(m.id))
+        if (toAdd.length === 0) return prev
+        const next = [...prev, ...toAdd]
+        return next.length > 2000 ? next.slice(-1500) : next
+      })
+    }
 
     setPanelMessages(prev => {
       const next = [...prev]
@@ -781,7 +811,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         return next
       })
     }
-    knownMsgIds.current[0] = new Set()
+    // Pre-seed knownIds from cache to prevent false "new message" alerts
+    const cacheKey = `${type}:${id || '_'}`
+    const cached = msgCache.current[cacheKey]
+    knownMsgIds.current[0] = cached ? new Set(cached.msgs.map(m => m.id)) : new Set()
     setSidebarMobileOpen(false)
   }, [])
 

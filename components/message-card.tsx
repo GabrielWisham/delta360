@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, memo } from 'react'
 import { useStore } from '@/lib/store'
 import { formatTimestamp, getFullDate } from '@/lib/date-helpers'
 import { EMOJIS } from '@/lib/types'
@@ -16,7 +16,7 @@ import {
 } from 'lucide-react'
 import type { GroupMeMessage } from '@/lib/types'
 
-export function MessageCard({
+export const MessageCard = memo(function MessageCard({
   msg,
   panelIdx,
   showGroupTag,
@@ -422,7 +422,7 @@ export function MessageCard({
       </div>
     </div>
   )
-}
+})
 
 /* ======================================= */
 /*  Sub-components                          */
