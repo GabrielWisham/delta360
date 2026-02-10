@@ -59,7 +59,10 @@ const ALL_TOOLS: ToolDef[] = [
 function loadPins(): string[] {
   try {
     const raw = localStorage.getItem(PINS_KEY)
-    if (raw) return JSON.parse(raw)
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed
+    }
   } catch { /* empty */ }
   return DEFAULT_PINS
 }
