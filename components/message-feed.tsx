@@ -34,6 +34,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   const view = panelIdx === 0 ? store.currentView : store.panels[panelIdx]
   const messages = store.panelMessages[panelIdx] || []
   const [viewLoaded, setViewLoaded] = useState(false)
+  const [viewReady, setViewReady] = useState(true) // false during view transition until scroll positioned
   const title = view ? store.getPanelTitle(view.type, view.id) : '--'
   const showGroupTag = view?.type === 'all' || view?.type === 'dms' || view?.type === 'stream' || view?.type === 'unified_streams'
 
@@ -173,6 +174,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     userScrolledRef.current = false
     programmaticScrollRef.current = true
     setTimeout(() => { programmaticScrollRef.current = false }, 500)
+    setViewReady(false)
     setViewLoaded(false)
     prevMsgCountRef.current = 0
     prevLastMsgIdRef.current = null
@@ -235,6 +237,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
                 container.scrollTop = Math.max(0, container.scrollTop - 40)
               }
               transitioningRef.current = false
+              setViewReady(true)
             })
           } else {
             requestAnimationFrame(() => {
@@ -242,6 +245,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
               if (!c) return
               if (store.oldestFirst) { c.scrollTop = c.scrollHeight } else { c.scrollTop = 0 }
               transitioningRef.current = false
+              setViewReady(true)
               setTimeout(() => {
                 if (!scrollRef.current) return
                 if (store.oldestFirst) { scrollRef.current.scrollTop = scrollRef.current.scrollHeight } else { scrollRef.current.scrollTop = 0 }
@@ -261,6 +265,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
               c.scrollTop = 0
             }
             transitioningRef.current = false
+            setViewReady(true)
             setTimeout(() => {
               if (!scrollRef.current) return
               if (store.oldestFirst) {
@@ -402,7 +407,6 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   useEffect(() => {
     if (!pendingMsgId || messages.length === 0) return
     const gen = ++scrollGenRef.current
-    console.log('[v0] pendingScroll: starting', { pendingMsgId, gen, msgCount: messages.length })
     // Prevent auto-scroll effect and handleScroll from interfering
     userScrolledRef.current = false
     programmaticScrollRef.current = true
@@ -410,13 +414,9 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     const maxAttempts = 20
     function tryScroll() {
       // If a newer toast click has started its own loop, bail out
-      if (scrollGenRef.current !== gen) {
-        console.log('[v0] pendingScroll: CANCELLED (stale gen)', { gen, currentGen: scrollGenRef.current })
-        return
-      }
+      if (scrollGenRef.current !== gen) return
       const el = document.getElementById(`msg-${pendingMsgId}`)
       if (el) {
-        console.log('[v0] pendingScroll: FOUND element', { pendingMsgId, attempts })
         // Use requestAnimationFrame to ensure layout is committed
         requestAnimationFrame(() => {
           if (scrollGenRef.current !== gen) return
@@ -424,10 +424,8 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
           clearPendingScroll(null)
         })
       } else if (++attempts < maxAttempts) {
-        console.log('[v0] pendingScroll: element not found, retrying', { pendingMsgId, attempts })
         setTimeout(tryScroll, 200)
       } else {
-        console.log('[v0] pendingScroll: GAVE UP after', maxAttempts, 'attempts for', pendingMsgId)
         clearPendingScroll(null)
         programmaticScrollRef.current = false
       }
@@ -862,7 +860,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className={`flex-1 overflow-y-auto overflow-x-hidden px-3 pt-2 pb-4 flex flex-col min-h-0 ${store.compact ? 'gap-0.5' : 'gap-1.5'}`}
+        className={`flex-1 overflow-y-auto overflow-x-hidden px-3 pt-2 pb-4 flex flex-col min-h-0 ${store.compact ? 'gap-0.5' : 'gap-1.5'} transition-opacity duration-100 ${viewReady ? 'opacity-100' : 'opacity-0'}`}
         style={store.boardGradient ? {
           background: `linear-gradient(${store.boardGradient.angle}deg, rgb(${store.boardGradient.start.join(',')}), rgb(${store.boardGradient.end.join(',')}))`,
           ['--board-text' as string]: boardTextColor,
