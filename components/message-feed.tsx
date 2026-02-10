@@ -233,6 +233,18 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     }
   }, [])
 
+  // After messages load, if there's a pending scroll target (from toast click), scroll to it
+  const pendingMsgId = store.pendingScrollToMsgId
+  const clearPendingScroll = store.setPendingScrollToMsgId
+  useEffect(() => {
+    if (!pendingMsgId || messages.length === 0) return
+    // Give DOM a tick to render the messages
+    requestAnimationFrame(() => {
+      scrollToMsg(pendingMsgId)
+      clearPendingScroll(null)
+    })
+  }, [messages, pendingMsgId, scrollToMsg, clearPendingScroll])
+
   function autoResize() {
     const el = textareaRef.current
     if (!el) return

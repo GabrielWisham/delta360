@@ -4,11 +4,8 @@ import { useStore } from '@/lib/store'
 import { X, BellOff } from 'lucide-react'
 
 export function ToastZone() {
-  const { toasts, removeToast, msgToasts, removeMsgToast, toggleToastMuted, switchView } = useStore()
+  const { toasts, removeToast, msgToasts, removeMsgToast, toggleToastMuted, switchView, setPendingScrollToMsgId } = useStore()
 
-  if (msgToasts.length > 0 || toasts.length > 0) {
-    console.log("[v0] ToastZone rendering:", msgToasts.length, "msg toasts,", toasts.length, "action toasts")
-  }
   const hasAny = toasts.length > 0 || msgToasts.length > 0
   if (!hasAny) return null
 
@@ -45,6 +42,8 @@ export function ToastZone() {
           <button
             onClick={() => {
               removeMsgToast(t.id)
+              // Set scroll target BEFORE switching view so the feed picks it up
+              if (t.messageId) setPendingScrollToMsgId(t.messageId)
               // Navigate to the specific group/DM, not the aggregate feed
               switchView(t.originType, t.originId)
             }}

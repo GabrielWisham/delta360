@@ -133,6 +133,8 @@ interface StoreState {
   unifiedLoading: boolean
   // Jump behavior on unread
   jumpToUnread: boolean
+  // Pending scroll target from toast click
+  pendingScrollToMsgId: string | null
   // Message preview toasts
   msgToasts: MsgToast[]
   toastMutedFeeds: Set<string>
@@ -144,6 +146,7 @@ export type MsgToast = {
   sourceName: string
   senderName: string
   text: string
+  messageId?: string  // the actual GroupMe message ID to scroll to on click
   viewType: ViewState['type']
   viewId: string | null
   // Navigate to the specific group/DM on click (resolves aggregate feeds)
@@ -171,6 +174,7 @@ interface StoreActions {
   toggleOldestFirst: () => void
   setAutoScroll: (v: boolean) => void
   setJumpToUnread: (v: boolean) => void
+  setPendingScrollToMsgId: (id: string | null) => void
   toggleGlobalMute: () => void
   toggleSidebar: () => void
   toggleSidebarMobile: () => void
@@ -274,6 +278,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [oldestFirst, setOldestFirst] = useState(true)
   const [autoScroll, setAutoScrollState] = useState(true)
   const [jumpToUnread, setJumpToUnreadState] = useState(true)
+  const [pendingScrollToMsgId, setPendingScrollToMsgId] = useState<string | null>(null)
   const [loadingMore, setLoadingMore] = useState(false)
   const [globalMute, setGlobalMute] = useState(false)
   const [feedSound, setFeedSoundState] = useState<SoundName>('chime')
@@ -487,7 +492,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       setDmChats(d)
 
       // --- Instant notification detection from group/DM list metadata ---
-      console.log("[v0] pollLoop: trackerSeeded=", trackerSeeded.current, "groups=", g.length, "dms=", d.length)
       if (trackerSeeded.current) {
         // Check groups for new messages
         for (const group of g) {
@@ -498,7 +502,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             const prev = group.messages.preview
             const senderName = prev.nickname || 'Someone'
             const text = prev.text || (prev.image_attached ? '(image)' : '(attachment)')
-            console.log("[v0] NEW GROUP MSG detected:", group.name, senderName, text, "prevId=", prevId, "newId=", lmid)
             // Sound
             if (!globalMuteRef.current && !feedMutedRef.current) {
               // Check if this group belongs to a stream with a custom sound
@@ -506,15 +509,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               for (const [, s] of Object.entries(streamsRef.current)) {
                 if (s.ids.includes(group.id)) { customSound = s.sound as SoundName; break }
               }
-              console.log("[v0] PLAYING SOUND:", customSound || feedSoundRef.current, "globalMute=", globalMuteRef.current, "feedMuted=", feedMutedRef.current)
               playSound(customSound || feedSoundRef.current)
               sendDesktopNotification(`Delta 360 - ${group.name}`, `${senderName}: ${text}`)
-            } else {
-              console.log("[v0] SOUND MUTED: globalMute=", globalMuteRef.current, "feedMuted=", feedMutedRef.current)
             }
             // Toast
-            console.log("[v0] FIRING TOAST for group:", group.name, "showMsgToastRef.current type=", typeof showMsgToastRef.current)
-            showMsgToastRef.current({ sourceKey: `group:${group.id}`, sourceName: group.name, senderName, text, viewType: 'group', viewId: group.id, originType: 'group', originId: group.id })
+            showMsgToastRef.current({ sourceKey: `group:${group.id}`, sourceName: group.name, senderName, text, messageId: lmid, viewType: 'group', viewId: group.id, originType: 'group', originId: group.id })
           }
           lastMsgTracker.current[`g:${group.id}`] = lmid
         }
@@ -534,7 +533,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               playSound(dmSoundRef.current)
               sendDesktopNotification('Delta 360 - DM', `${senderName}: ${text}`)
             }
-            showMsgToastRef.current({ sourceKey: `dm:${otherId}`, sourceName: dm.other_user?.name || 'DM', senderName, text, viewType: 'dm', viewId: otherId, originType: 'dm', originId: otherId })
+            showMsgToastRef.current({ sourceKey: `dm:${otherId}`, sourceName: dm.other_user?.name || 'DM', senderName, text, messageId: lmid, viewType: 'dm', viewId: otherId, originType: 'dm', originId: otherId })
           }
           lastMsgTracker.current[`d:${otherId}`] = lmid
         }
@@ -620,16 +619,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   streamsRef.current = streams
 
   const showMsgToast = useCallback((toast: Omit<MsgToast, 'id' | 'ts'>) => {
-    console.log("[v0] showMsgToast CALLED:", toast.sourceKey, toast.senderName, "muted=", toastMutedRef.current.has(toast.sourceKey))
     if (toastMutedRef.current.has(toast.sourceKey)) return
     const id = ++msgToastIdRef.current
     const entry: MsgToast = { ...toast, id, ts: Date.now() }
-    console.log("[v0] showMsgToast ADDING toast id=", id)
-    setMsgToasts(prev => {
-      const next = [...prev.slice(-6), entry]
-      console.log("[v0] msgToasts state updated, count=", next.length)
-      return next
-    })
+    setMsgToasts(prev => [...prev.slice(-6), entry])
     setTimeout(() => {
       setMsgToasts(prev => prev.filter(t => t.id !== id))
     }, 10000)
@@ -1255,6 +1248,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     oldestFirst,
   autoScroll,
   jumpToUnread,
+  pendingScrollToMsgId,
   loadingMore,
     loadMoreMessages,
     globalMute,
@@ -1353,6 +1347,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     },
   setAutoScroll: (v: boolean) => { setAutoScrollState(v); storage.setAutoScroll(v) },
   setJumpToUnread: (v: boolean) => { setJumpToUnreadState(v); storage.setJumpToUnread(v) },
+  setPendingScrollToMsgId,
   toggleGlobalMute: () => {
       setGlobalMute(prev => {
         const next = !prev
@@ -1434,7 +1429,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     removeToast,
     showMsgToast,
     testNotification: () => {
-      console.log("[v0] TEST NOTIFICATION fired")
       playSound(feedSound)
       showMsgToast({ sourceKey: 'test', sourceName: 'Test Group', senderName: 'Test User', text: 'This is a test notification -- if you see this toast AND hear a sound, notifications work!', viewType: 'group', viewId: '', originType: 'group', originId: '' })
     },
