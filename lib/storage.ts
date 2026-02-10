@@ -142,6 +142,10 @@ export const storage = {
   getClipboardPos: () => get<{ x: number; y: number }>('gm_v3_cbpos', { x: 100, y: 100 }),
   setClipboardPos: (v: { x: number; y: number }) => set('gm_v3_cbpos', v),
 
+  // Auto-scroll
+  getAutoScroll: () => getString('gm_v3_autoscroll', '1') === '1',
+  setAutoScroll: (v: boolean) => setString('gm_v3_autoscroll', v ? '1' : '0'),
+
   // Board gradient colors [r,g,b] for start and end
   getBoardGradient: () => get<{ start: [number, number, number]; end: [number, number, number]; angle: number } | null>('gm_v3_boardgrad', null),
   setBoardGradient: (v: { start: [number, number, number]; end: [number, number, number]; angle: number } | null) => set('gm_v3_boardgrad', v),

@@ -16,6 +16,7 @@ import {
   AlignJustify,
   ArrowUpDown,
   ArrowDownUp,
+  MousePointerClick,
   Megaphone,
   ClipboardCheck,
   Download,
@@ -125,6 +126,11 @@ export function Header() {
                 label={`Order: ${store.oldestFirst ? 'Oldest' : 'Newest'} First`}
                 Icon={ArrowDownUp}
                 onClick={() => store.toggleOldestFirst()}
+              />
+              <TrayItem
+                label={`Auto-Scroll: ${store.autoScroll ? 'ON' : 'OFF'}`}
+                Icon={MousePointerClick}
+                onClick={() => store.setAutoScroll(!store.autoScroll)}
               />
             </div>
           )}

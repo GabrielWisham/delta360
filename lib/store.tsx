@@ -54,6 +54,7 @@ interface StoreState {
   compact: boolean
   inputBottom: boolean
   oldestFirst: boolean
+  autoScroll: boolean
   globalMute: boolean
   feedSound: SoundName
   dmSound: SoundName
@@ -127,6 +128,7 @@ interface StoreActions {
   toggleCompact: () => void
   toggleInputBottom: () => void
   toggleOldestFirst: () => void
+  setAutoScroll: (v: boolean) => void
   toggleGlobalMute: () => void
   toggleSidebar: () => void
   toggleSidebarMobile: () => void
@@ -219,6 +221,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [compact, setCompact] = useState(false)
   const [inputBottom, setInputBottom] = useState(false)
   const [oldestFirst, setOldestFirst] = useState(false)
+  const [autoScroll, setAutoScrollState] = useState(true)
   const [globalMute, setGlobalMute] = useState(false)
   const [feedSound, setFeedSoundState] = useState<SoundName>('radar')
   const [dmSound, setDmSoundState] = useState<SoundName>('chime')
@@ -271,6 +274,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setCompact(storage.getCompact())
     setInputBottom(storage.getInputBottom())
     setOldestFirst(storage.getOldestFirst())
+    setAutoScrollState(storage.getAutoScroll())
     setGlobalMute(storage.getGlobalMute())
     setFeedSoundState(storage.getFeedSound() as SoundName)
     setDmSoundState(storage.getDmSound() as SoundName)
@@ -972,6 +976,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     compact,
     inputBottom,
     oldestFirst,
+    autoScroll,
     globalMute,
     feedSound,
     dmSound,
@@ -1059,6 +1064,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         return next
       })
     },
+    setAutoScroll: (v: boolean) => { setAutoScrollState(v); storage.setAutoScroll(v) },
     toggleGlobalMute: () => {
       setGlobalMute(prev => {
         const next = !prev

@@ -5,13 +5,16 @@ import { useStore } from '@/lib/store'
 import { getDayLabel, getFullDate } from '@/lib/date-helpers'
 import { MessageCard } from './message-card'
 import { EMOJIS } from '@/lib/types'
+import { ArrowDown, ArrowUp } from 'lucide-react'
 import type { GroupMeMessage } from '@/lib/types'
 
 export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   const store = useStore()
   const scrollRef = useRef<HTMLDivElement>(null)
-  const [showScrollTop, setShowScrollTop] = useState(false)
+  const [showJumpToLatest, setShowJumpToLatest] = useState(false)
   const [dayCue, setDayCue] = useState<string | null>(null)
+  const userScrolledRef = useRef(false)
+  const prevMsgCountRef = useRef(0)
   const [mainInput, setMainInput] = useState('')
   const [mainEmojiOpen, setMainEmojiOpen] = useState(false)
   const mainEmojiRef = useRef<HTMLDivElement>(null)
@@ -49,22 +52,54 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view?.id])
 
+  // Check if scrolled to the "latest" edge (bottom if oldestFirst, top if newestFirst)
+  function isAtLatestEdge(el: HTMLDivElement, threshold = 80) {
+    if (store.oldestFirst) {
+      return el.scrollHeight - el.scrollTop - el.clientHeight < threshold
+    } else {
+      return el.scrollTop < threshold
+    }
+  }
+
   // Scroll tracking
   function handleScroll() {
     if (!scrollRef.current) return
-    const st = scrollRef.current.scrollTop
-    setShowScrollTop(st > 150)
+    const el = scrollRef.current
+
+    // Detect manual scroll away from latest edge -> disable auto-scroll
+    if (!isAtLatestEdge(el)) {
+      if (!userScrolledRef.current) {
+        userScrolledRef.current = true
+        if (store.autoScroll) store.setAutoScroll(false)
+      }
+      setShowJumpToLatest(true)
+    } else {
+      userScrolledRef.current = false
+      setShowJumpToLatest(false)
+    }
 
     // Day cue
-    const dividers = scrollRef.current.querySelectorAll('[data-day-label]')
+    const dividers = el.querySelectorAll('[data-day-label]')
     let currentDay: string | null = null
     dividers.forEach(d => {
-      const el = d as HTMLElement
-      if (el.offsetTop < st + 60) {
-        currentDay = el.dataset.dayLabel || null
+      const div = d as HTMLElement
+      if (div.offsetTop < el.scrollTop + 60) {
+        currentDay = div.dataset.dayLabel || null
       }
     })
     setDayCue(currentDay)
+  }
+
+  // Jump to latest message
+  function jumpToLatest() {
+    if (!scrollRef.current) return
+    if (store.oldestFirst) {
+      scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
+    } else {
+      scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+    userScrolledRef.current = false
+    setShowJumpToLatest(false)
   }
 
   // Order messages
@@ -82,15 +117,32 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     return ordered.filter(m => !store.pinnedMessages[m.id])
   }, [ordered, store.pinnedMessages])
 
-  // Auto-scroll based on sort order
+  // Auto-scroll on view change (always) and on new messages (when autoScroll is on)
   useEffect(() => {
     if (!scrollRef.current) return
+    userScrolledRef.current = false
+    setShowJumpToLatest(false)
     if (store.oldestFirst) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight
     } else {
       scrollRef.current.scrollTop = 0
     }
   }, [view?.type, view?.id, store.oldestFirst])
+
+  // Auto-scroll when new messages arrive
+  useEffect(() => {
+    if (!scrollRef.current || !store.autoScroll) return
+    const newCount = messages.length
+    if (newCount > prevMsgCountRef.current && prevMsgCountRef.current > 0) {
+      // New messages arrived -- scroll to latest
+      if (store.oldestFirst) {
+        scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
+      } else {
+        scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' })
+      }
+    }
+    prevMsgCountRef.current = newCount
+  }, [messages.length, store.autoScroll, store.oldestFirst])
 
   // For unified_streams, also scroll to top when messages finish loading (buffer complete)
   const prevUnifiedLoading = useRef(store.unifiedLoading)
@@ -378,14 +430,15 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
         </div>
       )}
 
-      {/* Scroll to top button */}
-      {showScrollTop && (
+      {/* Jump to latest button */}
+      {showJumpToLatest && (
         <button
-          onClick={() => scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
-          className="absolute bottom-16 right-3 w-8 h-8 rounded-full text-white text-sm flex items-center justify-center shadow-lg hover:brightness-110 transition-all z-10"
-          style={{ background: 'var(--d360-gradient)' }}
+          onClick={jumpToLatest}
+          className="absolute bottom-16 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-white text-[10px] uppercase tracking-widest font-semibold shadow-lg hover:brightness-110 transition-all z-10"
+          style={{ background: 'var(--d360-gradient)', fontFamily: 'var(--font-mono)' }}
         >
-          {'\u2191'}
+          {store.oldestFirst ? <ArrowDown className="w-3 h-3" /> : <ArrowUp className="w-3 h-3" />}
+          Latest
         </button>
       )}
     </div>
