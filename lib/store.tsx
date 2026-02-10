@@ -228,7 +228,7 @@ interface StoreActions {
   testNotification: () => void
   removeMsgToast: (id: number) => void
   toggleToastMuted: (sourceKey: string) => void
-  loadMessages: (panelIdx: number, notifications?: { sounds: (() => void)[]; toasts: Omit<MsgToast, 'id' | 'ts'>[] } | null) => Promise<void>
+  loadMessages: (panelIdx: number, bypassCache?: boolean, isViewSwitch?: boolean) => Promise<void>
   loadUnifiedStreams: () => Promise<void>
   getPanelTitle: (type: ViewState['type'], id: string | null) => string
   renameChat: (id: string, name: string) => void
