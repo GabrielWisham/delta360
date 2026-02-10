@@ -938,9 +938,9 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
       {/* Input (top or bottom) */}
       {!store.inputBottom && inputSection}
 
-      {/* Loading spinner -- shown INSTEAD of scroll container while loading */}
+      {/* Loading spinner -- overlay on top of scroll container while loading */}
       {!viewReady && (
-        <div className="flex-1 flex flex-col items-center justify-center gap-3">
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-background">
           <div className="relative w-8 h-8">
             <div className="absolute inset-0 rounded-full border-2 border-border" />
             <div className="absolute inset-0 rounded-full border-2 border-t-[var(--d360-orange)] animate-spin" />
@@ -951,11 +951,11 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
         </div>
       )}
 
-      {/* Message scroll area -- completely hidden until scroll is positioned */}
+      {/* Message scroll area -- always flex-1 so it has real height for scroll snapping; hidden visually until ready */}
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className={`overflow-y-auto overflow-x-hidden px-3 pt-2 pb-4 flex flex-col min-h-0 ${store.compact ? 'gap-0.5' : 'gap-1.5'} ${viewReady ? 'flex-1' : 'h-0 overflow-hidden'}`}
+        className={`overflow-y-auto overflow-x-hidden px-3 pt-2 pb-4 flex flex-col min-h-0 flex-1 ${store.compact ? 'gap-0.5' : 'gap-1.5'} ${!viewReady ? 'opacity-0 pointer-events-none' : ''}`}
         style={store.boardGradient ? {
           background: `linear-gradient(${store.boardGradient.angle}deg, rgb(${store.boardGradient.start.join(',')}), rgb(${store.boardGradient.end.join(',')}))`,
           ['--board-text' as string]: boardTextColor,
