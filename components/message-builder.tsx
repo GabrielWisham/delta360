@@ -455,14 +455,8 @@ export function MessageBuilder() {
               <div
                 key={load.id}
                 data-load-idx={idx}
-                draggable
-                onDragStart={() => handleDragStart(idx)}
                 onDragOver={e => handleDragOver(e, idx)}
                 onDrop={() => handleDrop(idx)}
-                onDragEnd={handleDragEnd}
-                onTouchStart={e => handleTouchStart(e, idx)}
-                onTouchMove={handleTouchMove}
-                onTouchEnd={handleTouchEnd}
                 className={`rounded-xl border bg-card transition-all ${
                   overIdx === idx ? 'border-[var(--d360-orange)] ring-1 ring-[var(--d360-orange)]/30' :
                   dragIdx === idx ? 'opacity-50 border-border' : 'border-border'
@@ -470,11 +464,40 @@ export function MessageBuilder() {
                 style={{ borderLeftWidth: '3px', borderLeftColor: 'var(--d360-orange)' }}
               >
                 {/* Card header */}
-                <div className="flex items-center gap-2 px-3 py-2.5">
-                  <div className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground p-0.5">
+                <div className="flex items-center gap-1 px-3 py-2.5">
+                  {/* Drag handle -- only this triggers drag */}
+                  <div
+                    draggable
+                    onDragStart={() => handleDragStart(idx)}
+                    onDragEnd={handleDragEnd}
+                    onTouchStart={e => handleTouchStart(e, idx)}
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={handleTouchEnd}
+                    className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-[var(--d360-orange)] p-1 -ml-1 rounded hover:bg-secondary/40 transition-colors touch-none"
+                    title="Drag to reorder"
+                  >
                     <GripVertical className="w-4 h-4" />
                   </div>
-                  <span className="text-[10px] uppercase tracking-widest font-bold text-[var(--d360-orange)]" style={mono}>
+                  {/* Move up / down arrows */}
+                  <div className="flex flex-col -space-y-0.5">
+                    <button
+                      onClick={() => { if (idx > 0) reorderLoads(idx, idx - 1) }}
+                      disabled={idx === 0}
+                      className="p-0.5 rounded text-muted-foreground hover:text-foreground disabled:opacity-20 disabled:cursor-default transition-colors"
+                      title="Move up"
+                    >
+                      <ChevronUp className="w-3 h-3" />
+                    </button>
+                    <button
+                      onClick={() => { if (idx < form.loads.length - 1) reorderLoads(idx, idx + 1) }}
+                      disabled={idx === form.loads.length - 1}
+                      className="p-0.5 rounded text-muted-foreground hover:text-foreground disabled:opacity-20 disabled:cursor-default transition-colors"
+                      title="Move down"
+                    >
+                      <ChevronDown className="w-3 h-3" />
+                    </button>
+                  </div>
+                  <span className="text-[10px] uppercase tracking-widest font-bold text-[var(--d360-orange)] ml-1" style={mono}>
                     Load #{idx + 1}
                   </span>
                   <div className="flex-1" />
