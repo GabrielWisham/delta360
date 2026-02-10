@@ -16,7 +16,7 @@ export function ToastZone() {
         <div
           key={`a-${t.id}`}
           onClick={() => removeToast(t.id)}
-          className={`glass animate-slide-in-right cursor-pointer rounded-lg px-4 py-3 transition-opacity pointer-events-auto ${
+          className={`animate-slide-in-right cursor-pointer rounded-lg px-4 py-3 transition-opacity pointer-events-auto bg-card border border-border shadow-xl ${
             t.isPriority ? 'border-l-4 border-l-[var(--d360-red)]' : 'border-l-4 border-l-[var(--d360-orange)]'
           }`}
         >
@@ -36,7 +36,7 @@ export function ToastZone() {
       {msgToasts.map(t => (
         <div
           key={`m-${t.id}`}
-          className="glass animate-slide-in-right rounded-lg overflow-hidden pointer-events-auto border-l-4 border-l-[var(--d360-orange)] group"
+          className="animate-slide-in-right rounded-lg overflow-hidden pointer-events-auto bg-card border border-border shadow-xl border-l-4 border-l-[var(--d360-orange)] group"
         >
           {/* Clickable body -- navigates to the source chat */}
           <button
