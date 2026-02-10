@@ -38,6 +38,7 @@ export const MessageCard = memo(function MessageCard({
   const [editText, setEditText] = useState('')
 
   const isSelf = msg.user_id === store.user?.id || msg.sender_id === store.user?.id
+  const isDm = !msg.group_id
   const isPinned = !!store.pinnedMessages[msg.id]
   // For DMs, chatId should always be the OTHER user's ID (matching view.id)
   const chatId = msg.group_id || (isDm ? (isSelf ? msg.recipient_id : msg.sender_id) : '') || ''
@@ -52,7 +53,6 @@ export const MessageCard = memo(function MessageCard({
   const fileAttachments = msg.attachments?.filter(a => a.type === 'file') || []
   const locationAttachments = msg.attachments?.filter(a => a.type === 'location' && a.lat && a.lng) || []
   const hasMediaAttachments = imageAttachments.length > 0 || videoAttachments.length > 0 || fileAttachments.length > 0 || locationAttachments.length > 0
-  const isDm = !msg.group_id
   const groupName = msg.group_id ? store.groups.find(g => g.id === msg.group_id)?.name : null
 
   // Likes
