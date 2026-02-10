@@ -223,21 +223,13 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
           })
         }
       } else if (!userScrolledRef.current) {
-        // User hasn't scrolled away -- auto-scroll to show new messages.
+        // User hasn't scrolled away -- auto-scroll to fully reveal new messages.
         requestAnimationFrame(() => {
           const container = scrollRef.current
           if (!container) return
           if (store.oldestFirst) {
-            // Oldest first: newest at bottom. Find last message element.
-            const allMsgs = container.querySelectorAll('[data-msg-id]')
-            const lastMsg = allMsgs[allMsgs.length - 1] as HTMLElement | undefined
-            if (lastMsg) {
-              lastMsg.scrollIntoView({ behavior: 'smooth', block: 'start' })
-            } else {
-              container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' })
-            }
+            container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' })
           } else {
-            // Newest first: newest at top. Scroll to top.
             container.scrollTo({ top: 0, behavior: 'smooth' })
           }
         })
@@ -443,7 +435,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   const isSpecificView = view?.type === 'group' || view?.type === 'dm' || view?.type === 'stream'
 
   const inputSection = (
-    <div className={`${store.compact ? 'px-2 py-1.5' : 'px-3 py-2'} border-b border-border bg-card relative z-10`}>
+    <div className={`${store.compact ? 'px-2 py-1.5' : 'px-3 py-2'} border-b border-border bg-card relative z-20 overflow-visible`}>
       {/* Per-chat alert words panel */}
       {showChatAlerts && isSpecificView && chatId && (
         <div className="mb-2 p-2.5 rounded-lg border border-border bg-secondary/20">
@@ -628,9 +620,9 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
 
           {/* Emoji picker overlay -- inside ref so outside-click detection works */}
           {mainEmojiOpen && (
-            <div className={`absolute right-0 rounded-xl p-3 grid grid-cols-6 gap-1.5 z-50 shadow-xl bg-card border border-border ${
+            <div className={`absolute right-0 rounded-xl p-3 grid grid-cols-6 gap-1.5 shadow-xl bg-card border border-border ${
               store.inputBottom ? 'bottom-full mb-2' : 'top-full mt-2'
-            }`}>
+            }`} style={{ zIndex: 9999 }}>
               {EMOJIS.map(e => (
                 <button
                   key={e}
