@@ -146,16 +146,27 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     }
   }, [view?.type, view?.id, store.oldestFirst])
 
-  // Auto-scroll when new messages arrive
+  // Auto-scroll when new messages arrive (including first load)
   useEffect(() => {
-    if (!scrollRef.current || !store.autoScroll) return
+    if (!scrollRef.current) return
     const newCount = messages.length
-    if (newCount > prevMsgCountRef.current && prevMsgCountRef.current > 0) {
-      // New messages arrived -- scroll to latest
-      if (store.oldestFirst) {
-        scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
-      } else {
-        scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' })
+    const wasEmpty = prevMsgCountRef.current === 0
+
+    if (newCount > prevMsgCountRef.current) {
+      if (wasEmpty) {
+        // First load -- always jump to latest immediately (no smooth, avoid visual lag)
+        if (store.oldestFirst) {
+          scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+        } else {
+          scrollRef.current.scrollTop = 0
+        }
+      } else if (store.autoScroll) {
+        // Subsequent messages -- smooth scroll if autoScroll is on
+        if (store.oldestFirst) {
+          scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
+        } else {
+          scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' })
+        }
       }
     }
     prevMsgCountRef.current = newCount

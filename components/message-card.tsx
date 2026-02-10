@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect, memo } from 'react'
+import { useState, useRef, useEffect, useCallback, memo } from 'react'
 import { useStore } from '@/lib/store'
 import { formatTimestamp, getFullDate } from '@/lib/date-helpers'
 import { EMOJIS } from '@/lib/types'
@@ -117,35 +117,45 @@ export const MessageCard = memo(function MessageCard({
     </div>
   )
 
+  // Auto-resize reply textarea
+  const autoResizeReply = useCallback(() => {
+    const el = replyRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = Math.min(el.scrollHeight, 120) + 'px'
+  }, [])
+
   // Shared reply input
   const replyInput = showReplyInput && (
-    <div className="flex items-center gap-1 mt-1.5 relative" ref={emojiRef}>
+    <div className="flex items-end gap-1.5 mt-2 relative" ref={emojiRef}>
       <textarea
         ref={replyRef}
         value={replyText}
-        onChange={e => setReplyText(e.target.value)}
+        onChange={e => { setReplyText(e.target.value); autoResizeReply() }}
         onKeyDown={e => {
           if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleReply() }
           if (e.key === 'Escape') { setShowReplyInput(false) }
         }}
-        placeholder="Reply..."
-        className="flex-1 text-[10px] bg-black/10 border border-white/10 rounded-lg px-2 py-1 resize-none max-h-[48px] placeholder:opacity-40 focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)]"
-        style={{ fontFamily: 'var(--font-mono)', color: 'inherit' }}
+        placeholder="Type a reply... (Shift+Enter for new line)"
+        className="flex-1 text-[11px] leading-relaxed bg-secondary/40 border border-border rounded-lg px-3 py-2 resize-none overflow-y-auto placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)] focus:border-[var(--d360-orange)]/50 text-foreground transition-colors"
+        style={{ fontFamily: 'var(--font-mono)', maxHeight: '120px', minHeight: '36px' }}
         rows={1}
         autoFocus
       />
-      <button onClick={() => setEmojiOpen(!emojiOpen)} className="opacity-40 hover:opacity-100 transition-opacity">
-        <SmilePlus className="w-3.5 h-3.5" />
-      </button>
-      {emojiPicker}
-      <button
-        onClick={handleReply}
-        disabled={!replyText.trim()}
-        className="p-1 rounded text-white disabled:opacity-20 transition-all hover:brightness-110"
-        style={{ background: 'var(--d360-gradient)' }}
-      >
-        <Send className="w-3 h-3" />
-      </button>
+      <div className="flex items-center gap-0.5 pb-0.5">
+        <button onClick={() => setEmojiOpen(!emojiOpen)} className="p-1.5 rounded hover:bg-secondary/60 text-muted-foreground hover:text-foreground transition-colors">
+          <SmilePlus className="w-3.5 h-3.5" />
+        </button>
+        {emojiPicker}
+        <button
+          onClick={handleReply}
+          disabled={!replyText.trim()}
+          className="p-1.5 rounded text-white disabled:opacity-20 transition-all hover:brightness-110"
+          style={{ background: 'var(--d360-gradient)' }}
+        >
+          <Send className="w-3 h-3" />
+        </button>
+      </div>
     </div>
   )
 
