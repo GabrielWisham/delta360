@@ -246,23 +246,27 @@ export function MessageBuilder() {
       msg += `\n\u2981 Pick Up: ${load.pickUp}`
       msg += `\n\u2981 Acct #: ${load.account}`
       msg += `\n\u2981 Product: ${load.gallons ? `${load.gallons}-gal ` : ''}${load.product}`
-      msg += `\n\u2981 Delivery To: ${load.deliveryTo}`
-      if (load.address.trim()) {
-        msg += `\n\u2981 Address: ${load.address}`
-      }
-      msg += `\n\u2981 Location/Well: ${load.locationWell}`
-      msg += `\n\u2981 City: ${load.city}`
+      const addr = (load.address || '').trim()
+      const gps = (load.gps || '').trim()
+      const city = (load.city || '').trim()
+      const dirs = (load.directions || '').trim()
 
-      if (load.gps.trim()) {
-        msg += `\n\u2981 GPS: ${load.gps}`
-        const query = encodeURIComponent(load.gps.trim())
-        msg += `\n\uD83D\uDCCD Google Maps: https://www.google.com/maps/search/?api=1&query=${query}`
-      } else if (load.address.trim()) {
-        const query = encodeURIComponent(`${load.address.trim()}, ${load.city.trim()}`.replace(/,\s*$/, ''))
-        msg += `\n\uD83D\uDCCD Google Maps: https://www.google.com/maps/search/?api=1&query=${query}`
+      msg += `\n\u2981 Delivery To: ${load.deliveryTo || ''}`
+      if (addr) {
+        msg += `\n\u2981 Address: ${addr}`
       }
-      if (load.directions.trim()) {
-        msg += `\n Driver Directions: ${load.directions}`
+      msg += `\n\u2981 Location/Well: ${load.locationWell || ''}`
+      msg += `\n\u2981 City: ${city}`
+
+      if (gps) {
+        msg += `\n\u2981 GPS: ${gps}`
+        msg += `\n\uD83D\uDCCD Google Maps: https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(gps)}`
+      } else if (addr) {
+        const mapQuery = city ? `${addr}, ${city}` : addr
+        msg += `\n\uD83D\uDCCD Google Maps: https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`
+      }
+      if (dirs) {
+        msg += `\n Driver Directions: ${dirs}`
       }
 
       msg += `\n${divider}`
