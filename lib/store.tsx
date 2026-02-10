@@ -7,6 +7,7 @@ import React, {
   useCallback,
   useRef,
   useEffect,
+  useLayoutEffect,
 } from 'react'
 import type {
   GroupMeUser,
@@ -692,11 +693,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, [])
   showMsgToastRef.current = showMsgToast
 
-  // Drain pending notifications AFTER React commits (messages are in the DOM).
-  // Because setPendingNotifications is batched with setPanelMessages in the same
-  // tick, React commits both in a single render. This useEffect fires after that
-  // commit, guaranteeing the messages are visible before sounds/toasts play.
-  useEffect(() => {
+  // Drain pending notifications synchronously after React mutates the DOM but
+  // BEFORE the browser paints. This makes the message appearance and the toast
+  // arrive in the exact same visual frame -- no perceptible gap.
+  useLayoutEffect(() => {
     if (!pendingNotifications) return
     for (const fn of pendingNotifications.sounds) fn()
     for (const t of pendingNotifications.toasts) showMsgToast(t)
