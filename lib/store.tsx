@@ -946,28 +946,45 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // Atomic: set messages + notifications in the same synchronous block
-    // so React batches them into a single render commit.
-    // Preserve any optimistic messages (from sendMessage) that the server
-    // hasn't confirmed yet, so they don't flash/disappear during the
-    // deferred reconciliation fetch.
+    // Only update panelMessages if something actually changed. Comparing IDs
+    // and the last message's text (for edits/deletes) avoids unnecessary
+    // re-renders that cause a visual "reload" flash every poll cycle.
     setPanelMessages(prev => {
-      const next = [...prev]
       const existing = prev[panelIdx] || []
+
+      // Preserve pending optimistic messages the server hasn't confirmed yet
       const serverIds = new Set(msgs.map(m => m.id))
       const now = Math.floor(Date.now() / 1000)
       const pendingOptimistic = existing.filter(
         m => typeof m.id === 'string' && m.id.startsWith('optimistic-')
           && !serverIds.has(m.id)
-          && (now - m.created_at) < 8  // drop after 8s -- real msg should be in server response by then
+          && (now - m.created_at) < 8
       )
+
+      let final: typeof msgs
       if (pendingOptimistic.length > 0) {
-        const merged = [...msgs, ...pendingOptimistic]
-        merged.sort((a, b) => a.created_at - b.created_at)
-        next[panelIdx] = merged
+        final = [...msgs, ...pendingOptimistic]
+        final.sort((a, b) => a.created_at - b.created_at)
       } else {
-        next[panelIdx] = msgs
+        final = msgs
       }
+
+      // Shallow-compare: skip update if IDs, likes, and text all match
+      if (
+        existing.length === final.length &&
+        existing.every((m, i) => {
+          const f = final[i]
+          return m.id === f.id
+            && m.text === f.text
+            && (m.favorited_by?.length || 0) === (f.favorited_by?.length || 0)
+            && m._deleted === f._deleted
+        })
+      ) {
+        return prev // identical -- skip re-render
+      }
+
+      const next = [...prev]
+      next[panelIdx] = final
       return next
     })
   }, [currentView, panels, groups, dmChats, approved, streams, user])
