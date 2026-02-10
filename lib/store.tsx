@@ -953,37 +953,35 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setPanelMessages(prev => {
       const existing = prev[panelIdx] || []
 
-      // Build a map of optimistic messages so we can match them to real ones
-      const optimisticMap = new Map<string, typeof existing[0]>()
-      for (const m of existing) {
-        if (typeof m.id === 'string' && m.id.startsWith('optimistic-')) {
-          optimisticMap.set(`${m.text}::${m.created_at}`, m)
-        }
-      }
+      // Collect optimistic messages from the existing array
+      const optimisticMsgs = existing.filter(
+        m => typeof m.id === 'string' && m.id.startsWith('optimistic-')
+      )
 
-      // Build final array. For server msgs that match an optimistic msg,
-      // carry the optimistic _stableKey so the React key doesn't change.
-      const usedOptimistic = new Set<string>()
+      // Match server messages to optimistic ones by text + timestamp proximity.
+      // Carry the optimistic ID as _stableKey so the React key doesn't change.
+      const matchedOptIds = new Set<string>()
       const final = msgs.map(sm => {
-        const key = `${sm.text}::${sm.created_at}`
-        const opt = optimisticMap.get(key)
-        if (opt && !usedOptimistic.has(key) && Math.abs(sm.created_at - opt.created_at) < 10) {
-          usedOptimistic.add(key)
-          // Return the server message but keep the optimistic _stableKey
-          return { ...sm, _stableKey: opt.id }
+        const match = optimisticMsgs.find(opt =>
+          !matchedOptIds.has(opt.id)
+          && opt.text === sm.text
+          && Math.abs(sm.created_at - opt.created_at) < 15
+        )
+        if (match) {
+          matchedOptIds.add(match.id)
+          return { ...sm, _stableKey: match.id }
         }
         return sm
       })
 
-      // Preserve pending optimistic messages the server hasn't confirmed yet.
+      // Preserve optimistic messages the server hasn't confirmed yet (< 10s old)
       const now = Math.floor(Date.now() / 1000)
-      const pendingOptimistic = existing.filter(m =>
-        typeof m.id === 'string' && m.id.startsWith('optimistic-')
-        && (now - m.created_at) < 10
-        && !usedOptimistic.has(`${m.text}::${m.created_at}`)
-      )
-      if (pendingOptimistic.length > 0) {
-        final.push(...pendingOptimistic)
+      for (const opt of optimisticMsgs) {
+        if (!matchedOptIds.has(opt.id) && (now - opt.created_at) < 10) {
+          final.push(opt)
+        }
+      }
+      if (optimisticMsgs.length > 0) {
         final.sort((a, b) => a.created_at - b.created_at)
       }
 
