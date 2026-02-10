@@ -330,25 +330,35 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   const highlightMsg = useCallback((el: HTMLElement) => {
     const container = scrollRef.current
     if (!container) return
-    const viewportH = container.clientHeight
+
+    // Calculate target scroll position manually against our scroll container
+    // instead of using scrollIntoView (which can scroll parent containers too).
+    const containerRect = container.getBoundingClientRect()
+    const elRect = el.getBoundingClientRect()
+    const padding = 32
+
     const msgH = el.offsetHeight
-    // If the message is taller than ~60% of the viewport, align its top
-    const block: ScrollLogicalPosition = msgH > viewportH * 0.6 ? 'start' : 'center'
-    el.scrollIntoView({ behavior: 'smooth', block })
-    // After the smooth scroll settles, ensure the full message is visible
-    // with padding. scrollIntoView can clip when the element is near edges.
-    requestAnimationFrame(() => {
-      const rect = el.getBoundingClientRect()
-      const containerRect = container.getBoundingClientRect()
-      const padding = 24
-      if (rect.top < containerRect.top + padding) {
-        // Message top is clipped -- scroll up to reveal it
-        container.scrollBy({ top: rect.top - containerRect.top - padding, behavior: 'smooth' })
-      } else if (rect.bottom > containerRect.bottom - padding) {
-        // Message bottom is clipped -- scroll down to reveal it
-        container.scrollBy({ top: rect.bottom - containerRect.bottom + padding, behavior: 'smooth' })
-      }
-    })
+    const viewportH = container.clientHeight
+
+    let targetScrollTop: number
+    if (msgH > viewportH * 0.6) {
+      // Large message: align its top with container top + padding
+      targetScrollTop = container.scrollTop + (elRect.top - containerRect.top) - padding
+    } else {
+      // Normal message: center it vertically in the container
+      const elCenterRelative = (elRect.top - containerRect.top) + msgH / 2
+      targetScrollTop = container.scrollTop + elCenterRelative - viewportH / 2
+    }
+
+    // Clamp to valid scroll range
+    const maxScroll = container.scrollHeight - container.clientHeight
+    targetScrollTop = Math.max(0, Math.min(targetScrollTop, maxScroll))
+
+    // Use instant scroll so the message is visible immediately (no fighting with smooth)
+    programmaticScrollRef.current = true
+    container.scrollTo({ top: targetScrollTop, behavior: 'instant' })
+    setTimeout(() => { programmaticScrollRef.current = false }, 300)
+
     el.setAttribute('data-highlight', '')
     setTimeout(() => el.removeAttribute('data-highlight'), 2200)
   }, [])
@@ -363,20 +373,25 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   const clearPendingScroll = store.setPendingScrollToMsgId
   useEffect(() => {
     if (!pendingMsgId || messages.length === 0) return
+    // Prevent auto-scroll effect and handleScroll from interfering
+    userScrolledRef.current = false
+    programmaticScrollRef.current = true
     let attempts = 0
-    const maxAttempts = 10
+    const maxAttempts = 15
     function tryScroll() {
       const el = document.getElementById(`msg-${pendingMsgId}`)
       if (el) {
         highlightMsg(el)
         clearPendingScroll(null)
       } else if (++attempts < maxAttempts) {
-        setTimeout(tryScroll, 200)
+        setTimeout(tryScroll, 250)
       } else {
         clearPendingScroll(null)
+        programmaticScrollRef.current = false
       }
     }
-    requestAnimationFrame(tryScroll)
+    // Give the view switch time to commit its first render
+    setTimeout(tryScroll, 100)
   }, [messages, pendingMsgId, clearPendingScroll, highlightMsg])
 
   // Auto-resize textarea after every render where mainInput changes.
