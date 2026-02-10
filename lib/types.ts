@@ -64,12 +64,19 @@ export interface GroupMeDMChat {
 export interface GroupMeAttachment {
   type: string
   url?: string
+  preview_url?: string
   reply_id?: string
   base_reply_id?: string
   user_id?: string
   loci?: number[][]
   placeholder?: string
   charmap?: number[][]
+  // location
+  lat?: string
+  lng?: string
+  name?: string
+  // file
+  file_id?: string
 }
 
 export interface GroupMeMessage {

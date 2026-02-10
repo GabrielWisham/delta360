@@ -10,6 +10,9 @@ import {
   Forward,
   Trash2,
   Reply,
+  FileText,
+  MapPin,
+  Play,
 } from 'lucide-react'
 import type { GroupMeMessage } from '@/lib/types'
 
@@ -38,7 +41,11 @@ export const MessageCard = memo(function MessageCard({
   const compact = store.compact
 
   const replyAttachment = msg.attachments?.find(a => a.type === 'reply')
-  const imageAttachments = msg.attachments?.filter(a => a.type === 'image' && a.url) || []
+  const imageAttachments = msg.attachments?.filter(a => (a.type === 'image' || a.type === 'linked_image') && a.url) || []
+  const videoAttachments = msg.attachments?.filter(a => a.type === 'video' && a.url) || []
+  const fileAttachments = msg.attachments?.filter(a => a.type === 'file') || []
+  const locationAttachments = msg.attachments?.filter(a => a.type === 'location' && a.lat && a.lng) || []
+  const hasMediaAttachments = imageAttachments.length > 0 || videoAttachments.length > 0 || fileAttachments.length > 0 || locationAttachments.length > 0
   const groupName = msg.group_id ? store.groups.find(g => g.id === msg.group_id)?.name : null
 
   // Likes
@@ -156,19 +163,16 @@ export const MessageCard = memo(function MessageCard({
               </p>
             )}
 
-            {/* Images */}
-            {imageAttachments.length > 0 && (
-              <div className="flex gap-1 mt-1">
-                {imageAttachments.map((att, i) => (
-                  <img
-                    key={i}
-                    src={att.url}
-                    alt="Attachment"
-                    className="w-20 h-14 rounded-lg object-cover cursor-pointer hover:opacity-80 transition-opacity"
-                    onClick={() => store.setLightboxUrl(att.url || '')}
-                  />
-                ))}
-              </div>
+            {/* Attachments */}
+            {hasMediaAttachments && (
+              <AttachmentBlock
+                imageAttachments={imageAttachments}
+                videoAttachments={videoAttachments}
+                fileAttachments={fileAttachments}
+                locationAttachments={locationAttachments}
+                compact
+                onLightbox={(url) => store.setLightboxUrl(url)}
+              />
             )}
 
             {/* Always-visible reply + likes */}
@@ -307,19 +311,15 @@ export const MessageCard = memo(function MessageCard({
             </p>
           )}
 
-          {/* Images */}
-          {imageAttachments.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-1.5">
-              {imageAttachments.map((att, i) => (
-                <img
-                  key={i}
-                  src={att.url}
-                  alt="Attachment"
-                  className="max-w-[180px] max-h-[120px] rounded-lg cursor-pointer hover:opacity-80 transition-opacity object-cover"
-                  onClick={() => store.setLightboxUrl(att.url || '')}
-                />
-              ))}
-            </div>
+          {/* Attachments */}
+          {hasMediaAttachments && (
+            <AttachmentBlock
+              imageAttachments={imageAttachments}
+              videoAttachments={videoAttachments}
+              fileAttachments={fileAttachments}
+              locationAttachments={locationAttachments}
+              onLightbox={(url) => store.setLightboxUrl(url)}
+            />
           )}
 
           {/* Inline actions row -- reply is always visible */}
@@ -361,6 +361,104 @@ export const MessageCard = memo(function MessageCard({
 /* ======================================= */
 /*  Sub-components                          */
 /* ======================================= */
+
+function AttachmentBlock({
+  imageAttachments,
+  videoAttachments,
+  fileAttachments,
+  locationAttachments,
+  compact,
+  onLightbox,
+}: {
+  imageAttachments: { url?: string }[]
+  videoAttachments: { url?: string; preview_url?: string }[]
+  fileAttachments: { file_id?: string; name?: string }[]
+  locationAttachments: { lat?: string; lng?: string; name?: string }[]
+  compact?: boolean
+  onLightbox: (url: string) => void
+}) {
+  const imgSize = compact ? 'w-20 h-14' : 'max-w-[180px] max-h-[120px]'
+  const gap = compact ? 'gap-1' : 'gap-2'
+
+  return (
+    <>
+      {/* Images */}
+      {imageAttachments.length > 0 && (
+        <div className={`flex flex-wrap ${gap} mt-1`}>
+          {imageAttachments.map((att, i) => (
+            <img
+              key={i}
+              src={att.url}
+              alt="Attachment"
+              className={`${imgSize} rounded-lg object-cover cursor-pointer hover:opacity-80 transition-opacity`}
+              onClick={() => onLightbox(att.url || '')}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Videos */}
+      {videoAttachments.length > 0 && (
+        <div className={`flex flex-wrap ${gap} mt-1`}>
+          {videoAttachments.map((att, i) => (
+            <a
+              key={i}
+              href={att.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`relative ${imgSize} rounded-lg overflow-hidden bg-black/20 border border-border flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity`}
+            >
+              {att.preview_url ? (
+                <img src={att.preview_url} alt="Video" className="absolute inset-0 w-full h-full object-cover" />
+              ) : null}
+              <div className="relative z-10 w-8 h-8 rounded-full bg-black/60 flex items-center justify-center">
+                <Play className="w-4 h-4 text-white ml-0.5" />
+              </div>
+            </a>
+          ))}
+        </div>
+      )}
+
+      {/* Files */}
+      {fileAttachments.length > 0 && (
+        <div className="flex flex-col gap-1 mt-1">
+          {fileAttachments.map((att, i) => (
+            <a
+              key={i}
+              href={att.file_id ? `https://file.groupme.com/v1/files/${att.file_id}` : '#'}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-secondary/30 hover:bg-secondary/60 transition-colors text-xs"
+              style={{ fontFamily: 'var(--font-mono)' }}
+            >
+              <FileText className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
+              <span className="truncate text-foreground">{att.name || 'File attachment'}</span>
+            </a>
+          ))}
+        </div>
+      )}
+
+      {/* Locations */}
+      {locationAttachments.length > 0 && (
+        <div className="flex flex-col gap-1 mt-1">
+          {locationAttachments.map((att, i) => (
+            <a
+              key={i}
+              href={`https://www.google.com/maps?q=${att.lat},${att.lng}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-secondary/30 hover:bg-secondary/60 transition-colors text-xs"
+              style={{ fontFamily: 'var(--font-mono)' }}
+            >
+              <MapPin className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
+              <span className="truncate text-foreground">{att.name || `${att.lat}, ${att.lng}`}</span>
+            </a>
+          ))}
+        </div>
+      )}
+    </>
+  )
+}
 
 function CompactAction({ Icon, title, active, danger, onClick }: {
   Icon: typeof Reply
