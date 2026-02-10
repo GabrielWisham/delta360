@@ -221,7 +221,7 @@ interface StoreActions {
   setMsgBuilderOpen: (v: boolean) => void
   setOrderSearchOpen: (v: boolean) => void
   saveStickyNote: (key: string, text: string, expHours: number) => void
-  uploadImage: (file: File) => Promise<string | null>
+  uploadImage: (file: Blob) => Promise<string | null>
   setPendingImage: (url: string | null) => void
   showToast: (title: string, body: string, isPriority?: boolean) => void
   showMsgToast: (toast: Omit<MsgToast, 'id' | 'ts'>) => void
@@ -1617,7 +1617,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       if (fromIdx < 0 || fromIdx >= keys.length || toIdx < 0 || toIdx >= keys.length) return prev
       const [moved] = keys.splice(fromIdx, 1)
       keys.splice(toIdx, 0, moved)
-      const next: Record<string, { ids: string[]; sound: string }> = {}
+      const next: StreamsMap = {}
       keys.forEach(k => { next[k] = prev[k] })
       storage.setStreams(next)
       return next
@@ -1654,7 +1654,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     showToast('Saved', 'Sticky note saved')
   }, [syncGroupId, showToast])
 
-  const uploadImage = useCallback(async (file: File) => {
+  const uploadImage = useCallback(async (file: Blob) => {
     try {
       const url = await api.uploadImage(file)
       setPendingImage(url)

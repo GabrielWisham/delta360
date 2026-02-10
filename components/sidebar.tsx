@@ -147,17 +147,20 @@ function usePortalMenu() {
 
   useEffect(() => {
     if (!open) return
+    let closeHandler: ((e: MouseEvent) => void) | null = null
     const timer = setTimeout(() => {
-      function close(e: MouseEvent) {
+      closeHandler = (e: MouseEvent) => {
         const target = e.target as Node
         if (btnRef.current?.contains(target)) return
         if (menuRef.current?.contains(target)) return
         setOpen(false)
       }
-      document.addEventListener('mousedown', close)
-      return document.removeEventListener.bind(document, 'mousedown', close)
+      document.addEventListener('mousedown', closeHandler)
     }, 50)
-    return () => { clearTimeout(timer) }
+    return () => {
+      clearTimeout(timer)
+      if (closeHandler) document.removeEventListener('mousedown', closeHandler)
+    }
   }, [open])
 
   return { open, pos, btnRef, menuRef, toggle, close: () => setOpen(false) }
