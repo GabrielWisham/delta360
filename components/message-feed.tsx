@@ -823,7 +823,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
         </button>
       </div>
     </div>
-  )
+  );
 
   return (
     <div className="flex flex-col h-full min-h-0 relative">
