@@ -1690,6 +1690,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     deleteMessage: async (gid: string, mid: string) => {
       try {
         await api.deleteMessage(gid, mid)
+        // Optimistically replace the message with a deleted placeholder
+        setPanelMessages(prev => prev.map(panel =>
+          panel.map(m => m.id === mid
+            ? { ...m, text: 'This message has been deleted.', attachments: [], _deleted: true } as typeof m
+            : m
+          )
+        ))
+        setPendingScrollToMsgId(mid)
       } catch {
         showToast('Error', 'Could not delete message')
       }

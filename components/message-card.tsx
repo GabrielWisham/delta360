@@ -142,6 +142,24 @@ export const MessageCard = memo(function MessageCard({
   /* ======================================= */
   /*  COMPACT MODE                            */
   /* ======================================= */
+  // Deleted message: render a subtle system-style bubble
+  if (msg._deleted) {
+    return (
+      <div
+        id={`msg-${msg.id}`}
+        data-msg-id={msg.id}
+        className="flex justify-center py-1.5 px-2"
+      >
+        <span
+          className="text-[10px] text-muted-foreground/60 italic px-3 py-1 rounded-full bg-muted/30 border border-border/30"
+          style={{ fontFamily: 'var(--font-mono)' }}
+        >
+          Message deleted
+        </span>
+      </div>
+    )
+  }
+
   if (compact) {
     return (
       <div
