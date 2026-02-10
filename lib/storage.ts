@@ -174,6 +174,10 @@ export const storage = {
   getSectionOrder: () => get<string[]>('gm_v3_secorder', ['command', 'streams', 'pending', 'pinned', 'active', 'inactive']),
   setSectionOrder: (v: string[]) => set('gm_v3_secorder', v),
 
+  // Shift change profiles
+  getShiftProfiles: () => get<Array<{ name: string; phone: string }>>('gm_v3_shift_profiles', []),
+  setShiftProfiles: (v: Array<{ name: string; phone: string }>) => set('gm_v3_shift_profiles', v),
+
   // Per-chat alert words (keyed by group/dm id)
   getChatAlertWords: () => get<Record<string, string[]>>('gm_v3_chat_alerts', {}),
   setChatAlertWords: (v: Record<string, string[]>) => set('gm_v3_chat_alerts', v),
