@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { useStore } from '@/lib/store'
 import { playSound } from '@/lib/sounds'
 import { SOUND_NAMES } from '@/lib/types'
@@ -63,7 +63,8 @@ export function ConfigPanel() {
       setActiveTab('streams')
       store.setEditingStream(null)
     }
-  }, [store.editingStream, store])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [store.editingStream])
 
   // Reset fields on fresh open
   const wasOpen = useRef(false)
@@ -96,14 +97,14 @@ export function ConfigPanel() {
     store.showToast('Saved', msg)
   }
 
-  function toggleGroup(id: string) {
-    setSelectedGroups(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
+  const toggleGroup = useCallback((id: string) => {
+  setSelectedGroups(prev => {
+  const next = new Set(prev)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
+  return next
     })
-  }
+  }, [])
 
   function addTemplate() {
     if (!newTemplate.trim()) return
@@ -250,13 +251,16 @@ function StreamsTab({
   const [groupFilter, setGroupFilter] = useState('')
   const groupListRef = useRef<HTMLDivElement>(null)
 
-  const sortedGroups = groups
-    .slice()
-    .sort((a, b) => a.name.localeCompare(b.name))
-    .filter(g => g.name.toLowerCase().includes(groupFilter.toLowerCase()))
+  const sortedGroups = useMemo(() =>
+    groups
+      .slice()
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .filter(g => g.name.toLowerCase().includes(groupFilter.toLowerCase())),
+    [groups, groupFilter]
+  )
 
   return (
-    <div className="flex flex-col gap-3 h-full">
+    <div className="flex flex-col gap-3 h-full min-h-0">
       <SectionLabel>Stream Name</SectionLabel>
       <input
         value={streamName}
@@ -318,9 +322,14 @@ function StreamsTab({
             {sortedGroups.map(g => {
               const checked = selectedGroups.has(g.id)
               return (
-                <label
+                <div
                   key={g.id}
-                  className={`flex items-center gap-2.5 px-3 py-2 text-xs cursor-pointer transition-colors ${
+                  role="checkbox"
+                  aria-checked={checked}
+                  tabIndex={0}
+                  onClick={() => toggleGroup(g.id)}
+                  onKeyDown={e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); toggleGroup(g.id) } }}
+                  className={`flex items-center gap-2.5 px-3 py-2 text-xs cursor-pointer transition-colors select-none ${
                     checked ? 'bg-[var(--d360-orange-glow)]' : 'hover:bg-secondary/40'
                   }`}
                 >
@@ -331,14 +340,8 @@ function StreamsTab({
                   }`}>
                     {checked && <Check className="w-3 h-3 text-white" />}
                   </div>
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => toggleGroup(g.id)}
-                    className="sr-only"
-                  />
                   <span className="truncate text-foreground">{g.name}</span>
-                </label>
+                </div>
               )
             })}
           </div>

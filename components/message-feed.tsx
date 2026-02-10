@@ -335,18 +335,19 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
           requestAnimationFrame(() => scrollToLatestAndReveal())
         }
       } else if (!userScrolledRef.current && !justSentRef.current) {
-        // User is at the latest edge -- smooth-scroll to reveal new messages.
+        // User is at the latest edge -- snap to reveal new messages instantly.
+        // Using 'instant' avoids the problem where smooth-scroll targets the
+        // scrollHeight at call time but content grows during the animation.
         programmaticScrollRef.current = true
         requestAnimationFrame(() => {
           const c = scrollRef.current
           if (!c) return
           if (store.oldestFirst) {
-            c.scrollTo({ top: c.scrollHeight, behavior: 'smooth' })
+            c.scrollTop = c.scrollHeight
           } else {
-            c.scrollTo({ top: 0, behavior: 'smooth' })
+            c.scrollTop = 0
           }
-          // Clear programmatic guard once the scroll finishes
-          setTimeout(() => { programmaticScrollRef.current = false }, 800)
+          setTimeout(() => { programmaticScrollRef.current = false }, 150)
         })
       }
     }
