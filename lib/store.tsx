@@ -569,21 +569,21 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               const text = prev.text || (prev.image_attached ? '(image)' : '(attachment)')
               // Check alert words (global + per-chat)
               const matchedAlert = findAlertWord(text, alertWordsRef.current, chatAlertWordsRef.current[group.id])
-              if (!isSelf && !isViewingThis && !globalMuteRef.current && !feedMutedRef.current) {
+              if (matchedAlert && !isSelf && !globalMuteRef.current) {
+                // Alert word match gets highest priority -- siren sound, overrides
+                // mute and "viewing this" suppression.
+                const notifTitle = `ALERT: "${matchedAlert}" - ${group.name}`
+                const notifBody = `${senderName}: ${text}`
+                pendingSounds.push(() => { playSound('siren' as SoundName); sendDesktopNotification(notifTitle, notifBody) })
+              } else if (!isSelf && !isViewingThis && !globalMuteRef.current && !feedMutedRef.current) {
                 let customSound: SoundName | null = null
                 for (const [, s] of Object.entries(streamsRef.current)) {
                   if (s.ids.includes(group.id)) { customSound = s.sound as SoundName; break }
                 }
-                // Alert words override sound with 'alarm' for urgency
-                const soundToPlay = matchedAlert ? ('siren' as SoundName) : (customSound || feedSoundRef.current)
-                const notifTitle = matchedAlert ? `ALERT: "${matchedAlert}" - ${group.name}` : `Delta 360 - ${group.name}`
+                const soundToPlay = customSound || feedSoundRef.current
+                const notifTitle = `Delta 360 - ${group.name}`
                 const notifBody = `${senderName}: ${text}`
                 pendingSounds.push(() => { playSound(soundToPlay); sendDesktopNotification(notifTitle, notifBody) })
-              } else if (matchedAlert && !isSelf && !globalMuteRef.current) {
-                // Alert word match overrides mute and "viewing this" suppression
-                const notifTitle = `ALERT: "${matchedAlert}" - ${group.name}`
-                const notifBody = `${senderName}: ${text}`
-                pendingSounds.push(() => { playSound('siren' as SoundName); sendDesktopNotification(notifTitle, notifBody) })
               }
               if (!isSelf && !isViewingThis) {
                 pendingToasts.push({ sourceKey: `group:${group.id}`, sourceName: group.name, senderName, text, messageId: lmid, viewType: 'group', viewId: group.id, originType: 'group', originId: group.id, ...(matchedAlert ? { alertWord: matchedAlert } : {}) })
@@ -618,16 +618,17 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             // Check alert words (global + per-chat). DM chat alert key is
             // just otherId (matching the view.id used in the config UI).
             const matchedAlert = findAlertWord(text, alertWordsRef.current, chatAlertWordsRef.current[otherId])
-            if (!isSelf && !isViewingThis && !globalMuteRef.current && !dmMutedRef.current) {
-              const soundToPlay = matchedAlert ? ('siren' as SoundName) : dmSoundRef.current
-              const notifTitle = matchedAlert ? `ALERT: "${matchedAlert}" - DM` : 'Delta 360 - DM'
-              const notifBody = `${senderName}: ${text}`
-              pendingSounds.push(() => { playSound(soundToPlay); sendDesktopNotification(notifTitle, notifBody) })
-            } else if (matchedAlert && !isSelf && !globalMuteRef.current) {
-              // Alert word match overrides mute and "viewing this" suppression
+            if (matchedAlert && !isSelf && !globalMuteRef.current) {
+              // Alert word match gets highest priority -- siren sound, overrides
+              // mute and "viewing this" suppression.
               const notifTitle = `ALERT: "${matchedAlert}" - DM`
               const notifBody = `${senderName}: ${text}`
               pendingSounds.push(() => { playSound('siren' as SoundName); sendDesktopNotification(notifTitle, notifBody) })
+            } else if (!isSelf && !isViewingThis && !globalMuteRef.current && !dmMutedRef.current) {
+              const soundToPlay = dmSoundRef.current
+              const notifTitle = 'Delta 360 - DM'
+              const notifBody = `${senderName}: ${text}`
+              pendingSounds.push(() => { playSound(soundToPlay); sendDesktopNotification(notifTitle, notifBody) })
             }
             if (!isSelf && !isViewingThis) {
               pendingToasts.push({ sourceKey: `dm:${otherId}`, sourceName: dm.other_user?.name || 'DM', senderName, text, messageId: lmid, viewType: 'dm', viewId: otherId, originType: 'dm', originId: otherId, ...(matchedAlert ? { alertWord: matchedAlert } : {}) })
