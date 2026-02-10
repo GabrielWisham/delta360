@@ -508,15 +508,22 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       if (trackerSeeded.current) {
         const cv = currentViewRef.current
         let needsFeedRefresh = false
+        let needsUnifiedRefresh = false
         // Check groups for new messages
         for (const group of g) {
           const lmid = group.messages?.last_message_id
           if (!lmid) continue
           const prevId = lastMsgTracker.current[`g:${group.id}`]
           if (prevId && prevId !== lmid) {
-            // Always trigger feed refresh if this group is part of the current view
+            // Trigger feed refresh if this group is part of the current view
             if (cv.type === 'all' || (cv.type === 'group' && cv.id === group.id) || cv.type === 'stream') {
               needsFeedRefresh = true
+            }
+            // Trigger unified streams refresh if viewing unified and this group is toggled on
+            if (cv.type === 'unified_streams') {
+              for (const [, s] of Object.entries(streamsRef.current)) {
+                if ((s as { ids: string[] }).ids.includes(group.id)) { needsUnifiedRefresh = true; break }
+              }
             }
             if (group.messages?.preview) {
               const prev = group.messages.preview
@@ -562,6 +569,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         }
         // Trigger immediate feed reload if new message is in the current view
         if (needsFeedRefresh) setFeedRefreshTick(t => t + 1)
+        if (needsUnifiedRefresh && !unifiedLoadingRef.current) refreshUnifiedRef.current()
       } else {
         // First poll -- seed the tracker without firing notifications
         for (const group of g) {
@@ -926,6 +934,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     unifiedKnownIds.current = new Set(ready.map(m => m.id))
     setPanelMessages(prev => { const n = [...prev]; n[0] = ready; return n })
   }, [fetchUnifiedMessages])
+  const refreshUnifiedRef = useRef(refreshUnifiedStreams)
+  refreshUnifiedRef.current = refreshUnifiedStreams
 
   // Trigger buffered load when toggles change or view switches to unified_streams
   const streamToggleCount = streamToggles.size
