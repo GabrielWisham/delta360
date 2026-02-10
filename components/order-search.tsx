@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
+import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { useStore } from '@/lib/store'
 import { api } from '@/lib/groupme-api'
 import { formatTimestamp, getFullDate } from '@/lib/date-helpers'
@@ -493,7 +493,7 @@ export function OrderSearch() {
 
 function highlightCode(text: string, code: string) {
   if (!code) return text
-  const parts: (string | JSX.Element)[] = []
+  const parts: (string | React.ReactElement)[] = []
   let remaining = text
   let idx = remaining.indexOf(code)
   let key = 0
