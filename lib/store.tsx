@@ -1257,6 +1257,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     knownMsgIds.current[0] = cached ? new Set(cached.msgs.map(m => m.id)) : new Set()
     panelSeeded.current[0] = cached ? true : false
 
+    // Clear the post-send suppression so loadMessages isn't blocked after
+    // a view switch (e.g. clicking a toast right after sending).
+    suppressRefreshUntilRef.current = 0
+
     // Always clear messages on view switch so the spinner shows while we
     // fetch fresh data. This prevents stale cached messages from flashing
     // before the latest messages arrive.

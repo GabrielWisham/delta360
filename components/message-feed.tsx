@@ -79,15 +79,18 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   }, [view?.id])
 
   // Check if scrolled to the "latest" edge (bottom if oldestFirst, top if newestFirst).
-  // Use a generous threshold so smooth-scroll intermediate frames and small
-  // layout shifts don't falsely trigger "user scrolled away" detection.
-  function isAtLatestEdge(el: HTMLDivElement, threshold = 250) {
+  function isAtLatestEdge(el: HTMLDivElement, threshold = 120) {
     if (store.oldestFirst) {
       return el.scrollHeight - el.scrollTop - el.clientHeight < threshold
     } else {
       return el.scrollTop < threshold
     }
   }
+
+  // Debounce jump-to-latest button visibility to prevent flashing during
+  // smooth-scroll intermediate frames.
+  const jumpToLatestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const showJumpRef = useRef(false)
 
   // Scroll tracking -- suppressed during view transitions to prevent glitchy
   // state updates (day cue, jump-to-latest) from stale scroll positions.
@@ -96,19 +99,40 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     const el = scrollRef.current
     const atEdge = isAtLatestEdge(el)
 
-    // Detect manual scroll away from latest edge.
-    // Skip if we just sent a message -- the content reflow triggers a spurious
-    // scroll event that would re-set userScrolledRef before auto-scroll fires.
-    if (!atEdge && !justSentRef.current && !programmaticScrollRef.current) {
+    // During programmatic or just-sent scrolls, only update if we've arrived at edge
+    if (programmaticScrollRef.current || justSentRef.current) {
+      if (atEdge) {
+        userScrolledRef.current = false
+        if (showJumpRef.current) {
+          showJumpRef.current = false
+          setShowJumpToLatest(false)
+        }
+        setNewMsgCount(0)
+        snapshotMsgCountRef.current = 0
+      }
+      return
+    }
+
+    if (!atEdge) {
       if (!userScrolledRef.current) {
         userScrolledRef.current = true
         snapshotMsgCountRef.current = messages.length
       }
-      setShowJumpToLatest(true)
-    } else if (atEdge) {
+      // Debounce showing the button to avoid flicker
+      if (!showJumpRef.current) {
+        if (jumpToLatestTimerRef.current) clearTimeout(jumpToLatestTimerRef.current)
+        jumpToLatestTimerRef.current = setTimeout(() => {
+          showJumpRef.current = true
+          setShowJumpToLatest(true)
+        }, 150)
+      }
+    } else {
       userScrolledRef.current = false
-      programmaticScrollRef.current = false
-      setShowJumpToLatest(false)
+      if (jumpToLatestTimerRef.current) clearTimeout(jumpToLatestTimerRef.current)
+      if (showJumpRef.current) {
+        showJumpRef.current = false
+        setShowJumpToLatest(false)
+      }
       setNewMsgCount(0)
       snapshotMsgCountRef.current = 0
     }
@@ -134,18 +158,19 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
 
   // Jump to latest message
   function jumpToLatest() {
-  if (!scrollRef.current) return
-  programmaticScrollRef.current = true
-  setTimeout(() => { programmaticScrollRef.current = false }, 500)
-  if (store.oldestFirst) {
-  scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
-  } else {
-  scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' })
-    }
+    if (!scrollRef.current) return
+    programmaticScrollRef.current = true
     userScrolledRef.current = false
+    showJumpRef.current = false
     setShowJumpToLatest(false)
     setNewMsgCount(0)
     snapshotMsgCountRef.current = 0
+    if (store.oldestFirst) {
+      scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
+    } else {
+      scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+    setTimeout(() => { programmaticScrollRef.current = false }, 800)
   }
 
   // Order messages
@@ -275,27 +300,20 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
             }, 100)
           })
         }
-      } else {
-        // Auto-scroll to reveal new messages if user hasn't deliberately
-        // scrolled far away. Also scrolls if they're near the edge even if
-        // userScrolledRef is true (mouse hover can cause minor drift).
-        const container = scrollRef.current
-        const nearEdge = container ? isAtLatestEdge(container) : false
-        if ((!userScrolledRef.current || nearEdge) && !justSentRef.current) {
-          programmaticScrollRef.current = true
-          setTimeout(() => { programmaticScrollRef.current = false }, 1200)
-          requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            const c = scrollRef.current
-            if (!c) return
-            if (store.oldestFirst) {
-              c.scrollTo({ top: c.scrollHeight, behavior: 'smooth' })
-            } else {
-              c.scrollTo({ top: 0, behavior: 'smooth' })
-            }
-          })
-          })
-        }
+      } else if (!userScrolledRef.current && !justSentRef.current) {
+        // User is at the latest edge -- smooth-scroll to reveal new messages.
+        programmaticScrollRef.current = true
+        requestAnimationFrame(() => {
+          const c = scrollRef.current
+          if (!c) return
+          if (store.oldestFirst) {
+            c.scrollTo({ top: c.scrollHeight, behavior: 'smooth' })
+          } else {
+            c.scrollTo({ top: 0, behavior: 'smooth' })
+          }
+          // Clear programmatic guard once the scroll finishes
+          setTimeout(() => { programmaticScrollRef.current = false }, 800)
+        })
       }
     }
     prevMsgCountRef.current = newCount
@@ -404,19 +422,22 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   const clearPendingScroll = store.setPendingScrollToMsgId
   const scrollGenRef = useRef(0)
   useEffect(() => {
-    if (!pendingMsgId || messages.length === 0) return
+    if (!pendingMsgId) return
+    // Messages haven't loaded yet -- wait for them (effect will re-run when length changes)
+    if (messages.length === 0) return
     const gen = ++scrollGenRef.current
-    // Prevent auto-scroll effect and handleScroll from interfering
+    // Suppress other scroll effects from interfering
     userScrolledRef.current = false
     programmaticScrollRef.current = true
+    // Also mark view ready so opacity gate opens
+    setViewReady(true)
+    setViewLoaded(true)
     let attempts = 0
-    const maxAttempts = 20
+    const maxAttempts = 25
     function tryScroll() {
-      // If a newer toast click has started its own loop, bail out
       if (scrollGenRef.current !== gen) return
       const el = document.getElementById(`msg-${pendingMsgId}`)
       if (el) {
-        // Use requestAnimationFrame to ensure layout is committed
         requestAnimationFrame(() => {
           if (scrollGenRef.current !== gen) return
           highlightMsg(el)
@@ -425,12 +446,13 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
       } else if (++attempts < maxAttempts) {
         setTimeout(tryScroll, 200)
       } else {
+        // Element never appeared -- just clear and show latest
         clearPendingScroll(null)
         programmaticScrollRef.current = false
       }
     }
-    // Give the view switch time to commit its first render
-    setTimeout(tryScroll, 150)
+    // Small delay for DOM to settle after messages render
+    setTimeout(tryScroll, 100)
   }, [messages.length, pendingMsgId, clearPendingScroll, highlightMsg])
 
   // Auto-resize textarea after every render where mainInput changes.
