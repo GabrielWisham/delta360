@@ -96,7 +96,7 @@ export function SearchPanel() {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center pt-[10vh]"
+      className="fixed inset-0 z-50 flex items-start max-sm:items-stretch justify-center pt-[10vh] max-sm:pt-0"
       onClick={(e) => {
         if (e.target === e.currentTarget) store.setSearchOpen(false)
       }}
@@ -105,7 +105,7 @@ export function SearchPanel() {
       <div className="absolute inset-0 bg-black/60" />
 
       {/* Search modal */}
-      <div className="relative w-full max-w-[540px] mx-4 rounded-xl bg-card border border-border shadow-2xl flex flex-col max-h-[70vh] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div className="relative w-full max-w-[540px] max-sm:max-w-full mx-4 max-sm:mx-0 rounded-xl max-sm:rounded-none bg-card border border-border shadow-2xl flex flex-col max-h-[70vh] max-sm:max-h-[100dvh] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         {/* Search input */}
         <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
           <Search className="w-4 h-4 text-muted-foreground shrink-0" />

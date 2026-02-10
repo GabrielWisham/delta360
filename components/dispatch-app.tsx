@@ -77,10 +77,10 @@ export function DispatchApp() {
           {/* Sticky notes bar */}
           <StickyNotes />
 
-          {/* Panel area */}
-          <div className="flex flex-1 min-h-0 overflow-hidden">
+          {/* Panel area -- horizontal on landscape/desktop, vertical on portrait/mobile */}
+          <div className="flex max-sm:flex-col flex-1 min-h-0 overflow-hidden">
             {/* Primary panel (always visible) */}
-            <div className="flex-1 flex flex-col min-h-0 min-w-0 border-r border-border relative">
+            <div className={`flex flex-col min-h-0 min-w-0 border-r max-sm:border-r-0 max-sm:border-b border-border relative ${visibleSecondary.length > 0 ? 'flex-1 max-sm:flex-[2]' : 'flex-1'}`}>
               <MessageFeed panelIdx={0} />
             </div>
 
@@ -91,7 +91,7 @@ export function DispatchApp() {
               return (
                 <div
                   key={slotIdx}
-                  className="flex-1 flex flex-col min-h-0 min-w-0 border-r border-border"
+                  className="flex-1 flex flex-col min-h-0 min-w-0 border-r max-sm:border-r-0 max-sm:border-b border-border"
                 >
                   <MessageFeed panelIdx={slotIdx} />
                 </div>

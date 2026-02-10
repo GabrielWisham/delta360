@@ -104,9 +104,9 @@ export function OnboardingTutorial({ onDismiss }: { onDismiss: () => void }) {
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={dismiss} />
 
       {/* Card */}
-      <div className={`relative w-full max-w-lg mx-4 rounded-2xl bg-card border border-border shadow-2xl overflow-hidden transition-all duration-250 ${exiting ? 'scale-95 opacity-0' : 'scale-100 opacity-100'}`}>
+      <div className={`relative w-full max-w-lg mx-4 max-sm:mx-0 max-sm:max-w-full max-sm:h-[100dvh] rounded-2xl max-sm:rounded-none bg-card border border-border shadow-2xl overflow-hidden flex flex-col transition-all duration-250 ${exiting ? 'scale-95 opacity-0' : 'scale-100 opacity-100'}`}>
         {/* Top gradient accent */}
-        <div className="h-1" style={{ background: 'var(--d360-gradient)' }} />
+        <div className="h-1 shrink-0" style={{ background: 'var(--d360-gradient)' }} />
 
         {/* Close */}
         <button
@@ -117,7 +117,7 @@ export function OnboardingTutorial({ onDismiss }: { onDismiss: () => void }) {
         </button>
 
         {/* Content */}
-        <div className="px-8 pt-8 pb-6">
+        <div className="px-6 sm:px-8 pt-8 pb-6 flex-1 overflow-y-auto">
           {/* Icon + tag */}
           <div className="flex items-center gap-3 mb-5">
             <div
@@ -170,7 +170,7 @@ export function OnboardingTutorial({ onDismiss }: { onDismiss: () => void }) {
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-8 py-4 border-t border-border bg-secondary/5">
+        <div className="flex items-center justify-between px-6 sm:px-8 py-4 border-t border-border bg-secondary/5 shrink-0 safe-bottom">
           {/* Back */}
           <button
             onClick={() => setStep(s => Math.max(0, s - 1))}

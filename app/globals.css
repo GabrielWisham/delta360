@@ -112,6 +112,45 @@ select option {
 ::-webkit-scrollbar-thumb { background: hsl(220 8% 56% / 0.3); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: hsl(220 8% 56% / 0.5); }
 
+/* Utility: hide scrollbar but keep scroll */
+.scrollbar-none { scrollbar-width: none; -ms-overflow-style: none; }
+.scrollbar-none::-webkit-scrollbar { display: none; }
+
+/* ===== Portrait / narrow viewport optimizations ===== */
+@media (max-width: 640px) {
+  /* Full-width modals */
+  .modal-responsive {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+  }
+}
+
+/* Safe area for devices with notches */
+@supports (padding-top: env(safe-area-inset-top)) {
+  header {
+    padding-top: env(safe-area-inset-top);
+  }
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* Touch targets -- ensure minimum 44px hit area on mobile */
+@media (pointer: coarse) {
+  button, a, label {
+    min-height: 36px;
+    min-width: 36px;
+  }
+  input, textarea, select {
+    min-height: 40px;
+    font-size: 16px; /* prevents iOS zoom on focus */
+  }
+}
+
 /* ===== Animations ===== */
 @keyframes pulse-glow {
   0%, 100% { opacity: 1; box-shadow: 0 0 6px currentColor; }

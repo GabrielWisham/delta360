@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useStore } from '@/lib/store'
 import { api } from '@/lib/groupme-api'
 import { storage } from '@/lib/storage'
-import { X, RefreshCw, Users, MessageCircle, Search, Check, Loader2, UserPlus, Trash2, ChevronDown, Pencil } from 'lucide-react'
+import { X, RefreshCw, Users, MessageCircle, Search, Check, Loader2, UserPlus, Trash2, ChevronDown, Pencil, Layers } from 'lucide-react'
 
 interface ShiftProfile {
   name: string
@@ -18,6 +18,7 @@ export function ShiftChangeModal() {
   const [phone, setPhone] = useState('')
   const [selectedGroups, setSelectedGroups] = useState<Set<string>>(new Set())
   const [selectedDMs, setSelectedDMs] = useState<Set<string>>(new Set())
+  const [selectedStreams, setSelectedStreams] = useState<Set<string>>(new Set())
   const [sending, setSending] = useState(false)
   const [filter, setFilter] = useState('')
 
@@ -127,11 +128,34 @@ export function ShiftChangeModal() {
     })
   }
 
+  function toggleStream(name: string) {
+    setSelectedStreams(prev => {
+      const next = new Set(prev)
+      if (next.has(name)) next.delete(name)
+      else next.add(name)
+      return next
+    })
+  }
+
+  // Available streams
+  const streamEntries = Object.entries(store.streams)
+  const filteredStreams = useMemo(
+    () => streamEntries.filter(([name]) => name.toLowerCase().includes(filter.toLowerCase())),
+    [streamEntries, filter]
+  )
+
   async function handleSend() {
-    if (!incoming.trim() || (selectedGroups.size === 0 && selectedDMs.size === 0)) return
+    if (!incoming.trim() || (selectedGroups.size === 0 && selectedDMs.size === 0 && selectedStreams.size === 0)) return
     setSending(true)
 
-    const groupPromises = Array.from(selectedGroups).map(gid =>
+    // Expand streams into their group IDs, dedup with already-selected groups
+    const allGroupIds = new Set(selectedGroups)
+    for (const streamName of selectedStreams) {
+      const stream = store.streams[streamName]
+      if (stream) stream.ids.forEach(id => allGroupIds.add(id))
+    }
+
+    const groupPromises = Array.from(allGroupIds).map(gid =>
       api.sendGroupMessage(gid, message).catch(() => null)
     )
     const dmPromises = Array.from(selectedDMs).map(uid =>
@@ -144,12 +168,12 @@ export function ShiftChangeModal() {
     store.setShiftChangeOpen(false)
   }
 
-  const totalSelected = selectedGroups.size + selectedDMs.size
+  const totalSelected = selectedGroups.size + selectedDMs.size + selectedStreams.size
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/60" onClick={() => store.setShiftChangeOpen(false)} />
-      <div className="relative w-full max-w-lg h-[min(85vh,680px)] mx-4 rounded-xl bg-card border border-border shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div className="relative w-full max-w-lg h-[min(85vh,680px)] max-sm:h-[100dvh] max-sm:max-w-full max-sm:rounded-none mx-4 max-sm:mx-0 rounded-xl bg-card border border-border shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
           <div className="flex items-center gap-2">
@@ -425,6 +449,38 @@ export function ShiftChangeModal() {
               )
             })}
 
+            {/* Streams */}
+            {filteredStreams.length > 0 && (
+              <>
+                <div className="flex items-center gap-1.5 text-[9px] uppercase tracking-widest text-muted-foreground px-3 py-1.5 bg-secondary/10" style={{ fontFamily: 'var(--font-mono)' }}>
+                  <Layers className="w-3 h-3" />
+                  Streams
+                </div>
+                {filteredStreams.map(([name, stream]) => {
+                  const isSelected = selectedStreams.has(name)
+                  const groupCount = stream.ids.length
+                  const displayName = store.streamRenames?.[name] || name
+                  return (
+                    <label
+                      key={`stream-${name}`}
+                      className={`flex items-center gap-2.5 text-xs cursor-pointer px-3 py-1.5 transition-colors border-b border-border/30 ${
+                        isSelected ? 'bg-[var(--d360-orange)]/10' : 'hover:bg-secondary/40'
+                      }`}
+                    >
+                      <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
+                        isSelected ? 'bg-[var(--d360-orange)] border-[var(--d360-orange)]' : 'border-border bg-secondary/30'
+                      }`}>
+                        {isSelected && <Check className="w-2.5 h-2.5 text-white" />}
+                      </div>
+                      <span className="text-foreground truncate flex-1" style={{ fontFamily: 'var(--font-mono)' }}>{displayName}</span>
+                      <span className="text-[9px] text-muted-foreground shrink-0" style={{ fontFamily: 'var(--font-mono)' }}>{groupCount} groups</span>
+                      <input type="checkbox" className="sr-only" checked={isSelected} onChange={() => toggleStream(name)} />
+                    </label>
+                  )
+                })}
+              </>
+            )}
+
             {/* DMs */}
             {filteredDMs.length > 0 && (
               <>
@@ -459,7 +515,7 @@ export function ShiftChangeModal() {
         <div className="px-4 py-3 border-t border-border">
           <button
             onClick={handleSend}
-            disabled={!incoming.trim() || totalSelected === 0 || sending}
+            disabled={!incoming.trim() || (selectedGroups.size === 0 && selectedDMs.size === 0 && selectedStreams.size === 0) || sending}
             className="w-full flex items-center justify-center gap-2 text-xs font-semibold uppercase tracking-widest text-white py-2.5 rounded-lg disabled:opacity-30 transition-all hover:brightness-110"
             style={{ background: 'var(--d360-gradient)', fontFamily: 'var(--font-mono)' }}
           >

@@ -61,7 +61,7 @@ export function Header() {
   const currentStatus = STATUS_OPTIONS.find(s => s.value === store.myStatus) || STATUS_OPTIONS[2]
 
   return (
-    <header className="glass sticky top-0 z-50 flex items-center gap-2 px-3 py-2 border-b border-border">
+    <header className="glass sticky top-0 z-50 flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2 border-b border-border overflow-x-auto scrollbar-none">
       {/* Hamburger / sidebar toggle */}
       <button
         onClick={() => {
@@ -75,9 +75,9 @@ export function Header() {
       </button>
 
       {/* Logo */}
-      <div className="flex items-center gap-1.5 mr-2">
+      <div className="flex items-center gap-1.5 mr-1 sm:mr-2 shrink-0">
         <span
-          className="text-xl font-bold"
+          className="text-lg sm:text-xl font-bold"
           style={{
             fontFamily: 'var(--font-jetbrains)',
             background: 'var(--d360-gradient)',
@@ -159,12 +159,12 @@ export function Header() {
       <div className="flex-1" />
 
       {/* Connection indicator */}
-      <div className="flex items-center gap-1.5 mr-2">
+      <div className="flex items-center gap-1.5 mr-1 sm:mr-2 shrink-0">
         <div
           className={`w-2 h-2 rounded-full ${store.isConnected ? 'bg-[var(--d360-green)]' : 'bg-muted-foreground'}`}
           style={store.isConnected ? { boxShadow: '0 0 6px var(--d360-green)' } : {}}
         />
-        <span className="text-[10px] uppercase tracking-wider text-muted-foreground" style={{ fontFamily: 'var(--font-jetbrains)' }}>
+        <span className="text-[10px] uppercase tracking-wider text-muted-foreground hidden sm:inline" style={{ fontFamily: 'var(--font-jetbrains)' }}>
           {store.isConnected ? 'Live' : 'Off'}
         </span>
       </div>
