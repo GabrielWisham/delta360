@@ -72,11 +72,11 @@
   --d360-glass: rgba(0, 0, 0, 0.03);
   --d360-orange-glow: rgba(255, 106, 0, 0.08);
   --d360-cyan-glow: rgba(34, 211, 238, 0.06);
-  /* Stronger bubble fills for light backgrounds */
-  --d360-bubble-self-bg: rgba(255, 106, 0, 0.18);
-  --d360-bubble-self-border: rgba(255, 106, 0, 0.30);
-  --d360-bubble-other-mix: 18%;
-  --d360-bubble-other-border: rgba(0, 0, 0, 0.08);
+  /* Light mode bubbles: warm peach self, soft slate others */
+  --d360-bubble-self-bg: hsl(24 100% 94%);
+  --d360-bubble-self-border: hsl(24 80% 82%);
+  --d360-bubble-other-mix: 22%;
+  --d360-bubble-other-border: hsl(220 14% 86%);
 }
 
 [data-theme="light"] {

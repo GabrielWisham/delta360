@@ -162,6 +162,8 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   // Auto-scroll when new messages arrive (including first load)
   useEffect(() => {
     if (!scrollRef.current) return
+    // If a pending scroll target is set (toast click), skip auto-scroll -- let the pending scroll effect handle it
+    if (store.pendingScrollToMsgId) { prevMsgCountRef.current = messages.length; return }
     const newCount = messages.length
     const wasEmpty = prevMsgCountRef.current === 0
 
@@ -203,8 +205,8 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
             scrollRef.current.scrollTop = 0
           }
         }
-      } else if (store.autoScroll || isAtLatestEdge(scrollRef.current)) {
-        // Subsequent messages -- smooth scroll if autoScroll is on or user is already at the latest edge
+      } else if (store.autoScroll) {
+        // Subsequent messages -- smooth scroll if autoScroll is on
         if (store.oldestFirst) {
           scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
         } else {
