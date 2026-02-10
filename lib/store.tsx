@@ -1281,8 +1281,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         await api.sendDM(id, text, attachments)
       }
       setPendingImage(null)
-      // Force cache bypass so the real messages are fetched.
-      loadMessagesRef.current(panelIdx, true)
+      // Delay the server refresh slightly so the optimistic scroll finishes
+      // first. This prevents two competing setPanelMessages calls from
+      // triggering duplicate auto-scroll effects that cause jumpiness.
+      setTimeout(() => loadMessagesRef.current(panelIdx, true), 600)
     } catch {
       // Remove optimistic message on failure
       setPanelMessages(prev => {
@@ -1330,7 +1332,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         await api.sendDM(targetId, text, attachments)
       }
       setPendingImage(null)
-      loadMessagesRef.current(0, true)
+      // Delay the server refresh so the optimistic scroll completes first
+      setTimeout(() => loadMessagesRef.current(0, true), 600)
     } catch {
       setPanelMessages(prev => {
         const next = [...prev]

@@ -243,14 +243,17 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
         // User hasn't scrolled away -- auto-scroll to fully reveal new messages.
         // Double rAF ensures the flex layout has fully reflowed (input bar height
         // subtracted from scroll area) before we measure scrollHeight.
+        // Use instant scroll when justSent to avoid two competing smooth scrolls
+        // (one from optimistic insert, one from server response) causing jumpiness.
+        const useSmooth = !justSentRef.current
         requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           const container = scrollRef.current
           if (!container) return
           if (store.oldestFirst) {
-            container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' })
+            container.scrollTo({ top: container.scrollHeight, behavior: useSmooth ? 'smooth' : 'instant' })
           } else {
-            container.scrollTo({ top: 0, behavior: 'smooth' })
+            container.scrollTo({ top: 0, behavior: useSmooth ? 'smooth' : 'instant' })
           }
         })
         })
@@ -387,8 +390,10 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     setShowJumpToLatest(false)
     setNewMsgCount(0)
     snapshotMsgCountRef.current = 0
-    // Clear justSent after a short delay to allow the auto-scroll to complete
-    setTimeout(() => { justSentRef.current = false }, 500)
+    // Clear justSent after the server refresh (600ms delay + render time).
+    // While active, scroll handler won't re-flag userScrolled, and the
+    // auto-scroll effect uses instant (not smooth) scroll to avoid jumpiness.
+    setTimeout(() => { justSentRef.current = false }, 1200)
 
     // If replying from an aggregate view (all, dms, stream, unified_streams),
     // route the message directly to the replied-to message's group or DM
