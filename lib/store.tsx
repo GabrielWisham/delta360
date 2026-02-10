@@ -380,7 +380,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setMutedGroups(storage.getMuted())
     setTemplatesState(storage.getTemplates())
     setAlertWordsState(storage.getAlertWords())
-    setStreams(storage.getStreams() as StreamsMap)
+    const savedStreams = storage.getStreams() as StreamsMap
+    setStreams(savedStreams)
+    // All streams toggled on by default so the unified feed shows everything
+    setStreamToggles(new Set(Object.keys(savedStreams)))
     setStickies(storage.getStickies())
     setStickyHistory(storage.getStickyHistory())
     setMyStatusState(storage.getStatus() as UserStatus)
@@ -1279,6 +1282,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setStreams(prev => {
       const next = { ...prev, [name]: { ids, sound } }
       storage.setStreams(next)
+      return next
+    })
+    // Automatically toggle new streams on so they appear in the unified feed
+    setStreamToggles(prev => {
+      const next = new Set(prev)
+      next.add(name)
       return next
     })
   }, [])
