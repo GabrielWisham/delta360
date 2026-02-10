@@ -1,17 +1,14 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback, memo } from 'react'
+import { useState, memo } from 'react'
 import { useStore } from '@/lib/store'
 import { formatTimestamp, getFullDate } from '@/lib/date-helpers'
-import { EMOJIS } from '@/lib/types'
 import {
   CornerDownLeft,
   Pin,
   ThumbsUp,
   Forward,
   Trash2,
-  SmilePlus,
-  Send,
   Reply,
 } from 'lucide-react'
 import type { GroupMeMessage } from '@/lib/types'
@@ -21,19 +18,16 @@ export const MessageCard = memo(function MessageCard({
   panelIdx,
   showGroupTag,
   onScrollToMsg,
+  onReply,
 }: {
   msg: GroupMeMessage
   panelIdx: number
   showGroupTag?: boolean
   onScrollToMsg?: (id: string) => void
+  onReply?: (msg: GroupMeMessage) => void
 }) {
   const store = useStore()
-  const [replyText, setReplyText] = useState('')
-  const [emojiOpen, setEmojiOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const [showReplyInput, setShowReplyInput] = useState(false)
-  const replyRef = useRef<HTMLTextAreaElement>(null)
-  const emojiRef = useRef<HTMLDivElement>(null)
 
   const isSelf = msg.user_id === store.user?.id || msg.sender_id === store.user?.id
   const isPinned = !!store.pinnedMessages[msg.id]
@@ -42,28 +36,6 @@ export const MessageCard = memo(function MessageCard({
   const allAlerts = [...store.alertWords, ...chatAlerts]
   const isAlertMsg = allAlerts.some(w => msg.text?.toLowerCase().includes(w.toLowerCase()))
   const compact = store.compact
-
-  // Draft persistence
-  useEffect(() => {
-    const draft = sessionStorage.getItem(`gm_v3_drafts_${msg.id}`)
-    if (draft) { setReplyText(draft); setShowReplyInput(true) }
-  }, [msg.id])
-
-  useEffect(() => {
-    if (replyText) sessionStorage.setItem(`gm_v3_drafts_${msg.id}`, replyText)
-    else sessionStorage.removeItem(`gm_v3_drafts_${msg.id}`)
-  }, [replyText, msg.id])
-
-  // Close emoji on outside click
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (emojiRef.current && !emojiRef.current.contains(e.target as Node)) {
-        setEmojiOpen(false)
-      }
-    }
-    if (emojiOpen) document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [emojiOpen])
 
   const replyAttachment = msg.attachments?.find(a => a.type === 'reply')
   const imageAttachments = msg.attachments?.filter(a => a.type === 'image' && a.url) || []
@@ -87,77 +59,11 @@ export const MessageCard = memo(function MessageCard({
         ? 'var(--d360-orange)'
         : 'var(--d360-cyan)'
 
-  async function handleReply() {
-    if (!replyText.trim()) return
-    const attachments = [{ type: 'reply', reply_id: msg.id, base_reply_id: msg.id }]
-    await store.sendMessage(panelIdx, replyText.trim(), attachments)
-    setReplyText('')
-    setShowReplyInput(false)
-    sessionStorage.removeItem(`gm_v3_drafts_${msg.id}`)
-  }
-
   async function handleDelete() {
     if (!confirmDelete) { setConfirmDelete(true); return }
     await store.deleteMessage(msg.group_id || '', msg.id)
     setConfirmDelete(false)
   }
-
-  // Shared emoji picker
-  const emojiPicker = emojiOpen && (
-    <div className="absolute bottom-full right-0 mb-1 rounded-lg p-2 grid grid-cols-6 gap-1 z-50 shadow-lg bg-card border border-border">
-      {EMOJIS.map(e => (
-        <button
-          key={e}
-          onClick={() => { setReplyText(prev => prev + e); setEmojiOpen(false); replyRef.current?.focus() }}
-          className="text-sm hover:scale-125 transition-transform w-6 h-6 flex items-center justify-center rounded hover:bg-secondary/60"
-        >
-          {e}
-        </button>
-      ))}
-    </div>
-  )
-
-  // Auto-resize reply textarea
-  const autoResizeReply = useCallback(() => {
-    const el = replyRef.current
-    if (!el) return
-    el.style.height = 'auto'
-    el.style.height = Math.min(el.scrollHeight, 120) + 'px'
-  }, [])
-
-  // Shared reply input
-  const replyInput = showReplyInput && (
-    <div className="flex items-end gap-1.5 mt-2 relative" ref={emojiRef}>
-      <textarea
-        ref={replyRef}
-        value={replyText}
-        onChange={e => { setReplyText(e.target.value); autoResizeReply() }}
-        onKeyDown={e => {
-          if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleReply() }
-          if (e.key === 'Escape') { setShowReplyInput(false) }
-        }}
-        placeholder="Type a reply... (Shift+Enter for new line)"
-        className="flex-1 text-[11px] leading-relaxed bg-secondary/40 border border-border rounded-lg px-3 py-2 resize-none overflow-y-auto placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)] focus:border-[var(--d360-orange)]/50 text-foreground transition-colors"
-        style={{ fontFamily: 'var(--font-mono)', maxHeight: '120px', minHeight: '36px' }}
-        rows={1}
-        autoFocus
-      />
-      <div className="flex items-center gap-0.5 pb-0.5">
-        <button onClick={() => setEmojiOpen(!emojiOpen)} className="p-1.5 rounded hover:bg-secondary/60 text-muted-foreground hover:text-foreground transition-colors">
-          <SmilePlus className="w-3.5 h-3.5" />
-        </button>
-        {emojiPicker}
-        <button
-          onClick={handleReply}
-          disabled={!replyText.trim()}
-          className="p-1.5 rounded text-white disabled:opacity-20 transition-all hover:brightness-110"
-          style={{ background: 'var(--d360-gradient)' }}
-        >
-          <Send className="w-3 h-3" />
-        </button>
-      </div>
-    </div>
-  )
 
   /* ======================================= */
   /*  COMPACT MODE                            */
@@ -273,12 +179,9 @@ export const MessageCard = memo(function MessageCard({
             )}
           </div>
 
-          {/* Reply input */}
-          {replyInput}
-
           {/* Hover action tray */}
           <div className={`absolute ${isSelf ? 'right-full mr-1' : 'left-full ml-1'} top-0 opacity-0 group-hover/msg:opacity-100 transition-opacity flex items-center gap-0.5 bg-card border border-border rounded-full px-1.5 py-0.5 shadow-md z-10`}>
-            <CompactAction Icon={Reply} title="Reply" onClick={() => { setShowReplyInput(!showReplyInput); setTimeout(() => replyRef.current?.focus(), 50) }} />
+            <CompactAction Icon={Reply} title="Reply" onClick={() => onReply?.(msg)} />
             <CompactAction Icon={ThumbsUp} title="Like" active={likedBy.includes(store.user?.id || '')} onClick={() => {
               const gid = msg.group_id || ''
               if (likedBy.includes(store.user?.id || '')) store.unlikeMessage(gid, msg.id)
@@ -414,12 +317,9 @@ export const MessageCard = memo(function MessageCard({
           )}
         </div>
 
-        {/* Reply input */}
-        {replyInput}
-
-        {/* Hover action tray */}
-        <div className={`absolute ${isSelf ? 'right-full mr-1' : 'left-full ml-1'} top-0 opacity-0 group-hover/msg:opacity-100 transition-opacity flex items-center gap-0.5 bg-card border border-border rounded-full px-1.5 py-0.5 shadow-md z-10`}>
-          <CompactAction Icon={Reply} title="Reply" onClick={() => { setShowReplyInput(!showReplyInput); setTimeout(() => replyRef.current?.focus(), 50) }} />
+          {/* Hover action tray */}
+          <div className={`absolute ${isSelf ? 'right-full mr-1' : 'left-full ml-1'} top-0 opacity-0 group-hover/msg:opacity-100 transition-opacity flex items-center gap-0.5 bg-card border border-border rounded-full px-1.5 py-0.5 shadow-md z-10`}>
+            <CompactAction Icon={Reply} title="Reply" onClick={() => onReply?.(msg)} />
           <CompactAction Icon={ThumbsUp} title="Like" active={likedBy.includes(store.user?.id || '')} onClick={() => {
             const gid = msg.group_id || ''
             if (likedBy.includes(store.user?.id || '')) store.unlikeMessage(gid, msg.id)

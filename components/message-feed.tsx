@@ -5,7 +5,7 @@ import { useStore } from '@/lib/store'
 import { getDayLabel, getFullDate } from '@/lib/date-helpers'
 import { MessageCard } from './message-card'
 import { EMOJIS } from '@/lib/types'
-import { ArrowDown, ArrowUp, History, Loader2, FileText, Paperclip, Send, SmilePlus, AlertTriangle, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, History, Loader2, FileText, Paperclip, Send, SmilePlus, AlertTriangle, X, Reply } from 'lucide-react'
 import type { GroupMeMessage } from '@/lib/types'
 
 export function MessageFeed({ panelIdx }: { panelIdx: number }) {
@@ -19,6 +19,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   const snapshotMsgCountRef = useRef(0) // msg count when user scrolled away
   const [mainInput, setMainInput] = useState('')
   const [mainEmojiOpen, setMainEmojiOpen] = useState(false)
+  const [replyingTo, setReplyingTo] = useState<GroupMeMessage | null>(null)
   const [showChatAlerts, setShowChatAlerts] = useState(false)
   const [newChatAlert, setNewChatAlert] = useState('')
   const mainEmojiRef = useRef<HTMLDivElement>(null)
@@ -201,15 +202,24 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   const chatId = view?.id || ''
   const currentChatAlerts = store.chatAlertWords[chatId] || []
 
+  function handleReplyTo(msg: GroupMeMessage) {
+    setReplyingTo(msg)
+    setTimeout(() => textareaRef.current?.focus(), 50)
+  }
+
   async function handleSend() {
-    if (!mainInput.trim()) return
-    const attachments: GroupMeMessage['attachments'] = []
-    if (store.pendingImage) {
-      attachments.push({ type: 'image', url: store.pendingImage })
-    }
-    await store.sendMessage(panelIdx, mainInput.trim(), attachments)
-    setMainInput('')
-    store.setPendingImage(null)
+  if (!mainInput.trim()) return
+  const attachments: GroupMeMessage['attachments'] = []
+  if (store.pendingImage) {
+  attachments.push({ type: 'image', url: store.pendingImage })
+  }
+  if (replyingTo) {
+  attachments.push({ type: 'reply', reply_id: replyingTo.id, base_reply_id: replyingTo.id })
+  }
+  await store.sendMessage(panelIdx, mainInput.trim(), attachments)
+  setMainInput('')
+  setReplyingTo(null)
+  store.setPendingImage(null)
   }
 
   function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -273,8 +283,8 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
 
   const [noMoreMessages, setNoMoreMessages] = useState(false)
 
-  // Reset noMore when view changes
-  useEffect(() => { setNoMoreMessages(false) }, [view?.type, view?.id])
+  // Reset noMore and reply context when view changes
+  useEffect(() => { setNoMoreMessages(false); setReplyingTo(null) }, [view?.type, view?.id])
 
   // DM recipient name for watermark
   const dmRecipientName = useMemo(() => {
@@ -369,6 +379,34 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
               {tpl}
             </button>
           ))}
+        </div>
+      )}
+
+      {/* Reply context snippet */}
+      {replyingTo && (
+        <div className="flex items-center gap-2 mb-2 px-2 py-1.5 rounded-lg border-l-3 border-l-[var(--d360-orange)] bg-secondary/30 border border-border">
+          <Reply className="w-3.5 h-3.5 text-[var(--d360-orange)] shrink-0 rotate-180" />
+          <div className="flex-1 min-w-0">
+            <span
+              className="text-[10px] font-bold text-[var(--d360-orange)] block"
+              style={{ fontFamily: 'var(--font-mono)' }}
+            >
+              {replyingTo.name}
+            </span>
+            <span
+              className="text-[10px] text-muted-foreground line-clamp-1"
+              style={{ fontFamily: 'var(--font-mono)' }}
+            >
+              {replyingTo.text || '(attachment)'}
+            </span>
+          </div>
+          <button
+            onClick={() => setReplyingTo(null)}
+            className="p-1 rounded hover:bg-secondary/60 text-muted-foreground hover:text-foreground shrink-0 transition-colors"
+            title="Cancel reply"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
         </div>
       )}
 
@@ -566,7 +604,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
                 </div>
                 <div className="flex flex-col gap-1.5">
                   {pinned.map(m => (
-                    <MessageCard key={m.id} msg={m} panelIdx={panelIdx} showGroupTag={showGroupTag} onScrollToMsg={scrollToMsg} />
+                    <MessageCard key={m.id} msg={m} panelIdx={panelIdx} showGroupTag={showGroupTag} onScrollToMsg={scrollToMsg} onReply={handleReplyTo} />
                   ))}
                 </div>
               </div>
@@ -603,6 +641,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
                   panelIdx={panelIdx}
                   showGroupTag={showGroupTag}
                   onScrollToMsg={scrollToMsg}
+                  onReply={handleReplyTo}
                 />
               )
             })}
