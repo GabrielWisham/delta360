@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useStore } from '@/lib/store'
+import { X, Search } from 'lucide-react'
 
 export function MembersPanel() {
   const store = useStore()
@@ -80,9 +81,17 @@ export function MembersPanel() {
       .sort((a, b) => a.name.localeCompare(b.name))
   }, [view, store.groups, store.dmChats, store.streams, filter])
 
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') store.setMembersOpen(false) }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [store])
+
   return (
-    <div className="glass fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="glass w-full max-w-lg max-h-[80vh] rounded-xl flex flex-col overflow-hidden shadow-2xl m-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/60" onClick={() => store.setMembersOpen(false)} />
+      <div className="relative w-full max-w-lg h-[min(80vh,600px)] mx-4 rounded-xl bg-card border border-border shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
           <h2
             className="text-xs uppercase tracking-widest text-foreground"
@@ -92,24 +101,29 @@ export function MembersPanel() {
           </h2>
           <button
             onClick={() => store.setMembersOpen(false)}
-            className="text-muted-foreground hover:text-foreground"
+            className="p-1 rounded hover:bg-secondary/60 text-muted-foreground hover:text-foreground transition-colors"
           >
-            {'\u2715'}
+            <X className="w-4 h-4" />
           </button>
         </div>
 
+        {/* Search */}
         <div className="px-4 py-2 border-b border-border">
-          <input
-            value={filter}
-            onChange={e => setFilter(e.target.value)}
-            placeholder="Filter by name..."
-            className="w-full text-xs bg-secondary/40 border border-border rounded px-2 py-1.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)]"
-            style={{ fontFamily: 'var(--font-jetbrains)' }}
-            autoFocus
-          />
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+            <input
+              value={filter}
+              onChange={e => setFilter(e.target.value)}
+              placeholder="Filter by name..."
+              className="w-full text-xs bg-secondary/30 border border-border rounded-lg pl-8 pr-3 py-2 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)]"
+              style={{ fontFamily: 'var(--font-jetbrains)' }}
+              autoFocus
+            />
+          </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-2 space-y-1">
+        {/* List */}
+        <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
           {members.map(m => (
             <div key={m.userId} className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-secondary/40">
               {m.imageUrl ? (
@@ -150,6 +164,12 @@ export function MembersPanel() {
               )}
             </div>
           ))}
+
+          {members.length === 0 && (
+            <div className="flex items-center justify-center py-8 text-xs text-muted-foreground">
+              No members found.
+            </div>
+          )}
         </div>
       </div>
     </div>
