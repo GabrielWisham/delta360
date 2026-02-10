@@ -202,6 +202,16 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     setViewLoaded(false)
     prevMsgCountRef.current = 0
     prevLastMsgIdRef.current = null
+
+    // Safety fallback: if viewReady is still false after 3s (e.g. empty chat,
+    // slow network), force it open so the user isn't stuck on a spinner.
+    const fallback = setTimeout(() => {
+      setViewReady(true)
+      setViewLoaded(true)
+      transitioningRef.current = false
+      programmaticScrollRef.current = false
+    }, 3000)
+    return () => clearTimeout(fallback)
     setShowJumpToLatest(false)
     setNewMsgCount(0)
     setDayCue(null)
@@ -236,6 +246,14 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     const wasEmpty = prevMsgCountRef.current === 0
     const hasNewMessages = newCount > prevMsgCountRef.current ||
       (newCount > 0 && lastMsgId !== prevLastMsgIdRef.current && prevLastMsgIdRef.current !== null)
+
+    // Edge case: loadMessages completed but returned 0 messages (empty chat).
+    // viewLoaded is set by the effect at line ~60, so if it's true and
+    // messages are still empty, reveal the view immediately.
+    if (newCount === 0 && viewLoaded && !viewReady) {
+      setViewReady(true)
+      transitioningRef.current = false
+    }
 
     // Helper: scroll to latest and keep retrying until scrollHeight stabilises.
     // Only reveals the view (setViewReady) once the position is confirmed.
@@ -906,11 +924,25 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
       {/* Input (top or bottom) */}
       {!store.inputBottom && inputSection}
 
-      {/* Message scroll area */}
+      {/* Loading spinner -- rendered OUTSIDE the scroll container so it's
+          always visible during loading regardless of the opacity gate. */}
+      {((store.unifiedLoading && view?.type === 'unified_streams') || (messages.length === 0 && view && view.type !== 'unified_streams' && !viewLoaded)) && (
+        <div className="flex-1 flex flex-col items-center justify-center gap-3 py-10">
+          <div className="relative w-8 h-8">
+            <div className="absolute inset-0 rounded-full border-2 border-border" />
+            <div className="absolute inset-0 rounded-full border-2 border-t-[var(--d360-orange)] animate-spin" />
+          </div>
+          {view?.type === 'unified_streams' && (
+            <p className="text-xs text-muted-foreground font-mono uppercase tracking-widest">Syncing streams</p>
+          )}
+        </div>
+      )}
+
+      {/* Message scroll area -- hidden until scroll is positioned via viewReady */}
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className={`flex-1 overflow-y-auto overflow-x-hidden px-3 pt-2 pb-4 flex flex-col min-h-0 ${store.compact ? 'gap-0.5' : 'gap-1.5'} transition-opacity duration-100 ${(viewReady || messages.length === 0) ? 'opacity-100' : 'opacity-0'}`}
+        className={`flex-1 overflow-y-auto overflow-x-hidden px-3 pt-2 pb-4 flex flex-col min-h-0 ${store.compact ? 'gap-0.5' : 'gap-1.5'} ${viewReady ? '' : 'invisible'}`}
         style={store.boardGradient ? {
           background: `linear-gradient(${store.boardGradient.angle}deg, rgb(${store.boardGradient.start.join(',')}), rgb(${store.boardGradient.end.join(',')}))`,
           ['--board-text' as string]: boardTextColor,
@@ -918,19 +950,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
           color: boardTextColor,
         } : undefined}
       >
-
-
-        {(store.unifiedLoading && view?.type === 'unified_streams') || (messages.length === 0 && view && view.type !== 'unified_streams' && !viewLoaded) ? (
-          <div className="flex-1 flex flex-col items-center justify-center gap-3 py-10 opacity-100">
-            <div className="relative w-8 h-8">
-              <div className="absolute inset-0 rounded-full border-2 border-border" />
-              <div className="absolute inset-0 rounded-full border-2 border-t-[var(--d360-orange)] animate-spin" />
-            </div>
-            {view?.type === 'unified_streams' && (
-              <p className="text-xs text-muted-foreground font-mono uppercase tracking-widest">Syncing streams</p>
-            )}
-          </div>
-        ) : (
+        {messages.length > 0 ? (
           <>
             {/* Load earlier messages (at top when oldest-first, since oldest is at top) */}
             {store.oldestFirst && (view?.type === 'group' || view?.type === 'dm') && messages.length >= 5 && !noMoreMessages && (
@@ -1032,26 +1052,25 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
               </div>
             )}
 
-            {messages.length === 0 && (
-              <div className="flex-1 flex flex-col items-center justify-center gap-1">
-                <p className="text-xs text-muted-foreground" style={{ fontFamily: 'var(--font-mono)' }}>
-                  {view?.type === 'unified_streams'
-                    ? 'Toggle streams to see messages'
-                    : view?.type === 'dm' && dmRecipientName
-                      ? `No messages yet with ${dmRecipientName}`
-                      : view
-                        ? 'Loading messages...'
-                        : 'Select a chat'}
-                </p>
-                {view?.type === 'dm' && dmRecipientName && (
-                  <p className="text-[10px] text-muted-foreground/50" style={{ fontFamily: 'var(--font-mono)' }}>
-                    Send a message to start the conversation
-                  </p>
-                )}
-              </div>
-            )}
           </>
-        )}
+        ) : viewLoaded ? (
+          <div className="flex-1 flex flex-col items-center justify-center gap-1">
+            <p className="text-xs text-muted-foreground" style={{ fontFamily: 'var(--font-mono)' }}>
+              {view?.type === 'unified_streams'
+                ? 'Toggle streams to see messages'
+                : view?.type === 'dm' && dmRecipientName
+                  ? `No messages yet with ${dmRecipientName}`
+                  : view
+                    ? 'No messages'
+                    : 'Select a chat'}
+            </p>
+            {view?.type === 'dm' && dmRecipientName && (
+              <p className="text-[10px] text-muted-foreground/50" style={{ fontFamily: 'var(--font-mono)' }}>
+                Send a message to start the conversation
+              </p>
+            )}
+          </div>
+        ) : null}
       </div>
 
       {/* Input (bottom) */}
