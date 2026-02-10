@@ -131,6 +131,20 @@ interface StoreState {
   chatSounds: Record<string, SoundName>
   // Unified streams loading
   unifiedLoading: boolean
+  // Message preview toasts
+  msgToasts: MsgToast[]
+  toastMutedFeeds: Set<string>
+}
+
+export type MsgToast = {
+  id: number
+  sourceKey: string  // e.g. "group:123", "dm:456", "stream:North", "unified_streams"
+  sourceName: string
+  senderName: string
+  text: string
+  viewType: ViewState['type']
+  viewId: string | null
+  ts: number
 }
 
 interface StoreActions {
@@ -195,6 +209,9 @@ interface StoreActions {
   uploadImage: (file: File) => Promise<string | null>
   setPendingImage: (url: string | null) => void
   showToast: (title: string, body: string, isPriority?: boolean) => void
+  showMsgToast: (toast: Omit<MsgToast, 'id' | 'ts'>) => void
+  removeMsgToast: (id: number) => void
+  toggleToastMuted: (sourceKey: string) => void
   loadMessages: (panelIdx: number) => Promise<void>
   loadUnifiedStreams: () => Promise<void>
   getPanelTitle: (type: ViewState['type'], id: string | null) => string
@@ -295,6 +312,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [sectionOrder, setSectionOrderState] = useState<string[]>(['command', 'streams', 'pending', 'pinned', 'active', 'inactive'])
   const [toasts, setToasts] = useState<ToastItem[]>([])
   const toastIdRef = useRef(0)
+  const [msgToasts, setMsgToasts] = useState<MsgToast[]>([])
+  const msgToastIdRef = useRef(0)
+  const [toastMutedFeeds, setToastMutedFeeds] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem('d360_toast_muted')
+      if (raw) return new Set(JSON.parse(raw))
+    } catch { /* empty */ }
+    return new Set()
+  })
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const knownMsgIds = useRef<Set<string>[]>([new Set(), new Set(), new Set()])
   const isLoggingInRef = useRef(false)
@@ -492,6 +518,30 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setToasts(prev => prev.filter(t => t.id !== id))
   }, [])
 
+  const showMsgToast = useCallback((toast: Omit<MsgToast, 'id' | 'ts'>) => {
+    if (toastMutedFeeds.has(toast.sourceKey)) return
+    const id = ++msgToastIdRef.current
+    const entry: MsgToast = { ...toast, id, ts: Date.now() }
+    setMsgToasts(prev => [...prev.slice(-4), entry]) // max 5 visible
+    setTimeout(() => {
+      setMsgToasts(prev => prev.filter(t => t.id !== id))
+    }, 6000)
+  }, [toastMutedFeeds])
+
+  const removeMsgToast = useCallback((id: number) => {
+    setMsgToasts(prev => prev.filter(t => t.id !== id))
+  }, [])
+
+  const toggleToastMuted = useCallback((sourceKey: string) => {
+    setToastMutedFeeds(prev => {
+      const next = new Set(prev)
+      if (next.has(sourceKey)) next.delete(sourceKey)
+      else next.add(sourceKey)
+      localStorage.setItem('d360_toast_muted', JSON.stringify([...next]))
+      return next
+    })
+  }, [])
+
   const getPanelTitle = useCallback((type: ViewState['type'], id: string | null) => {
     if (type === 'all') return 'Universal Feed'
     if (type === 'dms') return 'Direct Comms'
@@ -602,9 +652,20 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           }
           const groupName = groups.find(g => g.id === (latest?.group_id || id))?.name || 'Group'
           sendDesktopNotification(`Delta 360 - ${groupName}`, notifBody)
+          // Fire message preview toast
+          if (latest) {
+            const sourceKey = type === 'stream' ? `stream:${id}` : type === 'all' ? 'all' : `group:${latest.group_id || id}`
+            const sourceName = type === 'stream' ? (id || 'Stream') : type === 'all' ? 'Universal Feed' : groupName
+            showMsgToast({ sourceKey, sourceName, senderName: latest.name, text: latest.text || '(attachment)', viewType: type, viewId: id })
+          }
         } else if ((type === 'dm' || type === 'dms') && !dmMuted) {
           playSound(dmSound)
           sendDesktopNotification('Delta 360 - DM', notifBody)
+          if (latest) {
+            const sourceKey = type === 'dms' ? 'dms' : `dm:${id}`
+            const sourceName = type === 'dms' ? 'Direct Comms' : (dmChats.find(d => d.other_user?.id === id)?.other_user?.name || 'DM')
+            showMsgToast({ sourceKey, sourceName, senderName: latest.name, text: latest.text || '(attachment)', viewType: type, viewId: id })
+          }
         }
       }
     }
@@ -627,7 +688,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       next[panelIdx] = msgs
       return next
     })
-  }, [currentView, panels, groups, dmChats, approved, streams, globalMute, feedMuted, dmMuted, feedSound, dmSound])
+  }, [currentView, panels, groups, dmChats, approved, streams, globalMute, feedMuted, dmMuted, feedSound, dmSound, showMsgToast])
 
   // Load more (older) messages for the current panel using before_id pagination
   const loadMoreMessages = useCallback(async (panelIdx: number): Promise<number> => {
@@ -765,12 +826,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   if (newMsgs.length > 0) {
     playSound(unifiedSound)
     const latest = newMsgs[newMsgs.length - 1]
-    if (latest) sendDesktopNotification('Delta 360 - Streams', `${latest.name}: ${latest.text || '(attachment)'}`)
+    if (latest) {
+      sendDesktopNotification('Delta 360 - Streams', `${latest.name}: ${latest.text || '(attachment)'}`)
+      showMsgToast({ sourceKey: 'unified_streams', sourceName: 'Unified Streams', senderName: latest.name, text: latest.text || '(attachment)', viewType: 'unified_streams', viewId: null })
+    }
   }
   }
     unifiedKnownIds.current = new Set(ready.map(m => m.id))
     setPanelMessages(prev => { const n = [...prev]; n[0] = ready; return n })
-  }, [fetchUnifiedMessages, globalMute, unifiedMuted, unifiedSound])
+  }, [fetchUnifiedMessages, globalMute, unifiedMuted, unifiedSound, showMsgToast])
 
   // Trigger buffered load when toggles change or view switches to unified_streams
   const streamToggleCount = streamToggles.size
@@ -1157,6 +1221,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     chatSounds,
     unifiedLoading,
     toasts,
+    msgToasts,
+    toastMutedFeeds,
     // Actions
     login,
     logout,
@@ -1283,6 +1349,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setPendingImage,
     showToast,
     removeToast,
+    showMsgToast,
+    removeMsgToast,
+    toggleToastMuted,
     loadMessages,
     loadUnifiedStreams,
     getPanelTitle,
