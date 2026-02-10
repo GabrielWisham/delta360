@@ -470,14 +470,24 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   storage.removeToken()
   api.setToken('')
   if (pollTimerRef.current) clearTimeout(pollTimerRef.current)
-  // Clear first-time user flags so next login shows onboarding
-  localStorage.removeItem('d360_tutorial_done')
-  localStorage.removeItem('d360_guide_dismissed')
+  // Clear ALL persisted state for a clean newbie experience on next login
+  const keysToRemove: string[] = []
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i)
+    if (k && (k.startsWith('gm_v3_') || k.startsWith('d360_'))) keysToRemove.push(k)
+  }
+  keysToRemove.forEach(k => localStorage.removeItem(k))
+  // Reset in-memory state
   setIsLoggedIn(false)
   setUser(null)
   setGroups([])
   setDmChats([])
+  setPanelMessages([[], [], []])
   setCurrentView({ type: 'all', id: null })
+  trackerSeeded.current = false
+  Object.keys(lastMsgTracker.current).forEach(k => delete lastMsgTracker.current[k])
+  panelSeeded.current = [false, false, false]
+  knownMsgIds.current = [new Set(), new Set(), new Set()]
   }, [])
 
   function startPolling() {
