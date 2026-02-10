@@ -112,19 +112,26 @@ export const MessageCard = memo(function MessageCard({
 
   function handleQuickEmoji(emoji: string) {
     const groupId = msg.group_id || ''
-    const recipientId = msg.recipient_id || (
-      msg.sender_id !== store.user?.id ? msg.sender_id :
-      msg.user_id !== store.user?.id ? msg.user_id : ''
-    ) || ''
     if (groupId) {
+      // Group: send as a threaded reply with reply attachment
       store.sendMessageDirect('group', groupId, emoji, [
         { type: 'reply' as const, reply_id: msg.id, base_reply_id: msg.id }
       ])
-    } else if (recipientId) {
+    } else {
+      // DM: GroupMe doesn't support reply attachments, so quote the original
+      const recipientId = msg.recipient_id || (
+        msg.sender_id !== store.user?.id ? msg.sender_id :
+        msg.user_id !== store.user?.id ? msg.user_id : ''
+      ) || ''
       const dmTarget = msg.conversation_id
         ? msg.conversation_id.split('+').find(id => id !== store.user?.id) || recipientId
         : recipientId
-      store.sendMessageDirect('dm', dmTarget, emoji, [])
+      // Build a quoted reply: include a snippet of the original message
+      const snippet = msg.text
+        ? msg.text.length > 40 ? msg.text.slice(0, 40) + '...' : msg.text
+        : '(attachment)'
+      const replyText = `${emoji}\n> ${msg.name}: ${snippet}`
+      if (dmTarget) store.sendMessageDirect('dm', dmTarget, replyText, [])
     }
   }
 
