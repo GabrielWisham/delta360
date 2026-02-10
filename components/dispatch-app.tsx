@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useStore } from '@/lib/store'
 import { resumeAudio } from '@/lib/sounds'
 import { LoginScreen } from './login-screen'
@@ -19,10 +19,27 @@ import { ShiftChangeModal } from './shift-change-modal'
 import { MessageBuilder } from './message-builder'
 import { ToastZone } from './toast-zone'
 import { Lightbox } from './lightbox'
+import { OnboardingTutorial } from './onboarding-tutorial'
 
 export function DispatchApp() {
   const store = useStore()
   const audioResumed = useRef(false)
+  const [showTutorial, setShowTutorial] = useState(false)
+
+  // Show tutorial on first login
+  useEffect(() => {
+    if (store.isLoggedIn && !localStorage.getItem('d360_tutorial_done')) {
+      const timer = setTimeout(() => setShowTutorial(true), 600)
+      return () => clearTimeout(timer)
+    }
+  }, [store.isLoggedIn])
+
+  // Allow re-opening tutorial from header help icon
+  useEffect(() => {
+    const handler = () => setShowTutorial(true)
+    window.addEventListener('d360:show-tutorial', handler)
+    return () => window.removeEventListener('d360:show-tutorial', handler)
+  }, [])
 
   // Resume AudioContext on very first user interaction
   useEffect(() => {
@@ -95,6 +112,7 @@ export function DispatchApp() {
       {store.shiftChangeOpen && <ShiftChangeModal />}
       {store.msgBuilderOpen && <MessageBuilder />}
       {store.lightboxUrl && <Lightbox />}
+      {showTutorial && <OnboardingTutorial onDismiss={() => setShowTutorial(false)} />}
       <ToastZone />
     </div>
   )

@@ -25,6 +25,7 @@ import {
   Volume2,
   VolumeOff,
   Truck,
+  HelpCircle,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -167,6 +168,18 @@ export function Header() {
           {store.isConnected ? 'Live' : 'Off'}
         </span>
       </div>
+
+      {/* Tutorial */}
+      <button
+        onClick={() => {
+          localStorage.removeItem('d360_tutorial_done')
+          window.dispatchEvent(new CustomEvent('d360:show-tutorial'))
+        }}
+        className="p-1.5 rounded hover:bg-secondary/60 text-muted-foreground hover:text-foreground transition-colors"
+        title="Quick tour"
+      >
+        <HelpCircle className="w-4 h-4" />
+      </button>
 
       {/* Global mute */}
       <button
