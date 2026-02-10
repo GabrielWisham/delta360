@@ -1272,7 +1272,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         next[panelIdx] = msgs
         return next
       })
-      setFeedRefreshTick(t => t + 1)
+      // Do NOT bump feedRefreshTick here -- the optimistic message is already
+      // shown and the deferred loadMessages (600ms) will reconcile with the
+      // server. Bumping the tick triggers an immediate fetch that races with
+      // the deferred one, causing duplicate renders and scroll jumps.
     }
     try {
       if (type === 'group' && id) {
@@ -1323,7 +1326,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         next[0] = msgs
         return next
       })
-      setFeedRefreshTick(t => t + 1)
+      // Don't bump feedRefreshTick -- deferred loadMessages handles reconciliation
     }
     try {
       if (targetType === 'group') {

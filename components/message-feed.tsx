@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, useMemo, useCallback } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, useMemo, useCallback } from 'react'
 import { useStore } from '@/lib/store'
 import { getDayLabel, getFullDate } from '@/lib/date-helpers'
 import { MessageCard } from './message-card'
@@ -17,9 +17,9 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   const userScrolledRef = useRef(false)
   const justSentRef = useRef(false)
   // Guards against programmatic scrolls being misinterpreted as user scrolls.
-  // Set to true before any programmatic scroll, cleared by handleScroll when
-  // the scroll settles at the edge, or by a short timeout.
   const programmaticScrollRef = useRef(false)
+  // Signal that handleSend needs a scroll after the next commit.
+  const needsSendScrollRef = useRef(false)
   const prevMsgCountRef = useRef(0)
   const snapshotMsgCountRef = useRef(0) // msg count when user scrolled away
   const [mainInput, setMainInput] = useState('')
@@ -285,6 +285,25 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages.length, lastMsgId, store.oldestFirst])
 
+  // After sending: snap scroll to the latest edge synchronously on the same
+  // frame React commits the optimistic message. useLayoutEffect runs before
+  // the browser paints, so there is zero visual jump.
+  useLayoutEffect(() => {
+    if (!needsSendScrollRef.current) return
+    needsSendScrollRef.current = false
+    const c = scrollRef.current
+    if (c) {
+      if (store.oldestFirst) { c.scrollTop = c.scrollHeight }
+      else { c.scrollTop = 0 }
+    }
+    // Keep guards active long enough for the deferred server refresh (600ms)
+    // to land without the auto-scroll effect or handleScroll interfering.
+    setTimeout(() => {
+      programmaticScrollRef.current = false
+      justSentRef.current = false
+    }, 1000)
+  })
+
   // For unified_streams, also scroll to latest when messages finish loading (buffer complete)
   const prevUnifiedLoading = useRef(store.unifiedLoading)
   useEffect(() => {
@@ -414,26 +433,10 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     userScrolledRef.current = false
     justSentRef.current = true
     programmaticScrollRef.current = true
+    needsSendScrollRef.current = true
     setShowJumpToLatest(false)
     setNewMsgCount(0)
     snapshotMsgCountRef.current = 0
-
-    // Single deferred scroll: wait for the optimistic message to render,
-    // then snap to bottom once. No smooth animation, no competing scrolls.
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        const c = scrollRef.current
-        if (c) {
-          if (store.oldestFirst) { c.scrollTop = c.scrollHeight }
-          else { c.scrollTop = 0 }
-        }
-        // Clear guards after the scroll has settled
-        setTimeout(() => {
-          programmaticScrollRef.current = false
-          justSentRef.current = false
-        }, 800)
-      })
-    })
 
     // If replying from an aggregate view (all, dms, stream, unified_streams),
     // route the message directly to the replied-to message's group or DM
