@@ -106,7 +106,8 @@ export const MessageCard = memo(function MessageCard({
           )}
 
           <div
-            className={`rounded-2xl px-3.5 py-2 ${
+            data-bubble
+            className={`rounded-2xl px-3.5 py-2 transition-shadow ${
               isSelf
                 ? 'rounded-tr-sm bg-[var(--d360-orange)]/12 border border-[var(--d360-orange)]/15'
                 : 'rounded-tl-sm border border-white/[0.08]'
@@ -243,7 +244,8 @@ export const MessageCard = memo(function MessageCard({
         )}
 
         <div
-          className={`rounded-2xl px-4 py-2.5 transition-all ${
+          data-bubble
+          className={`rounded-2xl px-4 py-2.5 transition-shadow ${
             isSelf
               ? 'rounded-tr-sm bg-[var(--d360-orange)]/12 border border-[var(--d360-orange)]/15'
               : 'rounded-tl-sm border border-white/[0.08]'

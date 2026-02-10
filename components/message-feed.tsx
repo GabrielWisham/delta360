@@ -224,39 +224,37 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     prevUnifiedLoading.current = store.unifiedLoading
   }, [store.unifiedLoading, view?.type])
 
+  const highlightMsg = useCallback((el: HTMLElement) => {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    el.setAttribute('data-highlight', '')
+    setTimeout(() => el.removeAttribute('data-highlight'), 2200)
+  }, [])
+
   const scrollToMsg = useCallback((id: string) => {
     const el = document.getElementById(`msg-${id}`)
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      el.classList.add('ring-2', 'ring-[var(--d360-orange)]')
-      setTimeout(() => el.classList.remove('ring-2', 'ring-[var(--d360-orange)]'), 2000)
-    }
-  }, [])
+    if (el) highlightMsg(el)
+  }, [highlightMsg])
 
   // After messages load, if there's a pending scroll target (from toast click), scroll to it
   const pendingMsgId = store.pendingScrollToMsgId
   const clearPendingScroll = store.setPendingScrollToMsgId
   useEffect(() => {
     if (!pendingMsgId || messages.length === 0) return
-    // Retry up to 10 times (2s total) waiting for the message element to appear in DOM
     let attempts = 0
     const maxAttempts = 10
     function tryScroll() {
       const el = document.getElementById(`msg-${pendingMsgId}`)
       if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-        el.classList.add('ring-2', 'ring-[var(--d360-orange)]')
-        setTimeout(() => el.classList.remove('ring-2', 'ring-[var(--d360-orange)]'), 2000)
+        highlightMsg(el)
         clearPendingScroll(null)
       } else if (++attempts < maxAttempts) {
         setTimeout(tryScroll, 200)
       } else {
-        // Give up -- message might not be in this batch; just clear the flag
         clearPendingScroll(null)
       }
     }
     requestAnimationFrame(tryScroll)
-  }, [messages, pendingMsgId, clearPendingScroll])
+  }, [messages, pendingMsgId, clearPendingScroll, highlightMsg])
 
   function autoResize() {
     const el = textareaRef.current

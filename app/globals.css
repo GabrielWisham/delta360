@@ -26,6 +26,15 @@
   --font-mono: var(--font-jetbrains), monospace;
 }
 
+/* Toast-click highlight: glow behind the bubble */
+@keyframes msg-glow {
+  0%   { box-shadow: 0 0 12px 4px var(--d360-orange), 0 0 24px 8px color-mix(in srgb, var(--d360-orange) 40%, transparent); }
+  100% { box-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent; }
+}
+[data-highlight] [data-bubble] {
+  animation: msg-glow 2s ease-out forwards;
+}
+
 @layer base {
   * {
     border-color: var(--color-border);
