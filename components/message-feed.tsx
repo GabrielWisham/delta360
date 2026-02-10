@@ -84,7 +84,6 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     // scroll event that would re-set userScrolledRef before auto-scroll fires.
     if (!atEdge && !justSentRef.current && !programmaticScrollRef.current) {
       if (!userScrolledRef.current) {
-        console.log('[v0] handleScroll: setting userScrolled=true', { scrollTop: el.scrollTop, scrollHeight: el.scrollHeight, clientHeight: el.clientHeight })
         userScrolledRef.current = true
         snapshotMsgCountRef.current = messages.length
       }
@@ -194,7 +193,6 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     const hasNewMessages = newCount > prevMsgCountRef.current ||
       (newCount > 0 && lastMsgId !== prevLastMsgIdRef.current && prevLastMsgIdRef.current !== null)
 
-    console.log('[v0] auto-scroll effect', { newCount, wasEmpty, hasNewMessages, userScrolled: userScrolledRef.current, justSent: justSentRef.current, lastMsgId, prevLastMsgId: prevLastMsgIdRef.current })
     if (hasNewMessages) {
       if (wasEmpty) {
         // First load: ensure scroll state is clean so subsequent new messages
@@ -256,22 +254,23 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
           })
         }
       } else if (!userScrolledRef.current) {
-        // User hasn't scrolled away -- auto-scroll to fully reveal new messages.
-        // Use instant scroll when justSent to avoid competing smooth scrolls.
-        const useSmooth = !justSentRef.current
-        programmaticScrollRef.current = true
-        setTimeout(() => { programmaticScrollRef.current = false }, 500)
-        requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          const container = scrollRef.current
-          if (!container) return
-          if (store.oldestFirst) {
-            container.scrollTo({ top: container.scrollHeight, behavior: useSmooth ? 'smooth' : 'instant' })
-          } else {
-            container.scrollTo({ top: 0, behavior: useSmooth ? 'smooth' : 'instant' })
-          }
-        })
-        })
+        // User hasn't scrolled away -- auto-scroll to reveal new messages.
+        // During justSent, skip entirely -- handleSend owns the single scroll.
+        if (!justSentRef.current) {
+          programmaticScrollRef.current = true
+          setTimeout(() => { programmaticScrollRef.current = false }, 500)
+          requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            const container = scrollRef.current
+            if (!container) return
+            if (store.oldestFirst) {
+              container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' })
+            } else {
+              container.scrollTo({ top: 0, behavior: 'smooth' })
+            }
+          })
+          })
+        }
       }
     }
     prevMsgCountRef.current = newCount
@@ -367,7 +366,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     el.style.height = Math.min(el.scrollHeight, 160) + 'px'
     const newH = el.offsetHeight
     // If textarea grew/shrank and input is at bottom, re-anchor scroll
-    if (store.inputBottom && scrollRef.current && prevH !== newH && !userScrolledRef.current) {
+    if (store.inputBottom && scrollRef.current && prevH !== newH && !userScrolledRef.current && !justSentRef.current) {
       if (store.oldestFirst) {
         scrollRef.current.scrollTop = scrollRef.current.scrollHeight
       } else {
@@ -403,18 +402,31 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     setReplyingTo(null)
     store.setPendingImage(null)
 
-    // Reset scroll state so the auto-scroll effect picks up the new message.
-    // justSentRef prevents the scroll handler from re-setting userScrolledRef
-    // when the DOM reflow fires a spurious scroll event after the optimistic insert.
+    // justSentRef tells the auto-scroll effect to skip (handleSend owns
+    // the single scroll) and tells handleScroll to ignore reflow events.
     userScrolledRef.current = false
     justSentRef.current = true
+    programmaticScrollRef.current = true
     setShowJumpToLatest(false)
     setNewMsgCount(0)
     snapshotMsgCountRef.current = 0
-    // Clear justSent after the server refresh (600ms delay + render time).
-    // While active, scroll handler won't re-flag userScrolled, and the
-    // auto-scroll effect uses instant (not smooth) scroll to avoid jumpiness.
-    setTimeout(() => { justSentRef.current = false }, 1200)
+
+    // Single deferred scroll: wait for the optimistic message to render,
+    // then snap to bottom once. No smooth animation, no competing scrolls.
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const c = scrollRef.current
+        if (c) {
+          if (store.oldestFirst) { c.scrollTop = c.scrollHeight }
+          else { c.scrollTop = 0 }
+        }
+        // Clear guards after the scroll has settled
+        setTimeout(() => {
+          programmaticScrollRef.current = false
+          justSentRef.current = false
+        }, 800)
+      })
+    })
 
     // If replying from an aggregate view (all, dms, stream, unified_streams),
     // route the message directly to the replied-to message's group or DM
