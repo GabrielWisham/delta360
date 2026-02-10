@@ -570,6 +570,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             if (cv.type === 'dms' || (cv.type === 'dm' && cv.id === otherId)) {
               needsFeedRefresh = true
             }
+            if (cv.type === 'unified_streams') {
+              needsUnifiedRefresh = true
+            }
             const senderName = lm.name || dm.other_user?.name || 'DM'
             const text = lm.text || '(attachment)'
             if (!globalMuteRef.current && !dmMutedRef.current) {
@@ -755,8 +758,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     // Show cached messages instantly while we fetch fresh ones
     if (cached && cached.msgs.length > 0) {
       const isFresh = Date.now() - cached.ts < CACHE_TTL
-      if (isFresh) {
-        // Cache is fresh enough, just set it and return
+      if (isFresh && !notifications) {
+        // Cache is fresh enough and no pending notifications -- use cache and return
         setPanelMessages(prev => {
           const next = [...prev]
           next[panelIdx] = cached.msgs
