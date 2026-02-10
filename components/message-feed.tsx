@@ -860,7 +860,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className={`flex-1 overflow-y-auto overflow-x-hidden px-3 pt-2 pb-4 flex flex-col min-h-0 ${store.compact ? 'gap-0.5' : 'gap-1.5'} transition-opacity duration-100 ${viewReady ? 'opacity-100' : 'opacity-0'}`}
+        className={`flex-1 overflow-y-auto overflow-x-hidden px-3 pt-2 pb-4 flex flex-col min-h-0 ${store.compact ? 'gap-0.5' : 'gap-1.5'} transition-opacity duration-100 ${(viewReady || messages.length === 0) ? 'opacity-100' : 'opacity-0'}`}
         style={store.boardGradient ? {
           background: `linear-gradient(${store.boardGradient.angle}deg, rgb(${store.boardGradient.start.join(',')}), rgb(${store.boardGradient.end.join(',')}))`,
           ['--board-text' as string]: boardTextColor,
@@ -870,9 +870,8 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
       >
 
 
-        {/* Loading gate: show spinner while view is loading (empty messages before first load, or unified syncing) */}
         {(store.unifiedLoading && view?.type === 'unified_streams') || (messages.length === 0 && view && view.type !== 'unified_streams' && !viewLoaded) ? (
-          <div className="flex-1 flex flex-col items-center justify-center gap-3 py-10">
+          <div className="flex-1 flex flex-col items-center justify-center gap-3 py-10 opacity-100">
             <div className="relative w-8 h-8">
               <div className="absolute inset-0 rounded-full border-2 border-border" />
               <div className="absolute inset-0 rounded-full border-2 border-t-[var(--d360-orange)] animate-spin" />

@@ -830,11 +830,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
     const cacheKey = `${type}:${id || '_'}`
     const cached = msgCache.current[cacheKey]
-    // Show cached messages instantly while we fetch fresh ones
-    if (cached && cached.msgs.length > 0) {
+    // For poll-driven refreshes (not view switches), use cache to avoid
+    // unnecessary fetches and re-renders.
+    if (!isViewSwitch && cached && cached.msgs.length > 0) {
       const isFresh = Date.now() - cached.ts < CACHE_TTL
       if (isFresh && !bypassCache) {
-        // Cache is fresh enough -- use cache and return
         setPanelMessages(prev => {
           const next = [...prev]
           next[panelIdx] = cached.msgs
@@ -842,13 +842,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         })
         return
       }
-      // Stale cache -- show it immediately, then refresh below
-      setPanelMessages(prev => {
-        const next = [...prev]
-        next[panelIdx] = cached.msgs
-        return next
-      })
     }
+    // View switches always fetch fresh data (no stale cache display).
 
     let msgs: GroupMeMessage[] = []
     try {
@@ -1262,12 +1257,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     knownMsgIds.current[0] = cached ? new Set(cached.msgs.map(m => m.id)) : new Set()
     panelSeeded.current[0] = cached ? true : false
 
-    // Immediately populate panelMessages from cache so there's no flash of
-    // stale content from the previous view. If no cache, clear to empty so
-    // the loading spinner shows instead of old messages.
+    // Always clear messages on view switch so the spinner shows while we
+    // fetch fresh data. This prevents stale cached messages from flashing
+    // before the latest messages arrive.
     setPanelMessages(prev => {
       const next = [...prev]
-      next[0] = cached ? cached.msgs : []
+      next[0] = []
       return next
     })
 
@@ -1281,12 +1276,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       next[slot] = { type, id }
       knownMsgIds.current[slot] = new Set()
 
-      // Pre-populate from cache for instant display
-      const cacheKey = `${type}:${id || '_'}`
-      const cached = msgCache.current[cacheKey]
+      // Clear messages so spinner shows while fetching fresh data
       setPanelMessages(pm => {
         const pmNext = [...pm]
-        pmNext[slot] = cached ? cached.msgs : []
+        pmNext[slot] = []
         return pmNext
       })
 
