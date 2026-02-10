@@ -813,8 +813,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const unifiedKnownIds = useRef<Set<string>>(new Set())
   const unifiedVersion = useRef(0)
   const unifiedDebounce = useRef<ReturnType<typeof setTimeout> | null>(null)
-  // Snapshot current streams+toggles into refs so the async fetch always reads latest
-  const streamsRef = useRef(streams)
+  // streamsRef already defined earlier (notification refs section) -- just keep it in sync
   streamsRef.current = streams
   const streamTogglesRef = useRef(streamToggles)
   streamTogglesRef.current = streamToggles
