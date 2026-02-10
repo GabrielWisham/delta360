@@ -5,7 +5,7 @@ import { useStore } from '@/lib/store'
 import { getDayLabel, getFullDate } from '@/lib/date-helpers'
 import { MessageCard } from './message-card'
 import { EMOJIS } from '@/lib/types'
-import { ArrowDown, ArrowUp, History, Loader2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, History, Loader2, FileText, Paperclip, Send, SmilePlus, AlertTriangle, X } from 'lucide-react'
 import type { GroupMeMessage } from '@/lib/types'
 
 export function MessageFeed({ panelIdx }: { panelIdx: number }) {
@@ -17,7 +17,10 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   const prevMsgCountRef = useRef(0)
   const [mainInput, setMainInput] = useState('')
   const [mainEmojiOpen, setMainEmojiOpen] = useState(false)
+  const [showChatAlerts, setShowChatAlerts] = useState(false)
+  const [newChatAlert, setNewChatAlert] = useState('')
   const mainEmojiRef = useRef<HTMLDivElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const view = panelIdx === 0 ? store.currentView : store.panels[panelIdx]
@@ -162,6 +165,17 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     }
   }, [])
 
+  function autoResize() {
+    const el = textareaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = Math.min(el.scrollHeight, 160) + 'px'
+  }
+
+  // Current chat's alert words
+  const chatId = view?.id || ''
+  const currentChatAlerts = store.chatAlertWords[chatId] || []
+
   async function handleSend() {
     if (!mainInput.trim()) return
     const attachments: GroupMeMessage['attachments'] = []
@@ -247,79 +261,158 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   const isSpecificView = view?.type === 'group' || view?.type === 'dm' || view?.type === 'stream'
 
   const inputSection = (
-    <div className={`${store.compact ? 'px-2 py-1.5' : 'px-3 py-2'} border-b border-border`}>
-      {/* Template bar */}
-      {isSpecificView && store.templates.length > 0 && (
-        <div className="flex flex-wrap gap-1 mb-2">
-          {store.templates.map((tpl, i) => (
-            <div key={i} className="flex items-center gap-0.5">
-              <button
-                onClick={() => setMainInput(prev => prev ? `${prev} ${tpl}` : tpl)}
-                className="text-[10px] px-2 py-0.5 rounded-full border border-border text-muted-foreground hover:text-foreground hover:border-[var(--d360-orange)] transition-colors"
-                style={{ fontFamily: 'var(--font-jetbrains)' }}
-              >
-                {tpl}
-              </button>
-              <button
-                onClick={() => navigator.clipboard.writeText(tpl)}
-                className="text-[9px] text-muted-foreground hover:text-foreground"
-                title="Copy"
-              >
-                {'\u{1F4C4}'}
-              </button>
+    <div className={`${store.compact ? 'px-2 py-1.5' : 'px-3 py-2'} border-b border-border bg-card relative z-10`}>
+      {/* Per-chat alert words panel */}
+      {showChatAlerts && isSpecificView && chatId && (
+        <div className="mb-2 p-2.5 rounded-lg border border-border bg-secondary/20">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[9px] uppercase tracking-widest text-muted-foreground font-semibold flex items-center gap-1" style={{ fontFamily: 'var(--font-mono)' }}>
+              <AlertTriangle className="w-3 h-3 text-destructive" />
+              Chat Priority Words
+            </span>
+            <button onClick={() => setShowChatAlerts(false)} className="p-0.5 rounded hover:bg-secondary/60 text-muted-foreground hover:text-foreground">
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+          {currentChatAlerts.length > 0 && (
+            <div className="flex flex-wrap gap-1 mb-2">
+              {currentChatAlerts.map((w, i) => (
+                <span key={i} className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border border-destructive/40 text-destructive bg-destructive/5" style={{ fontFamily: 'var(--font-mono)' }}>
+                  {w}
+                  <button onClick={() => store.setChatAlertWords(chatId, currentChatAlerts.filter((_, j) => j !== i))} className="hover:text-destructive/80">
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                </span>
+              ))}
             </div>
-          ))}
+          )}
+          <div className="flex gap-1.5">
+            <input
+              value={newChatAlert}
+              onChange={e => setNewChatAlert(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && newChatAlert.trim()) {
+                  store.setChatAlertWords(chatId, [...currentChatAlerts, newChatAlert.trim().toLowerCase()])
+                  setNewChatAlert('')
+                }
+              }}
+              placeholder="Add alert word..."
+              className="flex-1 text-[10px] bg-secondary/30 border border-border rounded-lg px-2 py-1 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-destructive/50"
+              style={{ fontFamily: 'var(--font-mono)' }}
+            />
+            <button
+              onClick={() => {
+                if (newChatAlert.trim()) {
+                  store.setChatAlertWords(chatId, [...currentChatAlerts, newChatAlert.trim().toLowerCase()])
+                  setNewChatAlert('')
+                }
+              }}
+              disabled={!newChatAlert.trim()}
+              className="text-[9px] uppercase tracking-widest px-2 py-1 rounded-lg bg-destructive text-destructive-foreground hover:brightness-110 disabled:opacity-30 transition-all"
+              style={{ fontFamily: 'var(--font-mono)' }}
+            >
+              Add
+            </button>
+          </div>
         </div>
       )}
 
       {/* Pending image preview */}
       {store.pendingImage && (
         <div className="flex items-center gap-2 mb-2">
-          <img src={store.pendingImage} alt="Pending" className="w-12 h-12 rounded object-cover" />
+          <img src={store.pendingImage} alt="Pending" className="w-12 h-12 rounded-lg object-cover border border-border" />
           <button
             onClick={() => store.setPendingImage(null)}
-            className="text-[10px] text-[var(--d360-red)] hover:underline"
-            style={{ fontFamily: 'var(--font-jetbrains)' }}
+            className="text-[10px] text-destructive hover:underline"
+            style={{ fontFamily: 'var(--font-mono)' }}
           >
             Remove
           </button>
         </div>
       )}
 
+      {/* Template chips */}
+      {isSpecificView && store.templates.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-2">
+          {store.templates.map((tpl, i) => (
+            <button
+              key={i}
+              onClick={() => { setMainInput(prev => prev ? `${prev} ${tpl}` : tpl); autoResize() }}
+              className="text-[10px] px-2 py-0.5 rounded-full border border-border text-muted-foreground hover:text-foreground hover:border-[var(--d360-orange)] transition-colors"
+              style={{ fontFamily: 'var(--font-mono)' }}
+            >
+              {tpl}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Input row */}
-      <div className="flex items-end gap-2">
-        <label className="cursor-pointer p-1.5 rounded hover:bg-secondary/60 text-muted-foreground hover:text-foreground shrink-0">
-          <span>{'\u{1F4CE}'}</span>
+      <div className="flex items-end gap-1.5">
+        {/* Attachment */}
+        <label className="cursor-pointer p-1.5 rounded-lg hover:bg-secondary/60 text-muted-foreground hover:text-foreground shrink-0 transition-colors">
+          <Paperclip className="w-4 h-4" />
           <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
         </label>
 
+        {/* Templates shortcut */}
+        {isSpecificView && (
+          <button
+            onClick={() => store.setConfigOpen(true, 'templates')}
+            className="p-1.5 rounded-lg hover:bg-secondary/60 text-muted-foreground hover:text-foreground shrink-0 transition-colors"
+            title="Quick templates"
+          >
+            <FileText className="w-4 h-4" />
+          </button>
+        )}
+
+        {/* Per-chat alerts */}
+        {isSpecificView && chatId && (
+          <button
+            onClick={() => setShowChatAlerts(!showChatAlerts)}
+            className={`p-1.5 rounded-lg shrink-0 transition-colors ${
+              showChatAlerts || currentChatAlerts.length > 0
+                ? 'text-destructive bg-destructive/10'
+                : 'text-muted-foreground hover:text-foreground hover:bg-secondary/60'
+            }`}
+            title={`Chat alert words (${currentChatAlerts.length})`}
+          >
+            <AlertTriangle className="w-4 h-4" />
+          </button>
+        )}
+
+        {/* Auto-expanding textarea */}
         <textarea
+          ref={textareaRef}
           value={mainInput}
-          onChange={e => setMainInput(e.target.value)}
+          onChange={e => { setMainInput(e.target.value); autoResize() }}
           onKeyDown={e => {
-            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); if (textareaRef.current) { textareaRef.current.style.height = 'auto' } }
           }}
           placeholder={isSpecificView ? `Message ${dmRecipientName || title}...` : 'Select a chat to send messages'}
           disabled={!isSpecificView}
-          className="flex-1 text-sm bg-secondary/40 border border-border rounded-lg px-3 py-2 resize-none max-h-[100px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)] disabled:opacity-50"
+          className="flex-1 text-sm bg-secondary/30 border border-border rounded-lg px-3 py-2 resize-none text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)] disabled:opacity-50 transition-all"
+          style={{ fontFamily: 'var(--font-mono)', maxHeight: '160px', overflow: 'auto' }}
           rows={1}
         />
 
+        {/* Emoji */}
         <div className="relative" ref={mainEmojiRef}>
           <button
             onClick={() => setMainEmojiOpen(!mainEmojiOpen)}
-            className="text-lg hover:scale-110 transition-transform shrink-0"
+            className="p-1.5 rounded-lg hover:bg-secondary/60 text-muted-foreground hover:text-foreground shrink-0 transition-colors"
           >
-            {'\u{1F600}'}
+            <SmilePlus className="w-4 h-4" />
           </button>
           {mainEmojiOpen && (
-            <div className="glass absolute bottom-full right-0 mb-1 rounded-lg p-2 grid grid-cols-6 gap-1 z-50 shadow-lg">
+            <div className="absolute bottom-full right-0 mb-1 rounded-lg p-2 grid grid-cols-6 gap-1 z-50 shadow-lg bg-card border border-border">
               {EMOJIS.map(e => (
                 <button
                   key={e}
                   onClick={() => {
                     setMainInput(prev => prev + e)
                     setMainEmojiOpen(false)
+                    autoResize()
                   }}
                   className="text-sm hover:scale-125 transition-transform w-7 h-7 flex items-center justify-center rounded hover:bg-secondary/60"
                 >
@@ -330,13 +423,15 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
           )}
         </div>
 
+        {/* Send */}
         <button
-          onClick={handleSend}
+          onClick={() => { handleSend(); if (textareaRef.current) textareaRef.current.style.height = 'auto' }}
           disabled={!mainInput.trim() || !isSpecificView}
-          className="text-sm font-bold text-white px-3 py-2 rounded-lg disabled:opacity-30 transition-all hover:brightness-110 shrink-0"
-          style={{ background: 'var(--d360-gradient)', fontFamily: 'var(--font-jetbrains)' }}
+          className="p-2 rounded-lg disabled:opacity-30 transition-all hover:brightness-110 shrink-0 text-white"
+          style={{ background: 'var(--d360-gradient)' }}
+          title="Send (Enter)"
         >
-          {'\u2191'} Send
+          <Send className="w-4 h-4" />
         </button>
       </div>
     </div>

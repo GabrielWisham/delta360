@@ -34,7 +34,12 @@ const TABS: { key: Tab; label: string; Icon: typeof Radio }[] = [
 export function ConfigPanel() {
   const store = useStore()
   const panelRef = useRef<HTMLDivElement>(null)
-  const [activeTab, setActiveTab] = useState<Tab>('streams')
+  const [activeTab, setActiveTab] = useState<Tab>((store.configTab as Tab) || 'streams')
+
+  // Sync tab when opened with a specific tab
+  useEffect(() => {
+    if (store.configTab) setActiveTab(store.configTab as Tab)
+  }, [store.configTab])
 
   // Stream builder state
   const [streamName, setStreamName] = useState('')

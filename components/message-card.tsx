@@ -37,7 +37,10 @@ export function MessageCard({
 
   const isSelf = msg.user_id === store.user?.id || msg.sender_id === store.user?.id
   const isPinned = !!store.pinnedMessages[msg.id]
-  const isAlertMsg = store.alertWords.some(w => msg.text?.toLowerCase().includes(w.toLowerCase()))
+  const chatId = msg.group_id || msg.recipient_id || msg.sender_id || ''
+  const chatAlerts = store.chatAlertWords?.[chatId] || []
+  const allAlerts = [...store.alertWords, ...chatAlerts]
+  const isAlertMsg = allAlerts.some(w => msg.text?.toLowerCase().includes(w.toLowerCase()))
   const compact = store.compact
 
   // Draft persistence

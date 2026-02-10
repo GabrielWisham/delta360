@@ -84,6 +84,7 @@ interface StoreState {
   isConnected: boolean
   // UI panels
   configOpen: boolean
+  configTab: string | null
   searchOpen: boolean
   membersOpen: boolean
   contactsOpen: boolean
@@ -106,6 +107,8 @@ interface StoreState {
   sectionOrder: string[]
   // Editing a stream (prefill config)
   editingStream: { name: string; ids: string[]; sound: SoundName } | null
+  // Per-chat alert words
+  chatAlertWords: Record<string, string[]>
   // Per-chat alert sounds
   chatSounds: Record<string, SoundName>
   // Unified streams loading
@@ -153,11 +156,12 @@ interface StoreActions {
   toggleMuteGroup: (gid: string) => void
   setTemplates: (t: string[]) => void
   setAlertWords: (w: string[]) => void
+  setChatAlertWords: (chatId: string, words: string[]) => void
   saveStream: (name: string, ids: string[], sound: SoundName) => void
   deleteStream: (name: string) => void
   toggleStreamMonitor: (name: string) => void
   setMyStatus: (s: UserStatus, broadcast?: boolean) => void
-  setConfigOpen: (v: boolean) => void
+  setConfigOpen: (v: boolean, tab?: string) => void
   setSearchOpen: (v: boolean) => void
   setMembersOpen: (v: boolean) => void
   setContactsOpen: (v: boolean) => void
@@ -247,7 +251,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [teamStatus, setTeamStatus] = useState<Record<string, TeamMemberStatus>>({})
   const [syncGroupId, setSyncGroupId] = useState<string | null>(null)
   const [isConnected, setIsConnected] = useState(false)
-  const [configOpen, setConfigOpen] = useState(false)
+  const [configOpen, setConfigOpenState] = useState(false)
+  const [configTab, setConfigTab] = useState<string | null>(null)
   const [searchOpen, setSearchOpen] = useState(false)
   const [membersOpen, setMembersOpen] = useState(false)
   const [contactsOpen, setContactsOpen] = useState(false)
@@ -260,6 +265,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [pendingImage, setPendingImage] = useState<string | null>(null)
   const [searchIndex, setSearchIndex] = useState<GroupMeMessage[]>([])
   const [chatSounds, setChatSounds] = useState<Record<string, SoundName>>({})
+  const [chatAlertWords, setChatAlertWordsState] = useState<Record<string, string[]>>({})
   const [unifiedLoading, setUnifiedLoading] = useState(false)
   const [editingStream, setEditingStream] = useState<StoreState['editingStream']>(null)
   const [chatRenames, setChatRenames] = useState<Record<string, string>>({})
@@ -305,6 +311,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setStreamRenames(storage.getStreamRenames())
     setSectionOrderState(storage.getSectionOrder())
     setChatSounds(storage.getChatSounds() as Record<string, SoundName>)
+    setChatAlertWordsState(storage.getChatAlertWords())
 
     // Auto-login
     const token = storage.getToken()
@@ -1060,6 +1067,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     syncGroupId,
     isConnected,
     configOpen,
+    configTab,
+    chatAlertWords,
     searchOpen,
     membersOpen,
     contactsOpen,
@@ -1180,7 +1189,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     deleteStream,
     toggleStreamMonitor,
     setMyStatus,
-    setConfigOpen,
+    setConfigOpen: (v: boolean, tab?: string) => { setConfigOpenState(v); if (tab) setConfigTab(tab); else if (!v) setConfigTab(null) },
+    setChatAlertWords: (chatId: string, words: string[]) => {
+      setChatAlertWordsState(prev => {
+        const next = { ...prev, [chatId]: words }
+        storage.setChatAlertWords(next)
+        return next
+      })
+    },
     setSearchOpen,
     setMembersOpen,
     setContactsOpen,
