@@ -418,9 +418,11 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
         </button>
       </div>
 
-      {/* Emoji picker overlay */}
+      {/* Emoji picker overlay -- opens below when input is at top, above when input is at bottom */}
       {mainEmojiOpen && (
-        <div className="absolute bottom-full right-3 mb-2 rounded-xl p-3 grid grid-cols-6 gap-1.5 z-50 shadow-xl bg-card border border-border">
+        <div className={`absolute right-3 rounded-xl p-3 grid grid-cols-6 gap-1.5 z-50 shadow-xl bg-card border border-border ${
+          store.inputBottom ? 'bottom-full mb-2' : 'top-full mt-2'
+        }`}>
           {EMOJIS.map(e => (
             <button
               key={e}

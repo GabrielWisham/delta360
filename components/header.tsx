@@ -26,6 +26,7 @@ import {
   VolumeOff,
   Truck,
   HelpCircle,
+  Hash,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -103,6 +104,7 @@ export function Header() {
               <TrayItem label="Clipboard" Icon={ClipboardList} onClick={() => { store.setClipboardOpen(!store.clipboardOpen); setToolsOpen(false) }} />
               <TrayItem label="Sticky Notes" Icon={StickyNote} onClick={() => { store.setStickyOpen(!store.stickyOpen); setToolsOpen(false) }} />
               <TrayItem label="Msg Builder" Icon={Truck} onClick={() => { store.setMsgBuilderOpen(true); setToolsOpen(false) }} />
+              <TrayItem label="Order Search" Icon={Hash} onClick={() => { store.setOrderSearchOpen(true); setToolsOpen(false) }} />
             </div>
           )}
         </div>

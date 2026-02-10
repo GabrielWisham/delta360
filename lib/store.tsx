@@ -26,6 +26,22 @@ import { api } from './groupme-api'
 import { storage } from './storage'
 import { playSound } from './sounds'
 
+function sendDesktopNotification(title: string, body: string) {
+  if (typeof Notification === 'undefined') return
+  if (Notification.permission !== 'granted') return
+  try {
+    const n = new Notification(title, {
+      body,
+      icon: '/favicon.ico',
+      tag: 'd360-msg-' + Date.now(),
+      silent: false,
+    })
+    // Auto-close after 5 seconds, focus tab on click
+    n.onclick = () => { window.focus(); n.close() }
+    setTimeout(() => n.close(), 5000)
+  } catch { /* SW-only env */ }
+}
+
 interface StoreState {
   // Auth
   user: GroupMeUser | null
@@ -96,6 +112,7 @@ interface StoreState {
   adhocOpen: boolean
   shiftChangeOpen: boolean
   msgBuilderOpen: boolean
+  orderSearchOpen: boolean
   // Pending image
   pendingImage: string | null
   // Search
@@ -173,6 +190,7 @@ interface StoreActions {
   setAdhocOpen: (v: boolean) => void
   setShiftChangeOpen: (v: boolean) => void
   setMsgBuilderOpen: (v: boolean) => void
+  setOrderSearchOpen: (v: boolean) => void
   saveStickyNote: (key: string, text: string, expHours: number) => void
   uploadImage: (file: File) => Promise<string | null>
   setPendingImage: (url: string | null) => void
@@ -265,6 +283,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [adhocOpen, setAdhocOpen] = useState(false)
   const [shiftChangeOpen, setShiftChangeOpen] = useState(false)
   const [msgBuilderOpen, setMsgBuilderOpen] = useState(false)
+  const [orderSearchOpen, setOrderSearchOpen] = useState(false)
   const [pendingImage, setPendingImage] = useState<string | null>(null)
   const [searchIndex, setSearchIndex] = useState<GroupMeMessage[]>([])
   const [chatSounds, setChatSounds] = useState<Record<string, SoundName>>({})
@@ -534,20 +553,26 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
     msgs.sort((a, b) => a.created_at - b.created_at)
 
-    // Detect new messages and play sound
+    // Detect new messages and play sound + desktop notification
     const oldIds = knownMsgIds.current[panelIdx]
     if (oldIds && oldIds.size > 0 && !globalMute) {
-      const hasNew = msgs.some(m => !oldIds.has(m.id))
-      if (hasNew) {
+      const newMsgs = msgs.filter(m => !oldIds.has(m.id))
+      if (newMsgs.length > 0) {
+        // Pick the latest new message for the notification body
+        const latest = newMsgs[newMsgs.length - 1]
+        const notifBody = latest ? `${latest.name}: ${latest.text || '(attachment)'}` : ''
+
         if ((type === 'group' || type === 'all' || type === 'stream') && !feedMuted) {
-          // Use stream-specific sound if in a stream view
           if (type === 'stream' && id && streams[id]) {
             playSound(streams[id].sound as SoundName)
           } else {
             playSound(feedSound)
           }
+          const groupName = groups.find(g => g.id === (latest?.group_id || id))?.name || 'Group'
+          sendDesktopNotification(`Delta 360 - ${groupName}`, notifBody)
         } else if ((type === 'dm' || type === 'dms') && !dmMuted) {
           playSound(dmSound)
+          sendDesktopNotification('Delta 360 - DM', notifBody)
         }
       }
     }
@@ -702,10 +727,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const ready = await fetchUnifiedMessages(version)
     if (ready === null || version !== unifiedVersion.current) return
     // Play sound if new messages detected
-    if (unifiedKnownIds.current.size > 0 && !globalMute && !unifiedMuted) {
-      const hasNew = ready.some(m => !unifiedKnownIds.current.has(m.id))
-      if (hasNew) playSound(unifiedSound)
-    }
+  if (unifiedKnownIds.current.size > 0 && !globalMute && !unifiedMuted) {
+  const newMsgs = ready.filter(m => !unifiedKnownIds.current.has(m.id))
+  if (newMsgs.length > 0) {
+    playSound(unifiedSound)
+    const latest = newMsgs[newMsgs.length - 1]
+    if (latest) sendDesktopNotification('Delta 360 - Streams', `${latest.name}: ${latest.text || '(attachment)'}`)
+  }
+  }
     unifiedKnownIds.current = new Set(ready.map(m => m.id))
     setPanelMessages(prev => { const n = [...prev]; n[0] = ready; return n })
   }, [fetchUnifiedMessages, globalMute, unifiedMuted, unifiedSound])
@@ -1082,6 +1111,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     adhocOpen,
     shiftChangeOpen,
     msgBuilderOpen,
+    orderSearchOpen,
     pendingImage,
     searchIndex,
     chatRenames,
@@ -1211,6 +1241,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setAdhocOpen,
     setShiftChangeOpen,
     setMsgBuilderOpen,
+    setOrderSearchOpen,
     saveStickyNote,
     uploadImage,
     setPendingImage,

@@ -17,6 +17,7 @@ import { ForwardModal } from './forward-modal'
 import { BroadcastModal } from './broadcast-modal'
 import { ShiftChangeModal } from './shift-change-modal'
 import { MessageBuilder } from './message-builder'
+import { OrderSearch } from './order-search'
 import { ToastZone } from './toast-zone'
 import { Lightbox } from './lightbox'
 import { OnboardingTutorial } from './onboarding-tutorial'
@@ -111,6 +112,7 @@ export function DispatchApp() {
       {store.adhocOpen && <BroadcastModal />}
       {store.shiftChangeOpen && <ShiftChangeModal />}
       {store.msgBuilderOpen && <MessageBuilder />}
+      <OrderSearch />
       {store.lightboxUrl && <Lightbox />}
       {showTutorial && <OnboardingTutorial onDismiss={() => setShowTutorial(false)} />}
       <ToastZone />
