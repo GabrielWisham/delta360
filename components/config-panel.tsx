@@ -250,18 +250,6 @@ function StreamsTab({
   const [groupFilter, setGroupFilter] = useState('')
   const groupListRef = useRef<HTMLDivElement>(null)
 
-  // Preserve scroll position across re-renders (state changes, poll updates)
-  const scrollPosRef = useRef(0)
-  useEffect(() => {
-    const el = groupListRef.current
-    if (!el) return
-    // Restore scroll position after re-render
-    el.scrollTop = scrollPosRef.current
-    const onScroll = () => { scrollPosRef.current = el.scrollTop }
-    el.addEventListener('scroll', onScroll, { passive: true })
-    return () => el.removeEventListener('scroll', onScroll)
-  })
-
   const sortedGroups = groups
     .slice()
     .sort((a, b) => a.name.localeCompare(b.name))
