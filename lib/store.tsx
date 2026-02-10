@@ -527,6 +527,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         const cv = currentViewRef.current
         let needsFeedRefresh = false
         let needsUnifiedRefresh = false
+        const changedGroupIds: string[] = []
         // Queue toasts, sounds, and notifications so they fire AFTER the feed refreshes
         const pendingToasts: Omit<MsgToast, 'id' | 'ts'>[] = []
         const pendingSounds: (() => void)[] = []
@@ -541,6 +542,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             }
             if (cv.type === 'unified_streams') {
               needsUnifiedRefresh = true
+              changedGroupIds.push(group.id)
             }
             if (group.messages?.preview) {
               const prev = group.messages.preview
@@ -608,7 +610,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         }
         const refreshPromises: Promise<void>[] = []
         if (needsFeedRefresh) { refreshPromises.push(loadMessagesRef.current(0)) }
-        if (needsUnifiedRefresh && !unifiedLoadingRef.current) { refreshPromises.push(refreshUnifiedRef.current()) }
+        if (needsUnifiedRefresh && !unifiedLoadingRef.current) {
+          // Targeted refresh: only fetch from groups that changed
+          refreshPromises.push(
+            changedGroupIds.length > 0
+              ? patchUnifiedRef.current(changedGroupIds)
+              : refreshUnifiedRef.current()
+          )
+        }
         if (refreshPromises.length > 0) {
           await Promise.all(refreshPromises)
           setFeedRefreshTick(t => t + 1)
@@ -1061,6 +1070,46 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
     setPanelMessages(prev => { const n = [...prev]; n[0] = ready; return n })
   }, [fetchUnifiedMessages, user, groups])
+  // Targeted patch: only fetch from specific groups and merge into existing
+  // unified messages. Much faster than a full refresh (~200ms vs 2-4s).
+  const patchUnifiedStreams = useCallback(async (groupIds: string[]) => {
+    if (groupIds.length === 0) return
+    try {
+      const fetches = groupIds.map(gid => api.getGroupMessages(gid, 8).catch(() => null))
+      const results = await Promise.all(fetches)
+      const newMsgs: GroupMeMessage[] = []
+      results.forEach(r => {
+        if (r && 'messages' in r) newMsgs.push(...(r.messages || []))
+      })
+      if (newMsgs.length === 0) return
+      // Merge new messages into existing panelMessages[0]
+      setPanelMessages(prev => {
+        const existing = prev[0] || []
+        const merged = [...existing]
+        const existingIds = new Set(existing.map(m => m.id))
+        for (const m of newMsgs) {
+          if (!existingIds.has(m.id)) {
+            merged.push(m)
+            existingIds.add(m.id)
+          } else {
+            // Update existing message (e.g. new likes)
+            const idx = merged.findIndex(em => em.id === m.id)
+            if (idx !== -1) merged[idx] = m
+          }
+        }
+        // Sort ascending by created_at, keep 60 most recent
+        merged.sort((a, b) => a.created_at - b.created_at)
+        const trimmed = merged.length > 60 ? merged.slice(merged.length - 60) : merged
+        const next = [...prev]
+        next[0] = trimmed
+        return next
+      })
+      // Update known IDs
+      for (const m of newMsgs) unifiedKnownIds.current.add(m.id)
+    } catch { /* ignore */ }
+  }, [])
+  const patchUnifiedRef = useRef(patchUnifiedStreams)
+  patchUnifiedRef.current = patchUnifiedStreams
   const refreshUnifiedRef = useRef(refreshUnifiedStreams)
   refreshUnifiedRef.current = refreshUnifiedStreams
   const loadMessagesRef = useRef(loadMessages)
