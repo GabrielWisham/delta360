@@ -341,6 +341,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const knownMsgIds = useRef<Set<string>[]>([new Set(), new Set(), new Set()])
   const panelSeeded = useRef<boolean[]>([false, false, false])
+  // Track favorited_by per message to detect new likes on the user's own messages
+  const likeTracker = useRef<Record<string, Set<string>>>({})
+  const likeTrackerSeeded = useRef(false)
   // Track last_message_id per group/DM for instant notifications from pollLoop
   const lastMsgTracker = useRef<Record<string, string>>({})
   const trackerSeeded = useRef(false)
@@ -489,6 +492,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   setCurrentView({ type: 'all', id: null })
   trackerSeeded.current = false
   Object.keys(lastMsgTracker.current).forEach(k => delete lastMsgTracker.current[k])
+  likeTrackerSeeded.current = false
+  likeTracker.current = {}
   panelSeeded.current = [false, false, false]
   knownMsgIds.current = [new Set(), new Set(), new Set()]
   }, [])
@@ -806,12 +811,51 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       })
     }
 
+    // Detect new likes (hearts/thumbs up) on the current user's own messages
+    if (user && panelIdx === 0) {
+      const myId = user.id
+      if (!likeTrackerSeeded.current) {
+        // First load: seed the tracker without firing notifications
+        for (const m of msgs) {
+          likeTracker.current[m.id] = new Set(m.favorited_by || [])
+        }
+        likeTrackerSeeded.current = true
+      } else {
+        for (const m of msgs) {
+          if ((m.user_id || m.sender_id) !== myId) continue // only track user's own messages
+          const prev = likeTracker.current[m.id]
+          const curr = m.favorited_by || []
+          if (prev) {
+            const newLikers = curr.filter(uid => !prev.has(uid))
+            if (newLikers.length > 0 && !globalMuteRef.current) {
+              // Resolve liker name from group members
+              let likerName = 'Someone'
+              for (const g of groups) {
+                const member = g.members?.find((mem: { user_id: string; nickname: string }) => mem.user_id === newLikers[0])
+                if (member?.nickname) { likerName = member.nickname; break }
+              }
+              const suffix = newLikers.length > 1 ? ` and ${newLikers.length - 1} other${newLikers.length > 2 ? 's' : ''}` : ''
+              const msgPreview = m.text ? (m.text.length > 30 ? m.text.slice(0, 30) + '...' : m.text) : '(attachment)'
+              playSound('drop')
+              sendDesktopNotification('Delta 360 - New Like', `${likerName}${suffix} liked: "${msgPreview}"`)
+            }
+          }
+          likeTracker.current[m.id] = new Set(curr)
+        }
+        // Prune old entries to avoid memory bloat (keep only current message IDs)
+        const currentIds = new Set(msgs.map(m => m.id))
+        for (const id of Object.keys(likeTracker.current)) {
+          if (!currentIds.has(id)) delete likeTracker.current[id]
+        }
+      }
+    }
+
     setPanelMessages(prev => {
       const next = [...prev]
       next[panelIdx] = msgs
       return next
     })
-  }, [currentView, panels, groups, dmChats, approved, streams])
+  }, [currentView, panels, groups, dmChats, approved, streams, user])
 
   // Load more (older) messages for the current panel using before_id pagination
   const loadMoreMessages = useCallback(async (panelIdx: number): Promise<number> => {
@@ -944,8 +988,32 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     if (ready === null || version !== unifiedVersion.current) return
     // Notifications now handled by pollLoop for instant sync
     unifiedKnownIds.current = new Set(ready.map(m => m.id))
+    // Detect new likes on the user's own messages in unified feed
+    if (user && likeTrackerSeeded.current) {
+      const myId = user.id
+      for (const m of ready) {
+        if ((m.user_id || m.sender_id) !== myId) continue
+        const prev = likeTracker.current[m.id]
+        const curr = m.favorited_by || []
+        if (prev) {
+          const newLikers = curr.filter(uid => !prev.has(uid))
+          if (newLikers.length > 0 && !globalMuteRef.current) {
+            let likerName = 'Someone'
+            for (const g of groups) {
+              const member = g.members?.find((mem: { user_id: string; nickname: string }) => mem.user_id === newLikers[0])
+              if (member?.nickname) { likerName = member.nickname; break }
+            }
+            const suffix = newLikers.length > 1 ? ` and ${newLikers.length - 1} other${newLikers.length > 2 ? 's' : ''}` : ''
+            const msgPreview = m.text ? (m.text.length > 30 ? m.text.slice(0, 30) + '...' : m.text) : '(attachment)'
+            playSound('drop')
+            sendDesktopNotification('Delta 360 - New Like', `${likerName}${suffix} liked: "${msgPreview}"`)
+          }
+        }
+        likeTracker.current[m.id] = new Set(curr)
+      }
+    }
     setPanelMessages(prev => { const n = [...prev]; n[0] = ready; return n })
-  }, [fetchUnifiedMessages])
+  }, [fetchUnifiedMessages, user, groups])
   const refreshUnifiedRef = useRef(refreshUnifiedStreams)
   refreshUnifiedRef.current = refreshUnifiedStreams
   const loadMessagesRef = useRef(loadMessages)
