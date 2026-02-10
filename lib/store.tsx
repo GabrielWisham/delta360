@@ -946,19 +946,19 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // Only update panelMessages if something actually changed. Comparing IDs
-    // and the last message's text (for edits/deletes) avoids unnecessary
-    // re-renders that cause a visual "reload" flash every poll cycle.
+    // Only update panelMessages if something actually changed.
     setPanelMessages(prev => {
       const existing = prev[panelIdx] || []
 
-      // Preserve pending optimistic messages the server hasn't confirmed yet
-      const serverIds = new Set(msgs.map(m => m.id))
+      // Preserve pending optimistic messages the server hasn't confirmed yet.
+      // An optimistic msg is "pending" if no server msg matches its text and
+      // approximate timestamp (within 10s).
       const now = Math.floor(Date.now() / 1000)
-      const pendingOptimistic = existing.filter(
-        m => typeof m.id === 'string' && m.id.startsWith('optimistic-')
-          && !serverIds.has(m.id)
-          && (now - m.created_at) < 8
+      const optimistic = existing.filter(
+        m => typeof m.id === 'string' && m.id.startsWith('optimistic-') && (now - m.created_at) < 10
+      )
+      const pendingOptimistic = optimistic.filter(opt =>
+        !msgs.some(s => s.text === opt.text && Math.abs(s.created_at - opt.created_at) < 10)
       )
 
       let final: typeof msgs
@@ -969,18 +969,37 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         final = msgs
       }
 
-      // Shallow-compare: skip update if IDs, likes, and text all match
-      if (
-        existing.length === final.length &&
-        existing.every((m, i) => {
+      // Shallow-compare: skip update if IDs, likes, and text all match.
+      // Treat optimistic -> real swaps (same text, close timestamp) as matches
+      // so we don't trigger a full re-render for that transition.
+      if (existing.length === final.length) {
+        let same = true
+        for (let i = 0; i < existing.length; i++) {
+          const m = existing[i]
           const f = final[i]
-          return m.id === f.id
+          const idMatch = m.id === f.id
+          const optimisticSwap = (
+            (typeof m.id === 'string' && m.id.startsWith('optimistic-') && m.text === f.text && Math.abs(m.created_at - f.created_at) < 10)
+          )
+          if (
+            (idMatch || optimisticSwap)
             && m.text === f.text
             && (m.favorited_by?.length || 0) === (f.favorited_by?.length || 0)
             && m._deleted === f._deleted
-        })
-      ) {
-        return prev // identical -- skip re-render
+          ) {
+            // If it's an optimistic swap, silently update the ID in-place
+            // so the next comparison uses the real ID.
+            if (optimisticSwap && !idMatch) {
+              m.id = f.id
+              // Also copy over any server-only fields
+              if (f.favorited_by) m.favorited_by = f.favorited_by
+            }
+            continue
+          }
+          same = false
+          break
+        }
+        if (same) return prev // identical -- skip re-render
       }
 
       const next = [...prev]
