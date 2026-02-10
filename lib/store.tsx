@@ -948,9 +948,26 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
     // Atomic: set messages + notifications in the same synchronous block
     // so React batches them into a single render commit.
+    // Preserve any optimistic messages (from sendMessage) that the server
+    // hasn't confirmed yet, so they don't flash/disappear during the
+    // deferred reconciliation fetch.
     setPanelMessages(prev => {
       const next = [...prev]
-      next[panelIdx] = msgs
+      const existing = prev[panelIdx] || []
+      const serverIds = new Set(msgs.map(m => m.id))
+      const now = Math.floor(Date.now() / 1000)
+      const pendingOptimistic = existing.filter(
+        m => typeof m.id === 'string' && m.id.startsWith('optimistic-')
+          && !serverIds.has(m.id)
+          && (now - m.created_at) < 8  // drop after 8s -- real msg should be in server response by then
+      )
+      if (pendingOptimistic.length > 0) {
+        const merged = [...msgs, ...pendingOptimistic]
+        merged.sort((a, b) => a.created_at - b.created_at)
+        next[panelIdx] = merged
+      } else {
+        next[panelIdx] = msgs
+      }
       return next
     })
   }, [currentView, panels, groups, dmChats, approved, streams, user])
