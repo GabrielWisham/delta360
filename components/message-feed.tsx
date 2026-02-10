@@ -237,13 +237,45 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     const hasNewMessages = newCount > prevMsgCountRef.current ||
       (newCount > 0 && lastMsgId !== prevLastMsgIdRef.current && prevLastMsgIdRef.current !== null)
 
+    // Helper: scroll to latest and keep retrying until scrollHeight stabilises.
+    // Only reveals the view (setViewReady) once the position is confirmed.
+    function scrollToLatestAndReveal() {
+      const c = scrollRef.current
+      if (!c) return
+      const snapToLatest = () => {
+        if (store.oldestFirst) { c.scrollTop = c.scrollHeight } else { c.scrollTop = 0 }
+      }
+      snapToLatest()
+      let lastHeight = c.scrollHeight
+      let stableCount = 0
+      let checks = 0
+      const maxChecks = 15
+      const interval = setInterval(() => {
+        if (!scrollRef.current) { clearInterval(interval); return }
+        snapToLatest()
+        if (scrollRef.current.scrollHeight === lastHeight) {
+          stableCount++
+        } else {
+          lastHeight = scrollRef.current.scrollHeight
+          stableCount = 0
+        }
+        checks++
+        if (stableCount >= 3 || checks >= maxChecks) {
+          clearInterval(interval)
+          snapToLatest()
+          transitioningRef.current = false
+          setViewReady(true)
+          setTimeout(() => { programmaticScrollRef.current = false }, 300)
+        }
+      }, 50)
+    }
+
     if (hasNewMessages) {
       if (wasEmpty) {
         // First load: mark view as loaded and ensure scroll state is clean
         setViewLoaded(true)
         userScrolledRef.current = false
         programmaticScrollRef.current = true
-        setTimeout(() => { programmaticScrollRef.current = false }, 500)
         // First load -- check if we should jump to first unread
         if (pendingJumpToUnread.current) {
           pendingJumpToUnread.current = false
@@ -262,43 +294,14 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
               }
               transitioningRef.current = false
               setViewReady(true)
+              setTimeout(() => { programmaticScrollRef.current = false }, 300)
             })
           } else {
-            requestAnimationFrame(() => {
-              const c = scrollRef.current
-              if (!c) return
-              if (store.oldestFirst) { c.scrollTop = c.scrollHeight } else { c.scrollTop = 0 }
-              transitioningRef.current = false
-              setViewReady(true)
-              setTimeout(() => {
-                if (!scrollRef.current) return
-                if (store.oldestFirst) { scrollRef.current.scrollTop = scrollRef.current.scrollHeight } else { scrollRef.current.scrollTop = 0 }
-              }, 100)
-            })
+            requestAnimationFrame(() => scrollToLatestAndReveal())
           }
         } else {
           // Default: jump to most recent after DOM renders.
-          // Double-pass: rAF for initial scroll, then a short delay to catch
-          // any layout reflow (e.g., input section resizing the flex container).
-          requestAnimationFrame(() => {
-            const c = scrollRef.current
-            if (!c) return
-            if (store.oldestFirst) {
-              c.scrollTop = c.scrollHeight
-            } else {
-              c.scrollTop = 0
-            }
-            transitioningRef.current = false
-            setViewReady(true)
-            setTimeout(() => {
-              if (!scrollRef.current) return
-              if (store.oldestFirst) {
-                scrollRef.current.scrollTop = scrollRef.current.scrollHeight
-              } else {
-                scrollRef.current.scrollTop = 0
-              }
-            }, 100)
-          })
+          requestAnimationFrame(() => scrollToLatestAndReveal())
         }
       } else if (!userScrolledRef.current && !justSentRef.current) {
         // User is at the latest edge -- smooth-scroll to reveal new messages.
@@ -344,24 +347,39 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   const prevUnifiedLoading = useRef(store.unifiedLoading)
   useEffect(() => {
     if (view?.type === 'unified_streams' && prevUnifiedLoading.current && !store.unifiedLoading && scrollRef.current) {
-      // Reset userScrolled so that messages arriving right after the initial
-      // load (e.g. from the first poll patchUnifiedStreams) still auto-scroll.
       userScrolledRef.current = false
       programmaticScrollRef.current = true
-      setTimeout(() => { programmaticScrollRef.current = false }, 500)
       setShowJumpToLatest(false)
       setViewLoaded(true)
-      requestAnimationFrame(() => {
-        const c = scrollRef.current
+      // Use the same stabilised scroll helper -- unified view loads many
+      // batches so scrollHeight keeps changing as messages render.
+      const c = scrollRef.current
+      const snapToLatest = () => {
         if (!c) return
-        if (store.oldestFirst) {
-          c.scrollTop = c.scrollHeight
+        if (store.oldestFirst) { c.scrollTop = c.scrollHeight } else { c.scrollTop = 0 }
+      }
+      snapToLatest()
+      let lastHeight = c.scrollHeight
+      let stableCount = 0
+      let checks = 0
+      const interval = setInterval(() => {
+        if (!scrollRef.current) { clearInterval(interval); return }
+        snapToLatest()
+        if (scrollRef.current.scrollHeight === lastHeight) {
+          stableCount++
         } else {
-          c.scrollTop = 0
+          lastHeight = scrollRef.current.scrollHeight
+          stableCount = 0
         }
-        transitioningRef.current = false
-        setViewReady(true)
-      })
+        checks++
+        if (stableCount >= 3 || checks >= 15) {
+          clearInterval(interval)
+          snapToLatest()
+          transitioningRef.current = false
+          setViewReady(true)
+          setTimeout(() => { programmaticScrollRef.current = false }, 300)
+        }
+      }, 50)
     }
     prevUnifiedLoading.current = store.unifiedLoading
   }, [store.unifiedLoading, view?.type, store.oldestFirst])
