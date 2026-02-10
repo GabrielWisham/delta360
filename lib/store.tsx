@@ -644,16 +644,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         // guaranteeing messages and notifications commit in the SAME render.
         const notifPayload = (pendingSounds.length > 0 || pendingToasts.length > 0)
           ? { sounds: pendingSounds, toasts: pendingToasts } : null
-        // Fire notifications immediately so toasts/sounds never wait on network.
-        // Feed refreshes happen independently and will update the messages in
-        // the background.
-        if (notifPayload) {
-          setPendingNotifications(notifPayload)
-        }
+
+        // Refresh feeds FIRST so messages appear, THEN fire notifications.
+        // This prevents the user from seeing a new message in the feed before
+        // the toast has appeared.
         const refreshPromises: Promise<void>[] = []
         if (needsFeedRefresh) { refreshPromises.push(loadMessagesRef.current(0)) }
         if (needsUnifiedRefresh && !unifiedLoadingRef.current) {
-          // Targeted refresh: only fetch from groups that changed
           refreshPromises.push(
             changedGroupIds.length > 0
               ? patchUnifiedRef.current(changedGroupIds)
@@ -663,6 +660,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         if (refreshPromises.length > 0) {
           await Promise.all(refreshPromises)
           setFeedRefreshTick(t => t + 1)
+        }
+        // Fire notifications AFTER feed is updated so toast and message appear together
+        if (notifPayload) {
+          setPendingNotifications(notifPayload)
         }
       } else {
         // First poll -- seed the tracker without firing notifications

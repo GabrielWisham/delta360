@@ -202,17 +202,8 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     setViewLoaded(false)
     prevMsgCountRef.current = 0
     prevLastMsgIdRef.current = null
-
-    // Safety fallback: if viewReady is still false after 3s (e.g. empty chat,
-    // slow network), force it open so the user isn't stuck on a spinner.
-    const fallback = setTimeout(() => {
-      setViewReady(true)
-      setViewLoaded(true)
-      transitioningRef.current = false
-      programmaticScrollRef.current = false
-    }, 3000)
-    return () => clearTimeout(fallback)
     setShowJumpToLatest(false)
+    showJumpRef.current = false
     setNewMsgCount(0)
     setDayCue(null)
     snapshotMsgCountRef.current = 0
@@ -223,6 +214,16 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     } else {
       pendingJumpToUnread.current = false
     }
+
+    // Safety fallback: if viewReady is still false after 3s (e.g. empty chat,
+    // slow network), force it open so the user isn't stuck on a spinner.
+    const fallback = setTimeout(() => {
+      setViewReady(true)
+      setViewLoaded(true)
+      transitioningRef.current = false
+      programmaticScrollRef.current = false
+    }, 3000)
+    return () => clearTimeout(fallback)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view?.type, view?.id, store.oldestFirst, store.jumpToUnread])
 
@@ -927,14 +928,14 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
       {/* Loading spinner -- rendered OUTSIDE the scroll container so it's
           always visible during loading regardless of the opacity gate. */}
       {((store.unifiedLoading && view?.type === 'unified_streams') || (messages.length === 0 && view && view.type !== 'unified_streams' && !viewLoaded)) && (
-        <div className="flex-1 flex flex-col items-center justify-center gap-3 py-10">
+        <div className="flex-1 flex flex-col items-center justify-center gap-3">
           <div className="relative w-8 h-8">
             <div className="absolute inset-0 rounded-full border-2 border-border" />
             <div className="absolute inset-0 rounded-full border-2 border-t-[var(--d360-orange)] animate-spin" />
           </div>
-          {view?.type === 'unified_streams' && (
-            <p className="text-xs text-muted-foreground font-mono uppercase tracking-widest">Syncing streams</p>
-          )}
+          <p className="text-[10px] text-muted-foreground uppercase tracking-widest" style={{ fontFamily: 'var(--font-mono)' }}>
+            {view?.type === 'unified_streams' ? 'Syncing streams' : 'Loading'}
+          </p>
         </div>
       )}
 
