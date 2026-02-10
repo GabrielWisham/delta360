@@ -547,9 +547,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             if (group.messages?.preview) {
               const prev = group.messages.preview
               const isSelf = prev.sender_id === userIdRef.current
+              // Suppress notifications if the user is already viewing this group
+              const isViewingThis = cv.type === 'group' && cv.id === group.id
               const senderName = prev.nickname || 'Someone'
               const text = prev.text || (prev.image_attached ? '(image)' : '(attachment)')
-              if (!isSelf && !globalMuteRef.current && !feedMutedRef.current) {
+              if (!isSelf && !isViewingThis && !globalMuteRef.current && !feedMutedRef.current) {
                 let customSound: SoundName | null = null
                 for (const [, s] of Object.entries(streamsRef.current)) {
                   if (s.ids.includes(group.id)) { customSound = s.sound as SoundName; break }
@@ -559,7 +561,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                 const notifBody = `${senderName}: ${text}`
                 pendingSounds.push(() => { playSound(soundToPlay); sendDesktopNotification(notifTitle, notifBody) })
               }
-              if (!isSelf) {
+              if (!isSelf && !isViewingThis) {
                 pendingToasts.push({ sourceKey: `group:${group.id}`, sourceName: group.name, senderName, text, messageId: lmid, viewType: 'group', viewId: group.id, originType: 'group', originId: group.id })
               }
             }
@@ -583,14 +585,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               needsUnifiedRefresh = true
             }
             const isSelf = (lm.sender_id || lm.user_id) === userIdRef.current
+            // Suppress notifications if the user is already viewing this DM
+            const isViewingThis = cv.type === 'dm' && cv.id === otherId
             const senderName = lm.name || dm.other_user?.name || 'DM'
             const text = lm.text || '(attachment)'
-            if (!isSelf && !globalMuteRef.current && !dmMutedRef.current) {
+            if (!isSelf && !isViewingThis && !globalMuteRef.current && !dmMutedRef.current) {
               const dmSound = dmSoundRef.current
               const notifBody = `${senderName}: ${text}`
               pendingSounds.push(() => { playSound(dmSound); sendDesktopNotification('Delta 360 - DM', notifBody) })
             }
-            if (!isSelf) {
+            if (!isSelf && !isViewingThis) {
               pendingToasts.push({ sourceKey: `dm:${otherId}`, sourceName: dm.other_user?.name || 'DM', senderName, text, messageId: lmid, viewType: 'dm', viewId: otherId, originType: 'dm', originId: otherId })
             }
           }
