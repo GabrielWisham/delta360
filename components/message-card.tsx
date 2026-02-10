@@ -180,13 +180,15 @@ export const MessageCard = memo(function MessageCard({
             )}
 
             {/* Always-visible reply + likes */}
-            <div className="flex items-center gap-2 mt-0.5">
+            <div className="flex items-center gap-2 mt-1">
               <button
                 onClick={() => onReply?.(msg)}
-                className="text-muted-foreground/30 hover:text-[var(--d360-orange)] transition-colors"
+                className="flex items-center gap-1 px-2 py-1 -ml-2 rounded-md text-muted-foreground/40 hover:text-[var(--d360-orange)] hover:bg-[var(--d360-orange)]/10 transition-colors"
+                style={{ fontFamily: 'var(--font-mono)' }}
                 title="Reply"
               >
-                <Reply className="w-3 h-3" />
+                <Reply className="w-3.5 h-3.5" />
+                <span className="text-[9px] font-medium">Reply</span>
               </button>
               {likeNames.length > 0 && (
                 <span className="flex items-center gap-1">
@@ -331,14 +333,14 @@ export const MessageCard = memo(function MessageCard({
           )}
 
           {/* Inline actions row -- reply is always visible */}
-          <div className="flex items-center gap-1 mt-1">
+          <div className="flex items-center gap-1.5 mt-1.5">
             <button
               onClick={() => onReply?.(msg)}
-              className="flex items-center gap-1 text-[9px] text-muted-foreground/50 hover:text-[var(--d360-orange)] transition-colors"
+              className="flex items-center gap-1.5 px-2.5 py-1 -ml-2.5 rounded-lg text-[10px] font-medium text-muted-foreground/50 hover:text-[var(--d360-orange)] hover:bg-[var(--d360-orange)]/10 transition-colors"
               style={{ fontFamily: 'var(--font-mono)' }}
               title="Reply"
             >
-              <Reply className="w-3 h-3" />
+              <Reply className="w-4 h-4" />
               Reply
             </button>
             {likeNames.length > 0 && (
