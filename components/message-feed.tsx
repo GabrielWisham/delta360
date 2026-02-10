@@ -35,6 +35,17 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   const messages = store.panelMessages[panelIdx] || []
   const [viewLoaded, setViewLoaded] = useState(false)
   const [viewReady, setViewReady] = useState(true) // false during view transition until scroll positioned
+
+  // Synchronous view-change detection: reset viewReady/viewLoaded DURING render
+  // (not in an effect) so there's never a frame with stale state from the old view.
+  const viewKey = view ? `${view.type}:${view.id || ''}` : null
+  const renderedViewKeyRef = useRef<string | null>(viewKey)
+  if (viewKey !== renderedViewKeyRef.current) {
+    renderedViewKeyRef.current = viewKey
+    // These set* calls during render are safe in React 18+ (they batch)
+    if (viewReady) setViewReady(false)
+    if (viewLoaded) setViewLoaded(false)
+  }
   const title = view ? store.getPanelTitle(view.type, view.id) : '--'
   const showGroupTag = view?.type === 'all' || view?.type === 'dms' || view?.type === 'stream' || view?.type === 'unified_streams'
 
@@ -215,11 +226,12 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
       pendingJumpToUnread.current = false
     }
 
-    // Safety fallback: if viewReady is still false after 3s (e.g. empty chat,
-    // slow network), force it open so the user isn't stuck on a spinner.
+    // Safety fallback: if viewReady is still false after 3s (e.g. slow network),
+    // force the view open so the user isn't stuck on a spinner forever.
+    // Do NOT set viewLoaded here -- that would flash "No messages" for chats
+    // that actually have messages but haven't finished loading.
     const fallback = setTimeout(() => {
       setViewReady(true)
-      setViewLoaded(true)
       transitioningRef.current = false
       programmaticScrollRef.current = false
     }, 3000)
@@ -925,9 +937,8 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
       {/* Input (top or bottom) */}
       {!store.inputBottom && inputSection}
 
-      {/* Loading spinner -- rendered OUTSIDE the scroll container so it's
-          always visible during loading regardless of the opacity gate. */}
-      {((store.unifiedLoading && view?.type === 'unified_streams') || (messages.length === 0 && view && view.type !== 'unified_streams' && !viewLoaded)) && (
+      {/* Loading spinner -- shown INSTEAD of scroll container while loading */}
+      {!viewReady && (
         <div className="flex-1 flex flex-col items-center justify-center gap-3">
           <div className="relative w-8 h-8">
             <div className="absolute inset-0 rounded-full border-2 border-border" />
@@ -939,11 +950,11 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
         </div>
       )}
 
-      {/* Message scroll area -- hidden until scroll is positioned via viewReady */}
+      {/* Message scroll area -- completely hidden until scroll is positioned */}
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className={`flex-1 overflow-y-auto overflow-x-hidden px-3 pt-2 pb-4 flex flex-col min-h-0 ${store.compact ? 'gap-0.5' : 'gap-1.5'} ${viewReady ? '' : 'invisible'}`}
+        className={`overflow-y-auto overflow-x-hidden px-3 pt-2 pb-4 flex flex-col min-h-0 ${store.compact ? 'gap-0.5' : 'gap-1.5'} ${viewReady ? 'flex-1' : 'h-0 overflow-hidden'}`}
         style={store.boardGradient ? {
           background: `linear-gradient(${store.boardGradient.angle}deg, rgb(${store.boardGradient.start.join(',')}), rgb(${store.boardGradient.end.join(',')}))`,
           ['--board-text' as string]: boardTextColor,
