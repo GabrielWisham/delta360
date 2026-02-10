@@ -124,6 +124,14 @@ export const storage = {
   getDmMuted: () => getString('gm_v3_dmmut') === '1',
   setDmMuted: (v: boolean) => setString('gm_v3_dmmut', v ? '1' : '0'),
 
+  // Unified streams sound
+  getUnifiedSound: () => getString('gm_v3_unisnd', 'beacon'),
+  setUnifiedSound: (v: string) => setString('gm_v3_unisnd', v),
+
+  // Unified streams muted
+  getUnifiedMuted: () => getString('gm_v3_unimut') === '1',
+  setUnifiedMuted: (v: boolean) => setString('gm_v3_unimut', v ? '1' : '0'),
+
   // All notifications
   getAllNotif: () => getString('gm_v3_allnotif') === '1',
   setAllNotif: (v: boolean) => setString('gm_v3_allnotif', v ? '1' : '0'),

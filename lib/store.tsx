@@ -57,8 +57,10 @@ interface StoreState {
   globalMute: boolean
   feedSound: SoundName
   dmSound: SoundName
+  unifiedSound: SoundName
   feedMuted: boolean
   dmMuted: boolean
+  unifiedMuted: boolean
   allNotif: boolean
   // Tracking
   lastSeen: Record<string, number>
@@ -131,8 +133,10 @@ interface StoreActions {
   setInactiveOpen: (v: boolean) => void
   setFeedSound: (s: SoundName) => void
   setDmSound: (s: SoundName) => void
+  setUnifiedSound: (s: SoundName) => void
   setFeedMuted: (v: boolean) => void
   setDmMuted: (v: boolean) => void
+  setUnifiedMuted: (v: boolean) => void
   setAllNotif: (v: boolean) => void
   markSeen: (id: string) => void
   isUnread: (id: string, ts: number) => boolean
@@ -216,8 +220,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [globalMute, setGlobalMute] = useState(false)
   const [feedSound, setFeedSoundState] = useState<SoundName>('radar')
   const [dmSound, setDmSoundState] = useState<SoundName>('chime')
+  const [unifiedSound, setUnifiedSoundState] = useState<SoundName>('beacon')
   const [feedMuted, setFeedMutedState] = useState(false)
   const [dmMuted, setDmMutedState] = useState(false)
+  const [unifiedMuted, setUnifiedMutedState] = useState(false)
   const [allNotif, setAllNotifState] = useState(false)
   const [lastSeen, setLastSeen] = useState<Record<string, number>>({})
   const [approved, setApproved] = useState<Record<string, boolean>>({})
@@ -265,8 +271,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setGlobalMute(storage.getGlobalMute())
     setFeedSoundState(storage.getFeedSound() as SoundName)
     setDmSoundState(storage.getDmSound() as SoundName)
+    setUnifiedSoundState(storage.getUnifiedSound() as SoundName)
     setFeedMutedState(storage.getFeedMuted())
     setDmMutedState(storage.getDmMuted())
+    setUnifiedMutedState(storage.getUnifiedMuted())
     setAllNotifState(storage.getAllNotif())
     setLastSeen(storage.getLastSeen())
     setApproved(storage.getApproved())
@@ -936,8 +944,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     globalMute,
     feedSound,
     dmSound,
+    unifiedSound,
     feedMuted,
     dmMuted,
+    unifiedMuted,
     allNotif,
     lastSeen,
     approved,
@@ -1042,8 +1052,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     },
     setFeedSound: (s: SoundName) => { setFeedSoundState(s); storage.setFeedSound(s) },
     setDmSound: (s: SoundName) => { setDmSoundState(s); storage.setDmSound(s) },
+    setUnifiedSound: (s: SoundName) => { setUnifiedSoundState(s); storage.setUnifiedSound(s) },
     setFeedMuted: (v: boolean) => { setFeedMutedState(v); storage.setFeedMuted(v) },
     setDmMuted: (v: boolean) => { setDmMutedState(v); storage.setDmMuted(v) },
+    setUnifiedMuted: (v: boolean) => { setUnifiedMutedState(v); storage.setUnifiedMuted(v) },
     setAllNotif: (v: boolean) => { setAllNotifState(v); storage.setAllNotif(v) },
     markSeen,
     isUnread,

@@ -365,8 +365,8 @@ function TemplatesTab({
       {templates.length > 0 ? (
         <div className="rounded-lg border border-border bg-secondary/20 divide-y divide-border/50">
           {templates.map((t, i) => (
-            <div key={i} className="flex items-center gap-2 px-3 py-2 group">
-              <span className="flex-1 text-xs text-foreground truncate" style={{ fontFamily: 'var(--font-mono)' }}>{t}</span>
+            <div key={i} className="flex items-start gap-2 px-3 py-2 group">
+              <span className="flex-1 text-xs text-foreground whitespace-pre-wrap break-words" style={{ fontFamily: 'var(--font-mono)' }}>{t}</span>
               <button
                 onClick={() => removeTemplate(i)}
                 className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all"
@@ -382,19 +382,25 @@ function TemplatesTab({
         </div>
       )}
 
-      <div className="flex gap-2">
-        <input
+      <div className="flex gap-2 items-end">
+        <textarea
           value={newTemplate}
           onChange={e => setNewTemplate(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && addTemplate()}
-          placeholder="Type a template message..."
-          className="flex-1 text-xs bg-secondary/30 border border-border rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)]"
+          onKeyDown={e => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault()
+              addTemplate()
+            }
+          }}
+          rows={2}
+          placeholder="Type a template message... (Shift+Enter for new line)"
+          className="flex-1 text-xs bg-secondary/30 border border-border rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)] resize-none"
           style={{ fontFamily: 'var(--font-mono)' }}
         />
         <button
           onClick={addTemplate}
           disabled={!newTemplate.trim()}
-          className="flex items-center gap-1 text-[10px] uppercase tracking-widest px-3 py-2 rounded-lg bg-[var(--d360-orange)] text-white hover:brightness-110 disabled:opacity-30 transition-all"
+          className="flex items-center gap-1 text-[10px] uppercase tracking-widest px-3 py-2 rounded-lg bg-[var(--d360-orange)] text-white hover:brightness-110 disabled:opacity-30 transition-all shrink-0"
           style={{ fontFamily: 'var(--font-mono)' }}
         >
           <Plus className="w-3 h-3" />
@@ -518,6 +524,17 @@ function AudioTab({ store }: { store: ReturnType<typeof useStore> }) {
         onChange={v => store.setDmSound(v)}
         muted={store.dmMuted}
         onMute={v => store.setDmMuted(v)}
+      />
+
+      <div className="border-t border-border" />
+
+      {/* Unified Streams sound */}
+      <SectionLabel>Unified Streams Sound</SectionLabel>
+      <SoundRow
+        value={store.unifiedSound}
+        onChange={v => store.setUnifiedSound(v)}
+        muted={store.unifiedMuted}
+        onMute={v => store.setUnifiedMuted(v)}
       />
     </div>
   )
