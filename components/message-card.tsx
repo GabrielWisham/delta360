@@ -189,10 +189,10 @@ export function MessageCard({
           )}
 
           <div
-            className={`rounded-2xl px-3 py-1.5 ${
+            className={`rounded-2xl px-3.5 py-2 ${
               isSelf
-                ? 'rounded-tr-sm bg-[var(--d360-orange)]/15 border border-[var(--d360-orange)]/20'
-                : 'rounded-tl-sm bg-white/[0.07] border border-white/[0.06]'
+                ? 'rounded-tr-sm bg-[var(--d360-orange)]/12 border border-[var(--d360-orange)]/15'
+                : 'rounded-tl-sm bg-secondary/50 border border-border/50'
             } ${isPinned ? 'ring-1 ring-[var(--d360-yellow)]/40' : ''}`}
           >
             {/* Sender + timestamp header */}
@@ -203,7 +203,7 @@ export function MessageCard({
                     const uid = msg.user_id || msg.sender_id
                     if (uid && uid !== store.user?.id) store.switchView('dm', uid)
                   }}
-                  className="text-[9px] font-bold uppercase tracking-wide hover:underline decoration-1 underline-offset-2"
+                  className="text-[10px] font-bold uppercase tracking-wide hover:underline decoration-1 underline-offset-2"
                   style={{ fontFamily: 'var(--font-mono)', color: accentColor }}
                 >
                   {msg.name}
@@ -212,14 +212,14 @@ export function MessageCard({
               {showGroupTag && groupName && (
                 <button
                   onClick={() => store.switchView('group', msg.group_id || '')}
-                  className="text-[7px] px-1 py-[1px] rounded-full bg-white/10 opacity-50 hover:opacity-100 truncate max-w-[60px]"
+                  className="text-[8px] px-1.5 py-[1px] rounded-full bg-secondary/60 opacity-60 hover:opacity-100 truncate max-w-[70px]"
                   style={{ fontFamily: 'var(--font-mono)' }}
                 >
                   {groupName}
                 </button>
               )}
               <span
-                className="text-[8px] opacity-30 tabular-nums cursor-help"
+                className="text-[8px] opacity-40 tabular-nums cursor-help"
                 style={{ fontFamily: 'var(--font-mono)' }}
                 title={getFullDate(msg.created_at)}
               >
@@ -229,7 +229,7 @@ export function MessageCard({
 
             {/* Text */}
             {msg.text && (
-              <p className={`text-[11px] leading-relaxed whitespace-pre-wrap break-words ${
+              <p className={`text-xs leading-relaxed whitespace-pre-wrap break-words ${
                 isAlertMsg ? 'font-semibold' : ''
               }`} style={isAlertMsg ? { color: 'var(--d360-red)' } : undefined}>
                 {msg.text}
@@ -319,10 +319,10 @@ export function MessageCard({
         )}
 
         <div
-          className={`rounded-2xl px-3.5 py-2 transition-all ${
+          className={`rounded-2xl px-4 py-2.5 transition-all ${
             isSelf
-              ? 'rounded-tr-sm bg-[var(--d360-orange)]/15 border border-[var(--d360-orange)]/20'
-              : 'rounded-tl-sm bg-white/[0.07] border border-white/[0.06]'
+              ? 'rounded-tr-sm bg-[var(--d360-orange)]/12 border border-[var(--d360-orange)]/15'
+              : 'rounded-tl-sm bg-secondary/50 border border-border/50'
           } ${isPinned ? 'ring-1 ring-[var(--d360-yellow)]/40' : ''}`}
         >
           {/* Pinned badge */}
@@ -341,7 +341,7 @@ export function MessageCard({
                   const uid = msg.user_id || msg.sender_id
                   if (uid && uid !== store.user?.id) store.switchView('dm', uid)
                 }}
-                className="text-[10px] uppercase tracking-wider font-semibold hover:underline decoration-1 underline-offset-2"
+                className="text-[11px] uppercase tracking-wider font-semibold hover:underline decoration-1 underline-offset-2"
                 style={{ fontFamily: 'var(--font-mono)', color: accentColor }}
               >
                 {msg.name}
@@ -361,7 +361,7 @@ export function MessageCard({
             <span className="flex-1" />
 
             <span
-              className="text-[9px] opacity-30 shrink-0 tabular-nums cursor-help"
+              className="text-[9px] opacity-40 shrink-0 tabular-nums cursor-help"
               style={{ fontFamily: 'var(--font-mono)' }}
               title={getFullDate(msg.created_at)}
             >
@@ -371,7 +371,7 @@ export function MessageCard({
 
           {/* Body */}
           {msg.text && (
-            <p className={`whitespace-pre-wrap break-words text-[13px] leading-relaxed ${
+            <p className={`whitespace-pre-wrap break-words text-sm leading-6 ${
               isAlertMsg ? 'font-semibold' : ''
             }`} style={isAlertMsg ? { color: 'var(--d360-red)' } : undefined}>
               {msg.text}

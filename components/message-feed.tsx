@@ -399,28 +399,11 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
         {/* Emoji */}
         <div className="relative" ref={mainEmojiRef}>
           <button
-            onClick={() => setMainEmojiOpen(!mainEmojiOpen)}
+            onClick={(e) => { e.stopPropagation(); setMainEmojiOpen(prev => !prev) }}
             className="p-1.5 rounded-lg hover:bg-secondary/60 text-muted-foreground hover:text-foreground shrink-0 transition-colors"
           >
             <SmilePlus className="w-4 h-4" />
           </button>
-          {mainEmojiOpen && (
-            <div className="absolute bottom-full right-0 mb-1 rounded-lg p-2 grid grid-cols-6 gap-1 z-50 shadow-lg bg-card border border-border">
-              {EMOJIS.map(e => (
-                <button
-                  key={e}
-                  onClick={() => {
-                    setMainInput(prev => prev + e)
-                    setMainEmojiOpen(false)
-                    autoResize()
-                  }}
-                  className="text-sm hover:scale-125 transition-transform w-7 h-7 flex items-center justify-center rounded hover:bg-secondary/60"
-                >
-                  {e}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
 
         {/* Send */}
@@ -434,6 +417,25 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
           <Send className="w-4 h-4" />
         </button>
       </div>
+
+      {/* Emoji picker overlay */}
+      {mainEmojiOpen && (
+        <div className="absolute bottom-full right-3 mb-2 rounded-xl p-3 grid grid-cols-6 gap-1.5 z-50 shadow-xl bg-card border border-border">
+          {EMOJIS.map(e => (
+            <button
+              key={e}
+              onClick={() => {
+                setMainInput(prev => prev + e)
+                setMainEmojiOpen(false)
+                autoResize()
+              }}
+              className="text-base hover:scale-125 transition-transform w-8 h-8 flex items-center justify-center rounded-lg hover:bg-secondary/60"
+            >
+              {e}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 
@@ -503,8 +505,8 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
           </div>
         ) : (
           <>
-            {/* Load earlier messages (at top when newest-first) */}
-            {!store.oldestFirst && (view?.type === 'group' || view?.type === 'dm') && messages.length >= 5 && !noMoreMessages && (
+            {/* Load earlier messages (at top when oldest-first, since oldest is at top) */}
+            {store.oldestFirst && (view?.type === 'group' || view?.type === 'dm') && messages.length >= 5 && !noMoreMessages && (
               <div className="flex justify-center py-2">
                 <button
                   onClick={async () => {
@@ -520,7 +522,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
                 </button>
               </div>
             )}
-            {!store.oldestFirst && noMoreMessages && (
+            {store.oldestFirst && noMoreMessages && (
               <div className="text-center text-[9px] text-muted-foreground/50 py-1 uppercase tracking-widest" style={{ fontFamily: 'var(--font-mono)' }}>
                 Beginning of conversation
               </div>
@@ -578,8 +580,8 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
               )
             })}
 
-            {/* Load earlier messages (at bottom when oldest-first) */}
-            {store.oldestFirst && (view?.type === 'group' || view?.type === 'dm') && messages.length >= 5 && !noMoreMessages && (
+            {/* Load earlier messages (at bottom when newest-first, since oldest is at bottom) */}
+            {!store.oldestFirst && (view?.type === 'group' || view?.type === 'dm') && messages.length >= 5 && !noMoreMessages && (
               <div className="flex justify-center py-2">
                 <button
                   onClick={async () => {
@@ -595,7 +597,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
                 </button>
               </div>
             )}
-            {store.oldestFirst && noMoreMessages && (
+            {!store.oldestFirst && noMoreMessages && (
               <div className="text-center text-[9px] text-muted-foreground/50 py-1 uppercase tracking-widest" style={{ fontFamily: 'var(--font-mono)' }}>
                 Beginning of conversation
               </div>
