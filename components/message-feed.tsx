@@ -156,7 +156,8 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
         scrollRef.current.scrollTop = 0
       }
     }
-  }, [view?.type, view?.id, store.oldestFirst, store.jumpToUnread, store.lastSeen])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view?.type, view?.id, store.oldestFirst, store.jumpToUnread])
 
   // Auto-scroll when new messages arrive (including first load)
   useEffect(() => {
