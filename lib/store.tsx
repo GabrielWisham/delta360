@@ -152,6 +152,7 @@ export type MsgToast = {
   messageId?: string  // the actual GroupMe message ID to scroll to on click
   viewType: ViewState['type']
   viewId: string | null
+  alertWord?: string  // if set, this toast was triggered by an alert word match
   // Navigate to the specific group/DM on click (resolves aggregate feeds)
   originType: 'group' | 'dm'
   originId: string
@@ -249,6 +250,18 @@ interface ToastItem {
   body: string
   isPriority: boolean
   groupId?: string
+}
+
+/** Check message text against global and per-chat alert words (case-insensitive).
+ *  Returns the first matched alert word or null. */
+function findAlertWord(text: string, globalWords: string[], chatWords?: string[]): string | null {
+  if (!text) return null
+  const lower = text.toLowerCase()
+  const all = chatWords ? [...globalWords, ...chatWords] : globalWords
+  for (const w of all) {
+    if (w && lower.includes(w.toLowerCase())) return w
+  }
+  return null
 }
 
 const StoreContext = createContext<(StoreState & StoreActions & { toasts: ToastItem[]; removeToast: (id: number) => void }) | null>(null)
@@ -551,18 +564,29 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               const isViewingThis = cv.type === 'group' && cv.id === group.id
               const senderName = prev.nickname || 'Someone'
               const text = prev.text || (prev.image_attached ? '(image)' : '(attachment)')
+              // Check alert words (global + per-chat)
+              const matchedAlert = findAlertWord(text, alertWordsRef.current, chatAlertWordsRef.current[group.id])
               if (!isSelf && !isViewingThis && !globalMuteRef.current && !feedMutedRef.current) {
                 let customSound: SoundName | null = null
                 for (const [, s] of Object.entries(streamsRef.current)) {
                   if (s.ids.includes(group.id)) { customSound = s.sound as SoundName; break }
                 }
-                const soundToPlay = customSound || feedSoundRef.current
-                const notifTitle = `Delta 360 - ${group.name}`
+                // Alert words override sound with 'alarm' for urgency
+                const soundToPlay = matchedAlert ? ('siren' as SoundName) : (customSound || feedSoundRef.current)
+                const notifTitle = matchedAlert ? `ALERT: "${matchedAlert}" - ${group.name}` : `Delta 360 - ${group.name}`
                 const notifBody = `${senderName}: ${text}`
                 pendingSounds.push(() => { playSound(soundToPlay); sendDesktopNotification(notifTitle, notifBody) })
+              } else if (matchedAlert && !isSelf && !globalMuteRef.current) {
+                // Alert word match overrides mute and "viewing this" suppression
+                const notifTitle = `ALERT: "${matchedAlert}" - ${group.name}`
+                const notifBody = `${senderName}: ${text}`
+                pendingSounds.push(() => { playSound('siren' as SoundName); sendDesktopNotification(notifTitle, notifBody) })
               }
               if (!isSelf && !isViewingThis) {
-                pendingToasts.push({ sourceKey: `group:${group.id}`, sourceName: group.name, senderName, text, messageId: lmid, viewType: 'group', viewId: group.id, originType: 'group', originId: group.id })
+                pendingToasts.push({ sourceKey: `group:${group.id}`, sourceName: group.name, senderName, text, messageId: lmid, viewType: 'group', viewId: group.id, originType: 'group', originId: group.id, ...(matchedAlert ? { alertWord: matchedAlert } : {}) })
+              } else if (matchedAlert && !isSelf) {
+                // Alert word toast always shows even if viewing the chat
+                pendingToasts.push({ sourceKey: `group:${group.id}`, sourceName: group.name, senderName, text, messageId: lmid, viewType: 'group', viewId: group.id, originType: 'group', originId: group.id, alertWord: matchedAlert })
               }
             }
           }
@@ -589,13 +613,23 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             const isViewingThis = cv.type === 'dm' && cv.id === otherId
             const senderName = lm.name || dm.other_user?.name || 'DM'
             const text = lm.text || '(attachment)'
+            // Check alert words (global + per-chat)
+            const matchedAlert = findAlertWord(text, alertWordsRef.current, chatAlertWordsRef.current[`dm:${otherId}`])
             if (!isSelf && !isViewingThis && !globalMuteRef.current && !dmMutedRef.current) {
-              const dmSound = dmSoundRef.current
+              const soundToPlay = matchedAlert ? ('siren' as SoundName) : dmSoundRef.current
+              const notifTitle = matchedAlert ? `ALERT: "${matchedAlert}" - DM` : 'Delta 360 - DM'
               const notifBody = `${senderName}: ${text}`
-              pendingSounds.push(() => { playSound(dmSound); sendDesktopNotification('Delta 360 - DM', notifBody) })
+              pendingSounds.push(() => { playSound(soundToPlay); sendDesktopNotification(notifTitle, notifBody) })
+            } else if (matchedAlert && !isSelf && !globalMuteRef.current) {
+              // Alert word match overrides mute and "viewing this" suppression
+              const notifTitle = `ALERT: "${matchedAlert}" - DM`
+              const notifBody = `${senderName}: ${text}`
+              pendingSounds.push(() => { playSound('siren' as SoundName); sendDesktopNotification(notifTitle, notifBody) })
             }
             if (!isSelf && !isViewingThis) {
-              pendingToasts.push({ sourceKey: `dm:${otherId}`, sourceName: dm.other_user?.name || 'DM', senderName, text, messageId: lmid, viewType: 'dm', viewId: otherId, originType: 'dm', originId: otherId })
+              pendingToasts.push({ sourceKey: `dm:${otherId}`, sourceName: dm.other_user?.name || 'DM', senderName, text, messageId: lmid, viewType: 'dm', viewId: otherId, originType: 'dm', originId: otherId, ...(matchedAlert ? { alertWord: matchedAlert } : {}) })
+            } else if (matchedAlert && !isSelf) {
+              pendingToasts.push({ sourceKey: `dm:${otherId}`, sourceName: dm.other_user?.name || 'DM', senderName, text, messageId: lmid, viewType: 'dm', viewId: otherId, originType: 'dm', originId: otherId, alertWord: matchedAlert })
             }
           }
           lastMsgTracker.current[`d:${otherId}`] = lmid
@@ -716,6 +750,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   streamsRef.current = streams
   const currentViewRef = useRef(currentView)
   currentViewRef.current = currentView
+  const alertWordsRef = useRef(alertWords)
+  alertWordsRef.current = alertWords
+  const chatAlertWordsRef = useRef(chatAlertWords)
+  chatAlertWordsRef.current = chatAlertWords
 
   const showMsgToast = useCallback((toast: Omit<MsgToast, 'id' | 'ts'>) => {
     if (toastMutedRef.current.has(toast.sourceKey)) return

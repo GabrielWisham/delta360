@@ -36,7 +36,11 @@ export function ToastZone() {
       {msgToasts.map(t => (
         <div
           key={`m-${t.id}`}
-          className="animate-slide-in-right rounded-lg overflow-hidden pointer-events-auto bg-card border border-border shadow-xl border-l-4 border-l-[var(--d360-orange)] group"
+          className={`animate-slide-in-right rounded-lg overflow-hidden pointer-events-auto bg-card border shadow-xl border-l-4 group ${
+            t.alertWord
+              ? 'border-[var(--d360-red)] border-l-[var(--d360-red)] ring-1 ring-[var(--d360-red)]/30'
+              : 'border-border border-l-[var(--d360-orange)]'
+          }`}
         >
           {/* Clickable body -- navigates to the source chat */}
           <button
@@ -50,8 +54,18 @@ export function ToastZone() {
             className="w-full text-left px-3 py-2.5 hover:bg-secondary/30 transition-colors"
           >
             <div className="flex items-center gap-2">
+              {t.alertWord && (
+                <span
+                  className="text-[8px] uppercase tracking-widest font-black px-1.5 py-0.5 rounded bg-[var(--d360-red)] text-white shrink-0"
+                  style={{ fontFamily: 'var(--font-mono)' }}
+                >
+                  ALERT: {t.alertWord}
+                </span>
+              )}
               <span
-                className="text-[9px] uppercase tracking-widest font-bold text-[var(--d360-orange)] truncate"
+                className={`text-[9px] uppercase tracking-widest font-bold truncate ${
+                  t.alertWord ? 'text-[var(--d360-red)]' : 'text-[var(--d360-orange)]'
+                }`}
                 style={{ fontFamily: 'var(--font-mono)' }}
               >
                 {t.sourceName}
