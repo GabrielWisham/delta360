@@ -25,12 +25,14 @@ export const MessageCard = memo(function MessageCard({
   showGroupTag,
   onScrollToMsg,
   onReply,
+  replyNameMap,
 }: {
   msg: GroupMeMessage
   panelIdx: number
   showGroupTag?: boolean
   onScrollToMsg?: (id: string) => void
   onReply?: (msg: GroupMeMessage) => void
+  replyNameMap?: Map<string, string>
 }) {
   const store = useStore()
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -48,6 +50,7 @@ export const MessageCard = memo(function MessageCard({
   const compact = store.compact
 
   const replyAttachment = msg.attachments?.find(a => a.type === 'reply')
+  const replyToName = replyAttachment?.reply_id ? (replyNameMap?.get(replyAttachment.reply_id) || null) : null
   const imageAttachments = msg.attachments?.filter(a => (a.type === 'image' || a.type === 'linked_image') && a.url) || []
   const videoAttachments = msg.attachments?.filter(a => a.type === 'video' && a.url) || []
   const fileAttachments = msg.attachments?.filter(a => a.type === 'file') || []
@@ -172,7 +175,7 @@ export const MessageCard = memo(function MessageCard({
               style={{ fontFamily: 'var(--font-mono)' }}
             >
               <CornerDownLeft className="w-2.5 h-2.5" />
-              reply
+              {replyToName ? `replying to ${replyToName}` : 'reply'}
             </button>
           )}
 
@@ -342,7 +345,7 @@ export const MessageCard = memo(function MessageCard({
             style={{ fontFamily: 'var(--font-mono)' }}
           >
             <CornerDownLeft className="w-3 h-3" />
-            <span>Reply</span>
+            <span>{replyToName ? `Replying to ${replyToName}` : 'Reply'}</span>
           </button>
         )}
 

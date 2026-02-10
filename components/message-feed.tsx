@@ -36,6 +36,13 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   const title = view ? store.getPanelTitle(view.type, view.id) : '--'
   const showGroupTag = view?.type === 'all' || view?.type === 'dms' || view?.type === 'stream' || view?.type === 'unified_streams'
 
+  // Map message ID -> sender name so reply indicators can show who was replied to
+  const replyNameMap = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const m of messages) { if (m.id && m.name) map.set(m.id, m.name) }
+    return map
+  }, [messages])
+
   // Keep ref to loadMessages so polling always calls the latest version
   const loadMsgRef = useRef(store.loadMessages)
   loadMsgRef.current = store.loadMessages
@@ -850,7 +857,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
                 </div>
                 <div className="flex flex-col gap-1.5">
                   {pinned.map(m => (
-                    <MessageCard key={m.id} msg={m} panelIdx={panelIdx} showGroupTag={showGroupTag} onScrollToMsg={scrollToMsg} onReply={handleReplyTo} />
+                    <MessageCard key={m.id} msg={m} panelIdx={panelIdx} showGroupTag={showGroupTag} onScrollToMsg={scrollToMsg} onReply={handleReplyTo} replyNameMap={replyNameMap} />
                   ))}
                 </div>
               </div>
@@ -888,6 +895,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
                   showGroupTag={showGroupTag}
                   onScrollToMsg={scrollToMsg}
                   onReply={handleReplyTo}
+                  replyNameMap={replyNameMap}
                 />
               )
             })}
