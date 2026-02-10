@@ -386,8 +386,10 @@ function TemplatesTab({
         <textarea
           ref={el => {
             if (el) {
+              const panel = el.closest('[role="tabpanel"]')
+              const maxH = panel ? panel.clientHeight - 60 : 400
               el.style.height = 'auto'
-              el.style.height = Math.min(el.scrollHeight, 120) + 'px'
+              el.style.height = Math.min(el.scrollHeight, maxH) + 'px'
             }
           }}
           value={newTemplate}
