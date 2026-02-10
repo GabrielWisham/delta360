@@ -243,7 +243,12 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   }, [store.unifiedLoading, view?.type])
 
   const highlightMsg = useCallback((el: HTMLElement) => {
-    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    const container = scrollRef.current
+    const viewportH = container?.clientHeight ?? window.innerHeight
+    // If the message is taller than ~60% of the viewport, align its top to the viewport top
+    // so the user sees the beginning of the message, not a centered sliver
+    const block: ScrollLogicalPosition = el.offsetHeight > viewportH * 0.6 ? 'start' : 'center'
+    el.scrollIntoView({ behavior: 'smooth', block })
     el.setAttribute('data-highlight', '')
     setTimeout(() => el.removeAttribute('data-highlight'), 2200)
   }, [])
