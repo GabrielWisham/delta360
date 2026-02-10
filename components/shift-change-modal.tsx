@@ -425,30 +425,6 @@ export function ShiftChangeModal() {
 
           {/* Recipient list */}
           <div className="rounded-lg border border-border bg-secondary/20 overflow-hidden max-h-[180px] overflow-y-auto">
-            {/* Groups */}
-            <div className="flex items-center gap-1.5 text-[9px] uppercase tracking-widest text-muted-foreground px-3 py-1.5 bg-secondary/10" style={{ fontFamily: 'var(--font-mono)' }}>
-              <Users className="w-3 h-3" />
-              Groups
-            </div>
-            {filteredGroups.map(g => {
-              const isSelected = selectedGroups.has(g.id)
-              return (
-                <label
-                  key={g.id}
-                  className={`flex items-center gap-2.5 text-xs cursor-pointer px-3 py-1.5 transition-colors border-b border-border/30 ${
-                    isSelected ? 'bg-[var(--d360-orange)]/10' : 'hover:bg-secondary/40'
-                  }`}
-                >
-                  <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
-                    isSelected ? 'bg-[var(--d360-orange)] border-[var(--d360-orange)]' : 'border-border bg-secondary/30'
-                  }`}>
-                    {isSelected && <Check className="w-2.5 h-2.5 text-white" />}
-                  </div>
-                  <span className="text-foreground truncate" style={{ fontFamily: 'var(--font-mono)' }}>{g.name}</span>
-                </label>
-              )
-            })}
-
             {/* Streams */}
             {filteredStreams.length > 0 && (
               <>
@@ -508,6 +484,30 @@ export function ShiftChangeModal() {
                 })}
               </>
             )}
+
+            {/* Groups */}
+            <div className="flex items-center gap-1.5 text-[9px] uppercase tracking-widest text-muted-foreground px-3 py-1.5 bg-secondary/10" style={{ fontFamily: 'var(--font-mono)' }}>
+              <Users className="w-3 h-3" />
+              Groups
+            </div>
+            {filteredGroups.map(g => {
+              const isSelected = selectedGroups.has(g.id)
+              return (
+                <label
+                  key={g.id}
+                  className={`flex items-center gap-2.5 text-xs cursor-pointer px-3 py-1.5 transition-colors border-b border-border/30 ${
+                    isSelected ? 'bg-[var(--d360-orange)]/10' : 'hover:bg-secondary/40'
+                  }`}
+                >
+                  <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
+                    isSelected ? 'bg-[var(--d360-orange)] border-[var(--d360-orange)]' : 'border-border bg-secondary/30'
+                  }`}>
+                    {isSelected && <Check className="w-2.5 h-2.5 text-white" />}
+                  </div>
+                  <span className="text-foreground truncate" style={{ fontFamily: 'var(--font-mono)' }}>{g.name}</span>
+                </label>
+              )
+            })}
           </div>
         </div>
 
