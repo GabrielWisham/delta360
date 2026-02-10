@@ -884,12 +884,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const version = ++unifiedVersion.current
     const ready = await fetchUnifiedMessages(version)
     if (ready === null || version !== unifiedVersion.current) return
-    // Detect new messages
-  if (unifiedKnownIds.current.size > 0) {
-  const newMsgs = ready.filter(m => !unifiedKnownIds.current.has(m.id))
-  // Notifications now handled by pollLoop for instant sync
-  }
-  }
+    // Notifications now handled by pollLoop for instant sync
     unifiedKnownIds.current = new Set(ready.map(m => m.id))
     setPanelMessages(prev => { const n = [...prev]; n[0] = ready; return n })
   }, [fetchUnifiedMessages])
