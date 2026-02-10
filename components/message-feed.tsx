@@ -355,12 +355,18 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   // Reset noMore and reply context when view changes
   useEffect(() => { setNoMoreMessages(false); setReplyingTo(null) }, [view?.type, view?.id])
 
-  // DM recipient name for watermark
+  // DM recipient name for watermark, header, and placeholder
   const dmRecipientName = useMemo(() => {
     if (view?.type !== 'dm' || !view.id) return null
     const chat = store.dmChats.find(d => d.other_user?.id === view.id)
-    return chat?.other_user?.name || null
-  }, [view?.type, view?.id, store.dmChats])
+    if (chat?.other_user?.name) return chat.other_user.name
+    // Fallback: look up from group member lists (for new DMs with no prior messages)
+    for (const g of store.groups) {
+      const member = g.members?.find((m: { user_id: string; nickname: string }) => m.user_id === view.id)
+      if (member?.nickname) return member.nickname
+    }
+    return null
+  }, [view?.type, view?.id, store.dmChats, store.groups])
 
   const isSpecificView = view?.type === 'group' || view?.type === 'dm' || view?.type === 'stream'
 
@@ -750,10 +756,21 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
             )}
 
             {messages.length === 0 && (
-              <div className="flex-1 flex items-center justify-center">
-                <p className="text-xs text-muted-foreground" style={{ fontFamily: 'var(--font-jetbrains)' }}>
-                  {view?.type === 'unified_streams' ? 'Toggle streams to see messages' : view ? 'Loading messages...' : 'Select a chat'}
+              <div className="flex-1 flex flex-col items-center justify-center gap-1">
+                <p className="text-xs text-muted-foreground" style={{ fontFamily: 'var(--font-mono)' }}>
+                  {view?.type === 'unified_streams'
+                    ? 'Toggle streams to see messages'
+                    : view?.type === 'dm' && dmRecipientName
+                      ? `No messages yet with ${dmRecipientName}`
+                      : view
+                        ? 'Loading messages...'
+                        : 'Select a chat'}
                 </p>
+                {view?.type === 'dm' && dmRecipientName && (
+                  <p className="text-[10px] text-muted-foreground/50" style={{ fontFamily: 'var(--font-mono)' }}>
+                    Send a message to start the conversation
+                  </p>
+                )}
               </div>
             )}
           </>

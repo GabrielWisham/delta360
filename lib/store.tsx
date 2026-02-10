@@ -649,7 +649,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     if (type === 'group') return groups.find(g => g.id === id)?.name || 'Group'
     if (type === 'dm') {
       const dm = dmChats.find(d => d.other_user?.id === id)
-      return dm?.other_user?.name || 'DM'
+      if (dm?.other_user?.name) return dm.other_user.name
+      // Fallback: look up user from group member lists
+      for (const g of groups) {
+        const member = g.members?.find((m: { user_id: string; nickname: string }) => m.user_id === id)
+        if (member?.nickname) return member.nickname
+      }
+      return 'DM'
     }
     if (type === 'stream') return id || 'Stream'
     if (type === 'unified_streams') return 'Unified Streams'
