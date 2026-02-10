@@ -625,6 +625,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           if (lm) lastMsgTracker.current[`d:${otherId}`] = lm.id || `${lm.created_at}`
         }
         trackerSeeded.current = true
+        // Silently refresh the active feed to catch any messages that arrived
+        // between the initial load and this first poll cycle.
+        const cv = currentViewRef.current
+        if (cv.type === 'unified_streams' && !unifiedLoadingRef.current) {
+          refreshUnifiedRef.current()
+        } else if (cv.type === 'all' || cv.type === 'group' || cv.type === 'dm' || cv.type === 'dms' || cv.type === 'stream') {
+          loadMessagesRef.current(0)
+        }
       }
 
       const sync = g.find(gr => gr.name.toLowerCase() === 'dispatch')
