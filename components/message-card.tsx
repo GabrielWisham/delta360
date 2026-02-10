@@ -132,8 +132,8 @@ export const MessageCard = memo(function MessageCard({
               {showGroupTag && groupName && (
                 <button
                   onClick={() => store.switchView('group', msg.group_id || '')}
-                  className="text-[9px] px-2 py-0.5 rounded-full border font-medium truncate max-w-[140px] hover:brightness-125 transition-all"
-                  style={{ fontFamily: 'var(--font-mono)', background: `color-mix(in srgb, ${accentColor} 15%, transparent)`, borderColor: `color-mix(in srgb, ${accentColor} 25%, transparent)`, color: accentColor }}
+                  className="text-[9px] px-2 py-0.5 rounded-full border border-border bg-secondary/50 font-medium truncate max-w-[140px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-all"
+                  style={{ fontFamily: 'var(--font-mono)' }}
                 >
                   {groupName}
                 </button>
@@ -280,8 +280,8 @@ export const MessageCard = memo(function MessageCard({
             {showGroupTag && groupName && (
               <button
                 onClick={() => store.switchView('group', msg.group_id || '')}
-                className="text-[10px] px-2.5 py-0.5 rounded-full border font-medium truncate max-w-[160px] hover:brightness-125 transition-all"
-                style={{ fontFamily: 'var(--font-mono)', background: `color-mix(in srgb, ${accentColor} 15%, transparent)`, borderColor: `color-mix(in srgb, ${accentColor} 25%, transparent)`, color: accentColor }}
+                className="text-[10px] px-2.5 py-0.5 rounded-full border border-border bg-secondary/50 font-medium truncate max-w-[160px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-all"
+                style={{ fontFamily: 'var(--font-mono)' }}
               >
                 {groupName}
               </button>

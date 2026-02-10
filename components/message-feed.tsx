@@ -143,6 +143,8 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     if (!scrollRef.current) return
     userScrolledRef.current = false
     wasAtEdgeRef.current = true
+    prevMsgCountRef.current = 0
+    prevLastMsgIdRef.current = null
     setShowJumpToLatest(false)
     setNewMsgCount(0)
     snapshotMsgCountRef.current = 0
@@ -165,16 +167,28 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   // Track whether the user was at the latest edge BEFORE new messages rendered.
   // We snapshot this on every scroll event so it's always fresh.
   const wasAtEdgeRef = useRef(true)
+  const prevLastMsgIdRef = useRef<string | null>(null)
 
   // Auto-scroll when new messages arrive (including first load)
+  // We track BOTH count and the last message ID to catch cases where
+  // the array length stays the same but new messages were added (unified feed cap).
+  const lastMsgId = messages.length > 0
+    ? (store.oldestFirst ? messages[messages.length - 1]?.id : messages[0]?.id)
+    : null
   useEffect(() => {
     if (!scrollRef.current) return
     // If a pending scroll target is set (toast click), skip auto-scroll
-    if (store.pendingScrollToMsgId) { prevMsgCountRef.current = messages.length; return }
+    if (store.pendingScrollToMsgId) {
+      prevMsgCountRef.current = messages.length
+      prevLastMsgIdRef.current = lastMsgId
+      return
+    }
     const newCount = messages.length
     const wasEmpty = prevMsgCountRef.current === 0
+    const hasNewMessages = newCount > prevMsgCountRef.current ||
+      (newCount > 0 && lastMsgId !== prevLastMsgIdRef.current && prevLastMsgIdRef.current !== null)
 
-    if (newCount > prevMsgCountRef.current) {
+    if (hasNewMessages) {
       if (wasEmpty) {
         // First load -- check if we should jump to first unread
         if (pendingJumpToUnread.current) {
@@ -230,8 +244,9 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
       }
     }
     prevMsgCountRef.current = newCount
+    prevLastMsgIdRef.current = lastMsgId
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages.length, store.oldestFirst])
+  }, [messages.length, lastMsgId, store.oldestFirst])
 
   // For unified_streams, also scroll to top when messages finish loading (buffer complete)
   const prevUnifiedLoading = useRef(store.unifiedLoading)
