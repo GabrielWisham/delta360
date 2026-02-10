@@ -60,6 +60,11 @@
   --d360-gradient: linear-gradient(135deg, #ff6a00, #ff9800);
   --d360-glass: rgba(255, 255, 255, 0.05);
   --d360-sidebar-bg: hsl(222 25% 9%);
+  /* Bubble fills */
+  --d360-bubble-self-bg: rgba(255, 106, 0, 0.12);
+  --d360-bubble-self-border: rgba(255, 106, 0, 0.15);
+  --d360-bubble-other-mix: 8%;
+  --d360-bubble-other-border: rgba(255, 255, 255, 0.08);
 }
 
 [data-theme="light"] {
@@ -67,6 +72,11 @@
   --d360-glass: rgba(0, 0, 0, 0.03);
   --d360-orange-glow: rgba(255, 106, 0, 0.08);
   --d360-cyan-glow: rgba(34, 211, 238, 0.06);
+  /* Stronger bubble fills for light backgrounds */
+  --d360-bubble-self-bg: rgba(255, 106, 0, 0.18);
+  --d360-bubble-self-border: rgba(255, 106, 0, 0.30);
+  --d360-bubble-other-mix: 18%;
+  --d360-bubble-other-border: rgba(0, 0, 0, 0.08);
 }
 
 [data-theme="light"] {

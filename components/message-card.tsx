@@ -108,11 +108,12 @@ export const MessageCard = memo(function MessageCard({
           <div
             data-bubble
             className={`rounded-2xl px-3.5 py-2 transition-shadow ${
-              isSelf
-                ? 'rounded-tr-sm bg-[var(--d360-orange)]/12 border border-[var(--d360-orange)]/15'
-                : 'rounded-tl-sm border border-white/[0.08]'
+              isSelf ? 'rounded-tr-sm' : 'rounded-tl-sm'
             } ${isPinned ? 'ring-1 ring-[var(--d360-yellow)]/40' : ''}`}
-            style={!isSelf ? { background: `color-mix(in srgb, ${accentColor} 8%, transparent)` } : undefined}
+            style={isSelf
+              ? { background: 'var(--d360-bubble-self-bg)', borderWidth: 1, borderStyle: 'solid', borderColor: 'var(--d360-bubble-self-border)' }
+              : { background: `color-mix(in srgb, ${accentColor} var(--d360-bubble-other-mix), transparent)`, borderWidth: 1, borderStyle: 'solid', borderColor: 'var(--d360-bubble-other-border)' }
+            }
           >
             {/* Sender + timestamp header */}
             <div className={`flex items-center gap-1.5 mb-0.5 ${isSelf ? 'justify-end' : ''}`}>
@@ -246,11 +247,12 @@ export const MessageCard = memo(function MessageCard({
         <div
           data-bubble
           className={`rounded-2xl px-4 py-2.5 transition-shadow ${
-            isSelf
-              ? 'rounded-tr-sm bg-[var(--d360-orange)]/12 border border-[var(--d360-orange)]/15'
-              : 'rounded-tl-sm border border-white/[0.08]'
+            isSelf ? 'rounded-tr-sm' : 'rounded-tl-sm'
           } ${isPinned ? 'ring-1 ring-[var(--d360-yellow)]/40' : ''}`}
-          style={!isSelf ? { background: `color-mix(in srgb, ${accentColor} 8%, transparent)` } : undefined}
+          style={isSelf
+            ? { background: 'var(--d360-bubble-self-bg)', borderWidth: 1, borderStyle: 'solid', borderColor: 'var(--d360-bubble-self-border)' }
+            : { background: `color-mix(in srgb, ${accentColor} var(--d360-bubble-other-mix), transparent)`, borderWidth: 1, borderStyle: 'solid', borderColor: 'var(--d360-bubble-other-border)' }
+          }
         >
           {/* Pinned badge */}
           {isPinned && (
