@@ -267,11 +267,26 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
 
   const highlightMsg = useCallback((el: HTMLElement) => {
     const container = scrollRef.current
-    const viewportH = container?.clientHeight ?? window.innerHeight
-    // If the message is taller than ~60% of the viewport, align its top to the viewport top
-    // so the user sees the beginning of the message, not a centered sliver
-    const block: ScrollLogicalPosition = el.offsetHeight > viewportH * 0.6 ? 'start' : 'center'
+    if (!container) return
+    const viewportH = container.clientHeight
+    const msgH = el.offsetHeight
+    // If the message is taller than ~60% of the viewport, align its top
+    const block: ScrollLogicalPosition = msgH > viewportH * 0.6 ? 'start' : 'center'
     el.scrollIntoView({ behavior: 'smooth', block })
+    // After the smooth scroll settles, ensure the full message is visible
+    // with padding. scrollIntoView can clip when the element is near edges.
+    requestAnimationFrame(() => {
+      const rect = el.getBoundingClientRect()
+      const containerRect = container.getBoundingClientRect()
+      const padding = 24
+      if (rect.top < containerRect.top + padding) {
+        // Message top is clipped -- scroll up to reveal it
+        container.scrollBy({ top: rect.top - containerRect.top - padding, behavior: 'smooth' })
+      } else if (rect.bottom > containerRect.bottom - padding) {
+        // Message bottom is clipped -- scroll down to reveal it
+        container.scrollBy({ top: rect.bottom - containerRect.bottom + padding, behavior: 'smooth' })
+      }
+    })
     el.setAttribute('data-highlight', '')
     setTimeout(() => el.removeAttribute('data-highlight'), 2200)
   }, [])
