@@ -157,7 +157,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
       pendingJumpToUnread.current = false
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view?.type, view?.id, store.jumpToUnread])
+  }, [view?.type, view?.id, store.oldestFirst, store.jumpToUnread])
 
   // Track whether the user was at the latest edge BEFORE new messages rendered.
   // We snapshot this on every scroll event so it's always fresh.
@@ -250,12 +250,14 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
 
   // For unified_streams, also scroll to latest when messages finish loading (buffer complete)
   const prevUnifiedLoading = useRef(store.unifiedLoading)
+  const oldestFirstRef = useRef(store.oldestFirst)
+  oldestFirstRef.current = store.oldestFirst
   useEffect(() => {
     if (view?.type === 'unified_streams' && prevUnifiedLoading.current && !store.unifiedLoading && scrollRef.current) {
       requestAnimationFrame(() => {
         const c = scrollRef.current
         if (!c) return
-        if (store.oldestFirst) {
+        if (oldestFirstRef.current) {
           c.scrollTop = c.scrollHeight
         } else {
           c.scrollTop = 0
@@ -263,7 +265,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
       })
     }
     prevUnifiedLoading.current = store.unifiedLoading
-  }, [store.unifiedLoading, view?.type, store.oldestFirst])
+  }, [store.unifiedLoading, view?.type])
 
   const highlightMsg = useCallback((el: HTMLElement) => {
     const container = scrollRef.current
