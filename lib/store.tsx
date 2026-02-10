@@ -758,7 +758,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const view = panelIdx === 0 ? currentView : panels[panelIdx]
     if (!view) return
     const { type, id } = view
-    if (type === 'unified_streams') return
+    if (type === 'unified_streams') { refreshUnifiedRef.current(); return }
 
     const cacheKey = `${type}:${id || '_'}`
     const cached = msgCache.current[cacheKey]
