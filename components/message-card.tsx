@@ -49,6 +49,7 @@ export const MessageCard = memo(function MessageCard({
   const fileAttachments = msg.attachments?.filter(a => a.type === 'file') || []
   const locationAttachments = msg.attachments?.filter(a => a.type === 'location' && a.lat && a.lng) || []
   const hasMediaAttachments = imageAttachments.length > 0 || videoAttachments.length > 0 || fileAttachments.length > 0 || locationAttachments.length > 0
+  const isDm = !msg.group_id
   const groupName = msg.group_id ? store.groups.find(g => g.id === msg.group_id)?.name : null
 
   // Likes
@@ -241,7 +242,7 @@ export const MessageCard = memo(function MessageCard({
                 <Reply className="w-3.5 h-3.5" />
                 <span className="text-[9px] font-medium">Reply</span>
               </button>
-              {likeNames.length > 0 && (
+              {!isDm && likeNames.length > 0 && (
                 <span className="flex items-center gap-1">
                   <ThumbsUp className="w-2.5 h-2.5 opacity-40" />
                   <span className="text-[8px] opacity-40" style={{ fontFamily: 'var(--font-mono)' }}>
@@ -254,11 +255,11 @@ export const MessageCard = memo(function MessageCard({
 
           {/* Hover action tray (like, pin, forward, delete) */}
           <div className={`absolute ${isSelf ? 'right-full mr-1' : 'left-full ml-1'} top-0 opacity-0 group-hover/msg:opacity-100 transition-opacity flex items-center gap-0.5 bg-card border border-border rounded-full px-1.5 py-0.5 shadow-md z-10`}>
-            <CompactAction Icon={ThumbsUp} title="Like" active={likedBy.includes(store.user?.id || '')} onClick={() => {
+            {!isDm && <CompactAction Icon={ThumbsUp} title="Like" active={likedBy.includes(store.user?.id || '')} onClick={() => {
               const gid = msg.group_id || ''
               if (likedBy.includes(store.user?.id || '')) store.unlikeMessage(gid, msg.id)
               else store.likeMessage(gid, msg.id)
-            }} />
+            }} />}
             <CompactAction Icon={Pin} title="Pin" active={isPinned} onClick={() => store.togglePinMessage(msg.id)} />
             <CompactAction Icon={Forward} title="Forward" onClick={() => store.setForwardMsg({ id: msg.id, name: msg.name, text: msg.text || '', groupId: msg.group_id })} />
             {isSelf && <CompactAction Icon={Pencil} title="Edit" onClick={startEdit} />}
@@ -411,7 +412,7 @@ export const MessageCard = memo(function MessageCard({
               <Reply className="w-4 h-4" />
               Reply
             </button>
-            {likeNames.length > 0 && (
+            {!isDm && likeNames.length > 0 && (
               <span className="flex items-center gap-1 text-[9px] text-muted-foreground/40 ml-1">
                 <ThumbsUp className="w-3 h-3" />
                 <span style={{ fontFamily: 'var(--font-mono)' }}>{likeNames.join(', ')}</span>
@@ -422,11 +423,11 @@ export const MessageCard = memo(function MessageCard({
 
           {/* Hover action tray (pin, like, forward, delete) */}
           <div className={`absolute ${isSelf ? 'right-full mr-1' : 'left-full ml-1'} top-0 opacity-0 group-hover/msg:opacity-100 transition-opacity flex items-center gap-0.5 bg-card border border-border rounded-full px-1.5 py-0.5 shadow-md z-10`}>
-          <CompactAction Icon={ThumbsUp} title="Like" active={likedBy.includes(store.user?.id || '')} onClick={() => {
+          {!isDm && <CompactAction Icon={ThumbsUp} title="Like" active={likedBy.includes(store.user?.id || '')} onClick={() => {
             const gid = msg.group_id || ''
             if (likedBy.includes(store.user?.id || '')) store.unlikeMessage(gid, msg.id)
             else store.likeMessage(gid, msg.id)
-          }} />
+          }} />}
           <CompactAction Icon={Pin} title="Pin" active={isPinned} onClick={() => store.togglePinMessage(msg.id)} />
           <CompactAction Icon={Forward} title="Forward" onClick={() => store.setForwardMsg({ id: msg.id, name: msg.name, text: msg.text || '', groupId: msg.group_id })} />
           {isSelf && <CompactAction Icon={Pencil} title="Edit" onClick={startEdit} />}
