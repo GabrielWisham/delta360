@@ -51,8 +51,10 @@ export const MessageCard = memo(function MessageCard({
 }) {
   const store = useStore()
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const [isEditing, setIsEditing] = useState(false)
   const [editText, setEditText] = useState('')
+
+  const isEditing = store.editingMessageId === msg.id
+  const setIsEditing = (v: boolean) => store.setEditingMessageId(v ? msg.id : null)
 
   const isSelf = msg.user_id === store.user?.id || msg.sender_id === store.user?.id
   const isDm = !msg.group_id

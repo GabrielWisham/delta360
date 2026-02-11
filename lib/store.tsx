@@ -57,6 +57,7 @@ interface StoreState {
   panels: (PanelState | null)[]
   activePanelIdx: number
   // Sidebar
+  editingMessageId: string | null
   sidebarCollapsed: boolean
   sidebarMobileOpen: boolean
   sortMode: 'recent' | 'heat'
@@ -176,6 +177,7 @@ interface StoreActions {
   unlikeMessage: (groupId: string, messageId: string) => Promise<void>
   deleteMessage: (groupId: string, messageId: string) => Promise<void>
   editMessageInPlace: (messageId: string, newText: string) => void
+  setEditingMessageId: (id: string | null) => void
   toggleTheme: () => void
   toggleCompact: () => void
   toggleInputBottom: () => void
@@ -367,6 +369,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [currentView, setCurrentView] = useState<ViewState>({ type: 'all', id: null })
   const [panels, setPanels] = useState<(PanelState | null)[]>([null, null, null])
   const [activePanelIdx, setActivePanelIdx] = useState(0)
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false)
   const [sortMode, setSortModeState] = useState<'recent' | 'heat'>('recent')
@@ -1922,6 +1925,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     currentView,
     panels,
     activePanelIdx,
+    editingMessageId,
+    setEditingMessageId,
     sidebarCollapsed,
     sidebarMobileOpen,
     sortMode,
