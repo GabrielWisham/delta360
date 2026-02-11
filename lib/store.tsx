@@ -1235,13 +1235,33 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
         for (const o of optimistic) {
           if ((now - o.created_at) >= 10) continue
-          // If the optimistic msg was locally deleted, match by timestamp+sender
-          const realMsg = o._deleted
+          const hasPendingEdit = pendingOptimisticEditsRef.current.has(o.id)
+          // Match by text normally, or by timestamp+sender if edited/deleted
+          const realMsg = (o._deleted || hasPendingEdit)
             ? msgs.find(s => Math.abs(s.created_at - o.created_at) < 5 && s.sender_id === o.sender_id)
             : msgs.find(s => s.text === o.text && Math.abs(s.created_at - o.created_at) < 15)
           if (realMsg) {
             matchedServerIds.add(realMsg.id)
             matchedOptimisticIds.add(o.id)
+            // If the optimistic msg was edited, fire delete+resend with new text
+            if (hasPendingEdit) {
+              const editedText = pendingOptimisticEditsRef.current.get(o.id)!
+              pendingOptimisticEditsRef.current.delete(o.id)
+              const convId = realMsg.group_id || realMsg.conversation_id || ''
+              if (convId && editedText !== realMsg.text) {
+                deletedMsgIdsRef.current.add(realMsg.id)
+                const isGroup = !!realMsg.group_id
+                const sendTarget = realMsg.group_id || realMsg.conversation_id || ''
+                api.deleteMessage(convId, realMsg.id).then(() => {
+                  if (isGroup) {
+                    api.sendGroupMessage(sendTarget, editedText, realMsg.attachments || []).catch(() => {})
+                  } else {
+                    api.sendDM(sendTarget, editedText, realMsg.attachments || []).catch(() => {})
+                  }
+                  setTimeout(() => { deletedMsgIdsRef.current.delete(realMsg.id) }, 15_000)
+                }).catch(() => {})
+              }
+            }
             if (editingMessageId === o.id) {
               queueMicrotask(() => _setEditingMessageId(realMsg.id))
             }
