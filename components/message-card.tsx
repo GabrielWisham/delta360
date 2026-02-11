@@ -52,9 +52,20 @@ export const MessageCard = memo(function MessageCard({
   const store = useStore()
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [editText, setEditText] = useState('')
+  const [isEditingLocal, setIsEditingLocal] = useState(false)
 
-  const isEditing = store.editingMessageId === msg.id
-  const setIsEditing = (v: boolean) => store.setEditingMessageId(v ? msg.id : null)
+  // Close this card's edit if another card starts editing
+  useEffect(() => {
+    if (isEditingLocal && store.editingMessageId !== null && store.editingMessageId !== msg.id) {
+      setIsEditingLocal(false)
+    }
+  }, [store.editingMessageId, msg.id, isEditingLocal])
+
+  const isEditing = isEditingLocal
+  const setIsEditing = (v: boolean) => {
+    setIsEditingLocal(v)
+    store.setEditingMessageId(v ? msg.id : null)
+  }
 
   const isSelf = msg.user_id === store.user?.id || msg.sender_id === store.user?.id
   const isDm = !msg.group_id
