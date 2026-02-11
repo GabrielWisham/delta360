@@ -380,28 +380,24 @@ export function ShiftChangeModal() {
           </div>
 
           {/* Phone + Extension */}
-          <div className="grid grid-cols-[1fr_auto] gap-2">
           <div className="space-y-1">
           <label className="text-[9px] uppercase tracking-widest text-muted-foreground font-semibold" style={{ fontFamily: 'var(--font-mono)' }}>
           Dispatch Phone
           </label>
+          <div className="flex items-center gap-2">
           <input
           value={phone}
           onChange={e => setPhone(e.target.value)}
           placeholder="318-674-4406"
-          className="w-full text-xs bg-secondary/30 border border-border rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)]"
+          className="flex-1 min-w-0 text-xs bg-secondary/30 border border-border rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)]"
           style={{ fontFamily: 'var(--font-mono)' }}
           />
-          </div>
-          <div className="space-y-1">
-          <label className="text-[9px] uppercase tracking-widest text-muted-foreground font-semibold" style={{ fontFamily: 'var(--font-mono)' }}>
-          Ext.
-          </label>
+          <span className="text-[9px] uppercase tracking-widest text-muted-foreground font-semibold shrink-0" style={{ fontFamily: 'var(--font-mono)' }}>Ext.</span>
           <input
           value={extension}
           onChange={e => setExtension(e.target.value)}
-          placeholder="Optional"
-          className="w-[80px] text-xs bg-secondary/30 border border-border rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)]"
+          placeholder="--"
+          className="w-[60px] shrink-0 text-xs bg-secondary/30 border border-border rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)]"
           style={{ fontFamily: 'var(--font-mono)' }}
           />
           </div>
