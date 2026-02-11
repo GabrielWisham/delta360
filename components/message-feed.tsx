@@ -212,10 +212,14 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     setTimeout(() => { programmaticScrollRef.current = false }, 800)
   }
 
-  // Order messages
+  // Order messages (filter out system "deleted" notifications from our edits)
   const ordered = useMemo(() => {
-    const sorted = [...messages].sort((a, b) => a.created_at - b.created_at)
-    return store.oldestFirst ? sorted : [...sorted].reverse()
+  const filtered = messages.filter(m => {
+    if (m.system && m.text && /removed|deleted/i.test(m.text)) return false
+    return true
+  })
+  const sorted = [...filtered].sort((a, b) => a.created_at - b.created_at)
+  return store.oldestFirst ? sorted : [...sorted].reverse()
   }, [messages, store.oldestFirst])
 
   // Pinned messages zone
