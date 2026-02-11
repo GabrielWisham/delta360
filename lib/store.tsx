@@ -1173,6 +1173,31 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       return true
     })
 
+    // Pre-scan: if we have optimistic messages in the current panel, figure out
+    // which ones match real server msgs BEFORE entering the updater so we can
+    // fire side-effects (API calls, ref mutations) outside the pure updater.
+    const _existingPanel = panelMessages[panelIdx] || []
+    const _optimistic = _existingPanel.filter(
+      m => typeof m.id === 'string' && m.id.startsWith('optimistic-')
+    )
+    if (_optimistic.length > 0) {
+      const _now = Math.floor(Date.now() / 1000)
+      for (const o of _optimistic) {
+        if ((_now - o.created_at) >= 10) continue
+        if (!o._deleted) continue
+        // Match deleted optimistic msg to real server msg by timestamp+sender
+        const realMsg = msgs.find(s => Math.abs(s.created_at - o.created_at) < 5 && s.sender_id === o.sender_id)
+        if (realMsg) {
+          // Side effects OUTSIDE the updater
+          deletedMsgIdsRef.current.add(realMsg.id)
+          const convId = realMsg.group_id || realMsg.conversation_id || ''
+          if (convId) {
+            api.deleteMessage(convId, realMsg.id).catch(() => {})
+          }
+        }
+      }
+    }
+
     // Only update panelMessages when something visible actually changed.
     setPanelMessages(prev => {
       const existing = prev[panelIdx] || []
@@ -1204,21 +1229,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         for (const o of optimistic) {
           if ((now - o.created_at) >= 10) continue
           // If the optimistic msg was locally deleted, match by timestamp+sender
-          // (its text was changed to "Message Deleted" so we can't match by text)
           const realMsg = o._deleted
             ? msgs.find(s => Math.abs(s.created_at - o.created_at) < 5 && s.sender_id === o.sender_id)
             : msgs.find(s => s.text === o.text && Math.abs(s.created_at - o.created_at) < 15)
           if (realMsg) {
             matchedServerIds.add(realMsg.id)
             matchedOptimisticIds.add(o.id)
-            // If the optimistic msg was deleted, actually delete the real msg from GroupMe
-            if (o._deleted) {
-              deletedMsgIdsRef.current.add(realMsg.id)
-              const convId = realMsg.group_id || realMsg.conversation_id || ''
-              if (convId) {
-                api.deleteMessage(convId, realMsg.id).catch(() => {})
-              }
-            }
             if (editingMessageId === o.id) {
               queueMicrotask(() => _setEditingMessageId(realMsg.id))
             }
