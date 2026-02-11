@@ -2194,8 +2194,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
     },
     editMessageInPlace: async (mid: string, newText: string) => {
-      // Can't edit optimistic messages -- wait for the real ID
+      // For optimistic messages (not yet sent), just update the text locally
       if (typeof mid === 'string' && mid.startsWith('optimistic-')) {
+        setPanelMessages(prev => prev.map(panel =>
+          panel.map(m => m.id === mid
+            ? { ...m, text: newText } as typeof m
+            : m
+          )
+        ))
         return
       }
       // Find the original message to get group/DM info
