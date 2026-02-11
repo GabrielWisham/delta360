@@ -658,7 +658,7 @@ function ShortcutsTab({ store }: { store: ReturnType<typeof useStore> }) {
         return
       }
 
-      store.setShortcutBinding(recording, binding)
+      store.setShortcutBinding(recording!, binding)
       setRecording(null)
     }
 
