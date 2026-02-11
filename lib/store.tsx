@@ -389,6 +389,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [sortMode, setSortModeState] = useState<'recent' | 'heat'>('recent')
   const [inactiveOpen, setInactiveOpenState] = useState(false)
   const [panelMessages, setPanelMessages] = useState<GroupMeMessage[][]>([[], [], []])
+  // Always-current ref so closures (like loadMessages) can see the latest state
+  const panelMessagesRef = useRef(panelMessages)
+  panelMessagesRef.current = panelMessages
   const [streams, setStreams] = useState<StreamsMap>({})
   const [streamToggles, setStreamToggles] = useState<Set<string>>(new Set())
   const [theme, setTheme] = useState<'dark' | 'light'>('dark')
@@ -1176,7 +1179,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     // Pre-scan: if we have optimistic messages in the current panel, figure out
     // which ones match real server msgs BEFORE entering the updater so we can
     // fire side-effects (API calls, ref mutations) outside the pure updater.
-    const _existingPanel = panelMessages[panelIdx] || []
+    const _existingPanel = panelMessagesRef.current[panelIdx] || []
     const _optimistic = _existingPanel.filter(
       m => typeof m.id === 'string' && m.id.startsWith('optimistic-')
     )
