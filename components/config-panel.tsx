@@ -140,7 +140,7 @@ export function ConfigPanel() {
       {/* Modal */}
       <div
         ref={panelRef}
-        className="relative w-full max-w-[560px] h-[min(80vh,640px)] max-sm:h-[100dvh] max-sm:max-w-full max-sm:rounded-none mx-4 max-sm:mx-0 rounded-xl bg-card border border-border shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+        className="relative w-full max-w-[560px] h-[min(88vh,800px)] max-sm:h-[100dvh] max-sm:max-w-full max-sm:rounded-none mx-4 max-sm:mx-0 rounded-xl bg-card border border-border shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200"
       >
         {/* Header */}
         <div className="flex items-center justify-between px-5 pt-4 pb-0">
@@ -182,7 +182,7 @@ export function ConfigPanel() {
         <div className="border-t border-border" />
 
         {/* Tab content */}
-        <div className="flex-1 min-h-0 px-5 py-4 overflow-hidden" role="tabpanel">
+        <div className="flex-1 min-h-0 px-5 py-4 overflow-y-auto" role="tabpanel">
           {activeTab === 'streams' && (
             <StreamsTab
               streamName={streamName}
