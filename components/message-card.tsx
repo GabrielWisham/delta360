@@ -28,6 +28,7 @@ function msgEqual(a: GroupMeMessage, b: GroupMeMessage) {
     && a.text === b.text
     && a.name === b.name
     && a._deleted === b._deleted
+    && a._edited === b._edited
     && (a.favorited_by?.length || 0) === (b.favorited_by?.length || 0)
     && (a.attachments?.length || 0) === (b.attachments?.length || 0)
     // Ignore avatar_url and created_at differences (optimistic vs server may differ)
@@ -110,30 +111,15 @@ export const MessageCard = memo(function MessageCard({
     setIsEditing(true)
   }
 
-  async function submitEdit() {
+  function submitEdit() {
     const trimmed = editText.trim()
-    if (!trimmed || trimmed === msg.text?.replace(/ \[edited\]$/, '')) {
+    const originalText = msg.text?.replace(/ \[edited\]$/, '') || ''
+    if (!trimmed || trimmed === originalText) {
       setIsEditing(false)
       return
     }
-    const newText = `${trimmed} [edited]`
-    const groupId = msg.group_id || ''
-    // For DMs, find the other user's ID (the recipient)
-    const otherUserId = msg.recipient_id || (
-      msg.sender_id !== store.user?.id ? msg.sender_id :
-      msg.user_id !== store.user?.id ? msg.user_id : ''
-    ) || ''
-    // Delete old, send new
-    await store.deleteMessage(groupId, msg.id)
-    if (groupId) {
-      await store.sendMessageDirect('group', groupId, newText, msg.attachments || [])
-    } else if (otherUserId) {
-      // In a DM we sent, the recipient is the other user
-      const dmTarget = msg.conversation_id
-        ? msg.conversation_id.split('+').find(id => id !== store.user?.id) || otherUserId
-        : otherUserId
-      await store.sendMessageDirect('dm', dmTarget, newText, msg.attachments || [])
-    }
+    // Edit in-place: update the message text locally without deleting + re-sending
+    store.editMessageInPlace(msg.id, trimmed)
     setIsEditing(false)
   }
 
@@ -288,7 +274,10 @@ export const MessageCard = memo(function MessageCard({
               <p className={`text-xs leading-relaxed whitespace-pre-wrap break-words ${
                 isAlertMsg ? 'font-semibold' : ''
               }`} style={{ overflowWrap: 'anywhere', ...(isAlertMsg ? { color: 'var(--d360-red)' } : undefined) }}>
-                {msg.text}
+                {msg._edited || msg.text.endsWith(' [edited]') ? msg.text.replace(/ \[edited\]$/, '') : msg.text}
+                {(msg._edited || msg.text.endsWith(' [edited]')) && (
+                  <span className="inline-flex items-center ml-1.5 text-[8px] text-muted-foreground/50 italic align-baseline" style={{ fontFamily: 'var(--font-mono)' }}>(edited)</span>
+                )}
               </p>
             ) : null}
 
@@ -466,7 +455,10 @@ export const MessageCard = memo(function MessageCard({
             <p className={`whitespace-pre-wrap break-words text-sm leading-6 ${
               isAlertMsg ? 'font-semibold' : ''
             }`} style={{ overflowWrap: 'anywhere', ...(isAlertMsg ? { color: 'var(--d360-red)' } : undefined) }}>
-              {msg.text}
+              {msg._edited || msg.text.endsWith(' [edited]') ? msg.text.replace(/ \[edited\]$/, '') : msg.text}
+              {(msg._edited || msg.text.endsWith(' [edited]')) && (
+                <span className="inline-flex items-center ml-1.5 text-[9px] text-muted-foreground/50 italic align-baseline" style={{ fontFamily: 'var(--font-mono)' }}>(edited)</span>
+              )}
             </p>
           ) : null}
 

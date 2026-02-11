@@ -98,6 +98,7 @@ export interface GroupMeMessage {
   conversation_id?: string
   chat_id?: string
   _deleted?: boolean
+  _edited?: boolean
 }
 
 export type ViewType = 'all' | 'dms' | 'group' | 'dm' | 'stream' | 'unified_streams'

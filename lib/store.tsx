@@ -175,6 +175,7 @@ interface StoreActions {
   likeMessage: (groupId: string, messageId: string) => Promise<void>
   unlikeMessage: (groupId: string, messageId: string) => Promise<void>
   deleteMessage: (groupId: string, messageId: string) => Promise<void>
+  editMessageInPlace: (messageId: string, newText: string) => void
   toggleTheme: () => void
   toggleCompact: () => void
   toggleInputBottom: () => void
@@ -1971,6 +1972,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         // Revert the optimistic delete on failure
         showToast('Error', 'Could not delete message')
       }
+    },
+    editMessageInPlace: (mid: string, newText: string) => {
+      setPanelMessages(prev => prev.map(panel =>
+        panel.map(m => m.id === mid
+          ? { ...m, text: newText, _edited: true } as typeof m
+          : m
+        )
+      ))
     },
     toggleTheme: () => {
       setTheme(prev => {
