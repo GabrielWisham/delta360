@@ -170,6 +170,42 @@ export const MessageCard = memo(function MessageCard({
   }
 
   if (compact) {
+    // When editing, render a full-width edit pill that replaces the entire message row
+    if (isEditing) {
+      return (
+        <div id={`msg-${msg.id}`} data-msg-id={msg.id} className="px-2 py-1">
+          <div className="flex flex-col gap-1.5 w-full">
+            <div className="flex items-center gap-1.5 px-1">
+              <span className="text-[9px] font-bold uppercase tracking-wide" style={{ fontFamily: 'var(--font-mono)', color: accentColor }}>{msg.name}</span>
+              <span className="text-[8px] text-muted-foreground/40 uppercase tracking-widest" style={{ fontFamily: 'var(--font-mono)' }}>editing</span>
+            </div>
+            <textarea
+              autoFocus
+              value={editText}
+              onChange={e => {
+                setEditText(e.target.value)
+                const el = e.target
+                el.style.height = 'auto'
+                const h = Math.min(el.scrollHeight, 300)
+                el.style.height = h + 'px'
+                el.style.borderRadius = h <= 40 ? '9999px' : '1rem'
+              }}
+              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitEdit() } if (e.key === 'Escape') setIsEditing(false) }}
+              className="w-full text-xs leading-relaxed bg-background/80 border border-[var(--d360-orange)]/40 px-4 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)]"
+              rows={1}
+              style={{ fontFamily: 'var(--font-mono)', overflowY: 'hidden', borderRadius: '9999px', transition: 'border-radius 0.15s ease' }}
+              ref={el => { if (el) { el.style.height = 'auto'; const h = Math.min(el.scrollHeight, 300); el.style.height = h + 'px'; el.style.borderRadius = h <= 40 ? '9999px' : '1rem' } }}
+            />
+            <div className="flex items-center gap-1.5 px-1">
+              <button onClick={submitEdit} className="text-[9px] font-medium px-2.5 py-1 rounded-full bg-[var(--d360-orange)] text-white hover:opacity-80 transition-opacity" style={{ fontFamily: 'var(--font-mono)' }}>Save</button>
+              <button onClick={() => setIsEditing(false)} className="text-[9px] font-medium px-2.5 py-1 rounded-full border border-border text-muted-foreground hover:bg-muted/40 transition-colors" style={{ fontFamily: 'var(--font-mono)' }}>Cancel</button>
+              <span className="text-[8px] text-muted-foreground/40 ml-auto" style={{ fontFamily: 'var(--font-mono)' }}>esc to cancel</span>
+            </div>
+          </div>
+        </div>
+      )
+    }
+
     return (
       <div
         id={`msg-${msg.id}`}
@@ -193,7 +229,7 @@ export const MessageCard = memo(function MessageCard({
         </div>
 
         {/* Bubble */}
-        <div className={`relative min-w-0 ${isEditing ? 'max-w-full flex-1' : 'max-w-[75%]'} ${isSelf ? 'items-end' : 'items-start'}`}>
+        <div className={`relative min-w-0 max-w-[75%] ${isSelf ? 'items-end' : 'items-start'}`}>
           {/* Reply indicator */}
           {replyAttachment && (
             <button
@@ -208,11 +244,11 @@ export const MessageCard = memo(function MessageCard({
 
           <div
             data-bubble
-            className={`${isEditing ? 'px-0 py-1' : `rounded-2xl px-3.5 py-2 ${isSelf ? 'rounded-tr-sm' : 'rounded-tl-sm'} ${isPinned ? 'ring-1 ring-[var(--d360-yellow)]/40' : ''}`} transition-shadow`}
-            style={isEditing ? {} : (isSelf
+            className={`rounded-2xl px-3.5 py-2 transition-shadow ${isSelf ? 'rounded-tr-sm' : 'rounded-tl-sm'} ${isPinned ? 'ring-1 ring-[var(--d360-yellow)]/40' : ''}`}
+            style={isSelf
               ? { background: 'var(--d360-bubble-self-bg)', borderWidth: 1, borderStyle: 'solid', borderColor: 'var(--d360-bubble-self-border)' }
               : { background: `color-mix(in srgb, ${accentColor} var(--d360-bubble-other-mix), transparent)`, borderWidth: 1, borderStyle: 'solid', borderColor: 'var(--d360-bubble-other-border)' }
-            )}
+            }
           >
             {/* Sender + timestamp header */}
             <div className={`flex items-center gap-1.5 mb-0.5 ${isSelf ? 'justify-end' : ''}`}>
@@ -250,31 +286,8 @@ export const MessageCard = memo(function MessageCard({
               </span>
             </div>
 
-            {/* Text / Inline edit */}
-            {isEditing ? (
-              <div className="flex flex-col gap-1.5 w-full">
-                  <textarea
-                    autoFocus
-                    value={editText}
-                    onChange={e => {
-                      setEditText(e.target.value)
-                      const el = e.target
-                      el.style.height = 'auto'
-                      el.style.height = Math.min(el.scrollHeight, 300) + 'px'
-                    }}
-                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitEdit() } if (e.key === 'Escape') setIsEditing(false) }}
-                    className="w-full text-xs leading-relaxed bg-background/80 border border-[var(--d360-orange)]/40 rounded-2xl px-4 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)]"
-                    rows={1}
-                    style={{ fontFamily: 'var(--font-mono)', overflowY: 'hidden' }}
-                    ref={el => { if (el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 300) + 'px' } }}
-                  />
-                <div className="flex items-center gap-1.5 px-2">
-                  <button onClick={submitEdit} className="text-[9px] font-medium px-2.5 py-1 rounded-full bg-[var(--d360-orange)] text-white hover:opacity-80 transition-opacity" style={{ fontFamily: 'var(--font-mono)' }}>Save</button>
-                  <button onClick={() => setIsEditing(false)} className="text-[9px] font-medium px-2.5 py-1 rounded-full border border-border text-muted-foreground hover:bg-muted/40 transition-colors" style={{ fontFamily: 'var(--font-mono)' }}>Cancel</button>
-                  <span className="text-[8px] text-muted-foreground/40 ml-auto" style={{ fontFamily: 'var(--font-mono)' }}>esc to cancel</span>
-                </div>
-              </div>
-            ) : msg.text ? (
+            {/* Text */}
+            {msg.text ? (
               <p className={`text-xs leading-relaxed whitespace-pre-wrap break-words ${
                 isAlertMsg ? 'font-semibold' : ''
               }`} style={{ overflowWrap: 'anywhere', ...(isAlertMsg ? { color: 'var(--d360-red)' } : undefined) }}>
@@ -345,6 +358,43 @@ export const MessageCard = memo(function MessageCard({
   /* ======================================= */
   /*  STANDARD MODE - Bubble layout           */
   /* ======================================= */
+
+  // When editing in standard mode, render a full-width edit pill
+  if (isEditing) {
+    return (
+      <div id={`msg-${msg.id}`} data-msg-id={msg.id} className="px-2 py-1.5">
+        <div className="flex flex-col gap-1.5 w-full">
+          <div className="flex items-center gap-2 px-1">
+            <span className="text-[10px] font-bold uppercase tracking-wide" style={{ fontFamily: 'var(--font-mono)', color: accentColor }}>{msg.name}</span>
+            <span className="text-[9px] text-muted-foreground/40 uppercase tracking-widest" style={{ fontFamily: 'var(--font-mono)' }}>editing</span>
+          </div>
+          <textarea
+            autoFocus
+            value={editText}
+            onChange={e => {
+              setEditText(e.target.value)
+              const el = e.target
+              el.style.height = 'auto'
+              const h = Math.min(el.scrollHeight, 300)
+              el.style.height = h + 'px'
+              el.style.borderRadius = h <= 44 ? '9999px' : '1rem'
+            }}
+            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitEdit() } if (e.key === 'Escape') setIsEditing(false) }}
+            className="w-full text-sm leading-6 bg-background/80 border border-[var(--d360-orange)]/40 px-5 py-2.5 resize-none focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)]"
+            rows={1}
+            style={{ fontFamily: 'var(--font-mono)', overflowY: 'hidden', borderRadius: '9999px', transition: 'border-radius 0.15s ease' }}
+            ref={el => { if (el) { el.style.height = 'auto'; const h = Math.min(el.scrollHeight, 300); el.style.height = h + 'px'; el.style.borderRadius = h <= 44 ? '9999px' : '1rem' } }}
+          />
+          <div className="flex items-center gap-2 px-1">
+            <button onClick={submitEdit} className="text-[10px] font-medium px-3 py-1 rounded-full bg-[var(--d360-orange)] text-white hover:opacity-80 transition-opacity" style={{ fontFamily: 'var(--font-mono)' }}>Save</button>
+            <button onClick={() => setIsEditing(false)} className="text-[10px] font-medium px-3 py-1 rounded-full border border-border text-muted-foreground hover:bg-muted/40 transition-colors" style={{ fontFamily: 'var(--font-mono)' }}>Cancel</button>
+            <span className="text-[9px] text-muted-foreground/40 ml-auto" style={{ fontFamily: 'var(--font-mono)' }}>esc to cancel</span>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div
       id={`msg-${msg.id}`}
@@ -366,7 +416,7 @@ export const MessageCard = memo(function MessageCard({
       </div>
 
       {/* Bubble */}
-      <div className={`relative min-w-0 flex flex-col ${isEditing ? 'max-w-full flex-1' : 'max-w-[70%]'} ${isSelf ? 'items-end' : 'items-start'}`}>
+      <div className={`relative min-w-0 flex flex-col max-w-[70%] ${isSelf ? 'items-end' : 'items-start'}`}>
         {/* Reply indicator */}
         {replyAttachment && (
           <button
@@ -381,11 +431,11 @@ export const MessageCard = memo(function MessageCard({
 
         <div
           data-bubble
-          className={`${isEditing ? 'px-0 py-1' : `rounded-2xl px-4 py-2.5 ${isSelf ? 'rounded-tr-sm' : 'rounded-tl-sm'} ${isPinned ? 'ring-1 ring-[var(--d360-yellow)]/40' : ''}`} transition-shadow`}
-          style={isEditing ? {} : (isSelf
+          className={`rounded-2xl px-4 py-2.5 transition-shadow ${isSelf ? 'rounded-tr-sm' : 'rounded-tl-sm'} ${isPinned ? 'ring-1 ring-[var(--d360-yellow)]/40' : ''}`}
+          style={isSelf
             ? { background: 'var(--d360-bubble-self-bg)', borderWidth: 1, borderStyle: 'solid', borderColor: 'var(--d360-bubble-self-border)' }
             : { background: `color-mix(in srgb, ${accentColor} var(--d360-bubble-other-mix), transparent)`, borderWidth: 1, borderStyle: 'solid', borderColor: 'var(--d360-bubble-other-border)' }
-          )}
+          }
         >
           {/* Pinned badge */}
           {isPinned && (
@@ -435,31 +485,8 @@ export const MessageCard = memo(function MessageCard({
             </span>
           </div>
 
-          {/* Body / Inline edit */}
-          {isEditing ? (
-            <div className="flex flex-col gap-1.5 w-full">
-              <textarea
-                autoFocus
-                value={editText}
-                onChange={e => {
-                  setEditText(e.target.value)
-                  const el = e.target
-                  el.style.height = 'auto'
-                  el.style.height = Math.min(el.scrollHeight, 300) + 'px'
-                }}
-                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitEdit() } if (e.key === 'Escape') setIsEditing(false) }}
-                className="w-full text-sm leading-6 bg-background/80 border border-[var(--d360-orange)]/40 rounded-2xl px-5 py-2.5 resize-none focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)]"
-                rows={1}
-                style={{ fontFamily: 'var(--font-mono)', overflowY: 'hidden' }}
-                ref={el => { if (el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 300) + 'px' } }}
-              />
-              <div className="flex items-center gap-2 px-2">
-                <button onClick={submitEdit} className="text-[10px] font-medium px-3 py-1 rounded-full bg-[var(--d360-orange)] text-white hover:opacity-80 transition-opacity" style={{ fontFamily: 'var(--font-mono)' }}>Save</button>
-                <button onClick={() => setIsEditing(false)} className="text-[10px] font-medium px-3 py-1 rounded-full border border-border text-muted-foreground hover:bg-muted/40 transition-colors" style={{ fontFamily: 'var(--font-mono)' }}>Cancel</button>
-                <span className="text-[9px] text-muted-foreground/40 ml-auto" style={{ fontFamily: 'var(--font-mono)' }}>esc to cancel</span>
-              </div>
-            </div>
-          ) : msg.text ? (
+          {/* Body */}
+          {msg.text ? (
             <p className={`whitespace-pre-wrap break-words text-sm leading-6 ${
               isAlertMsg ? 'font-semibold' : ''
             }`} style={{ overflowWrap: 'anywhere', ...(isAlertMsg ? { color: 'var(--d360-red)' } : undefined) }}>
