@@ -214,6 +214,12 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
 
   // Order messages (filter out system "deleted" notifications from our edits)
   const ordered = useMemo(() => {
+  // Debug: log any potential system/event messages
+  messages.forEach(m => {
+    if (m.system || m.event || (m as any).sender_type === 'system' || (m.text && /removed|deleted|erased/i.test(m.text))) {
+      console.log('[v0] potential system msg', { id: m.id, system: m.system, event: (m as any).event, sender_type: (m as any).sender_type, text: m.text, name: m.name, user_id: m.user_id })
+    }
+  })
   const filtered = messages.filter(m => {
     if (m.system && m.text && /removed|deleted/i.test(m.text)) return false
     return true
