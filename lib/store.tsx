@@ -387,6 +387,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const deletedMsgTextsRef = useRef<Set<string>>(new Set())
   // Track optimistic IDs whose messages should be deleted as soon as they're sent
   const cancelledOptimisticRef = useRef<Set<string>>(new Set())
+  // Track edits to optimistic messages so we can apply them after the send completes
+  const pendingOptimisticEditsRef = useRef<Map<string, string>>(new Map())
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false)
   const [sortMode, setSortModeState] = useState<'recent' | 'heat'>('recent')
@@ -1796,19 +1798,38 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       // Don't bump feedRefreshTick -- deferred loadMessages handles reconciliation
     }
     try {
-      // Read the current text from the panel in case the user edited it
-      // while the optimistic message was waiting to be sent
-      const currentMsg = panelMessagesRef.current.flat().find(m => m.id === optimisticId)
-      const sendText = currentMsg?.text ?? text
-
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let resp: any
       if (targetType === 'group') {
-        resp = await api.sendGroupMessage(targetId, sendText, attachments)
+        resp = await api.sendGroupMessage(targetId, text, attachments)
       } else {
-        resp = await api.sendDM(targetId, sendText, attachments)
+        resp = await api.sendDM(targetId, text, attachments)
       }
       setPendingImage(null)
+      // If the user edited this optimistic msg while it was sending, delete+resend with new text
+      const pendingEditText = pendingOptimisticEditsRef.current.get(optimisticId)
+      if (pendingEditText !== undefined) {
+        pendingOptimisticEditsRef.current.delete(optimisticId)
+        const realMsg = resp?.message || resp?.direct_message
+        const realId = realMsg?.id as string | undefined
+        const convId = targetType === 'group' ? targetId : (realMsg?.conversation_id || targetId)
+        if (realId && convId) {
+          // Delete the original and resend with edited text
+          deletedMsgIdsRef.current.add(realId)
+          await api.deleteMessage(convId, realId).catch(() => {})
+          // Track with editedMessagesRef so polls protect the new text
+          editedMessagesRef.current.set(optimisticId, { newText: pendingEditText, originalId: realId, ts: Date.now() })
+          if (targetType === 'group') {
+            await api.sendGroupMessage(targetId, pendingEditText, attachments).catch(() => {})
+          } else {
+            await api.sendDM(targetId, pendingEditText, attachments).catch(() => {})
+          }
+          deletedMsgIdsRef.current.delete(realId)
+          setTimeout(() => { editedMessagesRef.current.delete(optimisticId) }, 15_000)
+        }
+        setPanelMessages(prev => prev.map(panel => panel.filter(m => m.id !== optimisticId)))
+        return
+      }
       // If the user deleted this optimistic msg while it was sending, delete the real msg now
       if (cancelledOptimisticRef.current.has(optimisticId)) {
         cancelledOptimisticRef.current.delete(optimisticId)
@@ -2199,8 +2220,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
     },
     editMessageInPlace: async (mid: string, newText: string) => {
-      // For optimistic messages (not yet sent), just update the text locally
+      // For optimistic messages, update locally AND track the edit
+      // so sendMessageDirect can apply it after the API call completes
       if (typeof mid === 'string' && mid.startsWith('optimistic-')) {
+        pendingOptimisticEditsRef.current.set(mid, newText)
         setPanelMessages(prev => prev.map(panel =>
           panel.map(m => m.id === mid
             ? { ...m, text: newText } as typeof m
