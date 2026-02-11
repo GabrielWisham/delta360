@@ -20,16 +20,7 @@ export function FloatingClipboard() {
     setPos(storage.getClipboardPos())
   }, [])
 
-  // Keyboard shortcut
-  useEffect(() => {
-    function handleKey(e: KeyboardEvent) {
-      if (e.key === 'c' && !['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)) {
-        store.setClipboardOpen(!store.clipboardOpen)
-      }
-    }
-    document.addEventListener('keydown', handleKey)
-    return () => document.removeEventListener('keydown', handleKey)
-  }, [store])
+  // Open/close shortcut handled centrally in dispatch-app
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if ((e.target as HTMLElement).tagName === 'TEXTAREA') return

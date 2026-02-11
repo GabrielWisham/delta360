@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { useStore } from '@/lib/store'
+import { useStore, eventMatchesBinding } from '@/lib/store'
 import { resumeAudio } from '@/lib/sounds'
 import { LoginScreen } from './login-screen'
 import { Header } from './header'
@@ -41,6 +41,57 @@ export function DispatchApp() {
     window.addEventListener('d360:show-tutorial', handler)
     return () => window.removeEventListener('d360:show-tutorial', handler)
   }, [])
+
+  // ── Centralized keyboard shortcut dispatcher ──
+  // All configurable shortcuts go through eventMatchesBinding so the
+  // key bindings set in Settings > Keys are respected.
+  useEffect(() => {
+    function handleShortcut(e: KeyboardEvent) {
+      // Skip when focus is inside an input / textarea / contenteditable
+      const tag = (e.target as HTMLElement).tagName
+      const editable = (e.target as HTMLElement).isContentEditable
+      const inInput = tag === 'INPUT' || tag === 'TEXTAREA' || editable
+
+      // --- Panels (single-key, skip when in input) ---
+      if (!inInput) {
+        if (eventMatchesBinding(e, store.getShortcutBinding('openSearch'))) {
+          e.preventDefault(); store.setSearchOpen(true); return
+        }
+        if (eventMatchesBinding(e, store.getShortcutBinding('openClipboard'))) {
+          e.preventDefault(); store.setClipboardOpen(!store.clipboardOpen); return
+        }
+        if (eventMatchesBinding(e, store.getShortcutBinding('openSettings'))) {
+          e.preventDefault(); store.setConfigOpen(!store.configOpen); return
+        }
+        if (eventMatchesBinding(e, store.getShortcutBinding('openContacts'))) {
+          e.preventDefault(); store.setContactsOpen(!store.contactsOpen); return
+        }
+        if (eventMatchesBinding(e, store.getShortcutBinding('openMsgBuilder'))) {
+          e.preventDefault(); store.setMsgBuilderOpen(!store.msgBuilderOpen); return
+        }
+        if (eventMatchesBinding(e, store.getShortcutBinding('openOrderSearch'))) {
+          e.preventDefault(); store.setOrderSearchOpen(!store.orderSearchOpen); return
+        }
+        if (eventMatchesBinding(e, store.getShortcutBinding('toggleSidebar'))) {
+          e.preventDefault(); store.toggleSidebar(); return
+        }
+      }
+
+      // --- View toggles (modifier keys, always active) ---
+      if (eventMatchesBinding(e, store.getShortcutBinding('toggleCompact'))) {
+        e.preventDefault(); store.toggleCompact(); return
+      }
+      if (eventMatchesBinding(e, store.getShortcutBinding('togglePortrait'))) {
+        e.preventDefault(); store.togglePortraitMode(); return
+      }
+      if (eventMatchesBinding(e, store.getShortcutBinding('toggleMute'))) {
+        e.preventDefault(); store.toggleGlobalMute(); return
+      }
+    }
+
+    window.addEventListener('keydown', handleShortcut)
+    return () => window.removeEventListener('keydown', handleShortcut)
+  }, [store])
 
   // Resume AudioContext on very first user interaction
   useEffect(() => {

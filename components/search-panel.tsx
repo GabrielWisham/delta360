@@ -15,13 +15,9 @@ export function SearchPanel() {
   const inputRef = useRef<HTMLInputElement>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Keyboard shortcut: "/" to open, Escape to close
+  // Close on Escape (open shortcut handled centrally in dispatch-app)
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
-      if (e.key === '/' && !['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)) {
-        e.preventDefault()
-        store.setSearchOpen(true)
-      }
       if (e.key === 'Escape' && store.searchOpen) {
         store.setSearchOpen(false)
       }
