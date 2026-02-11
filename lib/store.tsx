@@ -638,7 +638,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         const cv = currentViewRef.current
         let needsFeedRefresh = false
         let needsUnifiedRefresh = false
-        const changedGroupIds: string[] = []
+        const changedGroupIds: string[] = []   // for unified_streams patch
+        const allChangedGroups: string[] = []  // for "all" feed patch
+        const allChangedDms: string[] = []     // for "all" feed patch
         // Queue toasts, sounds, and notifications so they fire AFTER the feed refreshes
         const pendingToasts: Omit<MsgToast, 'id' | 'ts'>[] = []
         const pendingSounds: (() => void)[] = []
@@ -648,8 +650,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           if (!lmid) continue
           const prevId = lastMsgTracker.current[`g:${group.id}`]
           if (prevId && prevId !== lmid) {
-            if (cv.type === 'all' || (cv.type === 'group' && cv.id === group.id) || cv.type === 'stream') {
+            if ((cv.type === 'group' && cv.id === group.id) || cv.type === 'stream') {
               needsFeedRefresh = true
+            }
+            if (cv.type === 'all') {
+              allChangedGroups.push(group.id)
             }
             if (cv.type === 'unified_streams') {
               needsUnifiedRefresh = true
@@ -728,6 +733,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             if (cv.type === 'dms' || (cv.type === 'dm' && cv.id === otherId)) {
               needsFeedRefresh = true
             }
+            if (cv.type === 'all') {
+              allChangedDms.push(otherId)
+            }
             if (cv.type === 'unified_streams') {
               needsUnifiedRefresh = true
             }
@@ -773,6 +781,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         // the toast has appeared.
         const refreshPromises: Promise<void>[] = []
         if (needsFeedRefresh) { refreshPromises.push(loadMessagesRef.current(0)) }
+        // Patch the "all" feed with only the changed groups/DMs (bypasses suppressRefreshUntil)
+        if (cv.type === 'all' && (allChangedGroups.length > 0 || allChangedDms.length > 0)) {
+          refreshPromises.push(patchAllFeedRef.current(allChangedGroups, allChangedDms))
+        }
         if (needsUnifiedRefresh && !unifiedLoadingRef.current) {
           refreshPromises.push(
             changedGroupIds.length > 0
@@ -1331,6 +1343,48 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       for (const m of newMsgs) unifiedKnownIds.current.add(m.id)
     } catch { /* ignore */ }
   }, [])
+  // Patch the "all" feed with messages from specific changed groups/DMs.
+  // Like patchUnifiedStreams but for the Universal Feed.
+  const patchAllFeed = useCallback(async (groupIds: string[], dmIds: string[]) => {
+    if (groupIds.length === 0 && dmIds.length === 0) return
+    try {
+      const gFetches = groupIds.map(gid => api.getGroupMessages(gid, 5).catch(() => null))
+      const dFetches = dmIds.map(did => api.getDMMessages(did, 3).catch(() => null))
+      const results = await Promise.all([...gFetches, ...dFetches])
+      const newMsgs: GroupMeMessage[] = []
+      results.forEach(r => {
+        if (!r) return
+        if ('messages' in r) newMsgs.push(...(r.messages || []))
+        if ('direct_messages' in r) newMsgs.push(...(r.direct_messages || []))
+      })
+      if (newMsgs.length === 0) return
+      setPanelMessages(prev => {
+        const existing = prev[0] || []
+        const merged = [...existing]
+        const existingIds = new Set(existing.map(m => m.id))
+        for (const m of newMsgs) {
+          if (!existingIds.has(m.id)) {
+            merged.push(m)
+            existingIds.add(m.id)
+          } else {
+            const idx = merged.findIndex(em => em.id === m.id)
+            if (idx !== -1) merged[idx] = m
+          }
+        }
+        merged.sort((a, b) => a.created_at - b.created_at)
+        const trimmed = merged.length > 80 ? merged.slice(merged.length - 80) : merged
+        const next = [...prev]
+        next[0] = trimmed
+        return next
+      })
+      // Update cache so the next loadMessages call sees fresh data
+      const cacheKey = 'all:_'
+      msgCache.current[cacheKey] = { msgs: [], ts: 0 } // invalidate cache
+    } catch { /* ignore */ }
+  }, [])
+  const patchAllFeedRef = useRef(patchAllFeed)
+  patchAllFeedRef.current = patchAllFeed
+
   const patchUnifiedRef = useRef(patchUnifiedStreams)
   patchUnifiedRef.current = patchUnifiedStreams
   const refreshUnifiedRef = useRef(refreshUnifiedStreams)
