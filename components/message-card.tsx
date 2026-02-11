@@ -104,11 +104,11 @@ export const MessageCard = memo(function MessageCard({
         ? 'var(--d360-orange)'
         : 'var(--d360-cyan)'
 
-  async function handleDelete() {
+  function handleDelete() {
     if (!confirmDelete) { setConfirmDelete(true); return }
     // For DMs, use conversation_id or construct it; for groups use group_id
     const conversationId = msg.group_id || msg.conversation_id || ''
-    await store.deleteMessage(conversationId, msg.id)
+    store.deleteMessage(conversationId, msg.id)
     setConfirmDelete(false)
   }
 

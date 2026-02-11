@@ -2083,13 +2083,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     likeMessage: async (gid: string, mid: string) => { try { await api.likeMessage(gid, mid) } catch {} },
     unlikeMessage: async (gid: string, mid: string) => { try { await api.unlikeMessage(gid, mid) } catch {} },
     deleteMessage: async (conversationId: string, mid: string) => {
-      // Optimistically remove from UI immediately
+      // Optimistically mark as deleted for instant inline "Message Deleted" bubble
       setPanelMessages(prev => prev.map(panel =>
-        panel.filter(m => m.id !== mid)
+        panel.map(m => m.id === mid
+          ? { ...m, text: 'Message Deleted', _deleted: true, attachments: [] } as typeof m
+          : m
+        )
       ))
       try {
         await api.deleteMessage(conversationId, mid)
-        showToast('Deleted', 'Message deleted successfully')
       } catch {
         showToast('Error', 'Could not delete message')
       }

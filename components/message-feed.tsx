@@ -215,7 +215,8 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   // Order messages (filter out deletion placeholders from GroupMe)
   const ordered = useMemo(() => {
   const filtered = messages.filter(m => {
-    if (m._deleted) return false
+    // Keep locally-deleted messages -- they render as inline "Message Deleted" bubbles
+    if (m._deleted) return true
     if (m.text && /message.*(was|has been|been) deleted/i.test(m.text)) return false
     if (m.text && /deleted.*message/i.test(m.text)) return false
     if (m.event?.type === 'message.deleted') return false
