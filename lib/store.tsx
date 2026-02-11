@@ -2054,6 +2054,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       // Find the original message to get group/DM info
       const allMsgs = panelMessages.flat()
       const original = allMsgs.find(m => m.id === mid)
+      console.log('[v0] editMessageInPlace', { mid, newText, foundOriginal: !!original, groupId: original?.group_id, convId: original?.conversation_id, totalMsgs: allMsgs.length })
       if (!original) return
 
       const groupId = original.group_id || ''
@@ -2072,10 +2073,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
       try {
         // Delete old message from GroupMe
-        await api.deleteMessage(groupId || original.conversation_id || '', mid)
+        const deleteConvId = groupId || original.conversation_id || ''
+        console.log('[v0] edit: deleting', { deleteConvId, mid })
+        await api.deleteMessage(deleteConvId, mid)
+        console.log('[v0] edit: delete success')
 
         // Send the new text with [edited] marker
         const editedText = `${newText} [edited]`
+        console.log('[v0] edit: sending new text', { editedText, groupId, isDm })
         if (groupId) {
           await sendMessageDirect('group', groupId, editedText, original.attachments || [])
         } else if (isDm) {
@@ -2090,7 +2095,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             await sendMessageDirect('dm', dmTarget, editedText, original.attachments || [])
           }
         }
-      } catch {
+      } catch (err) {
+        console.log('[v0] edit: ERROR', err)
         showToast('Error', 'Could not save edit')
       } finally {
         // Clean up after a delay to let the poll catch the new message

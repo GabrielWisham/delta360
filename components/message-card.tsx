@@ -118,15 +118,18 @@ export const MessageCard = memo(function MessageCard({
   }
 
   function submitEdit() {
-    const trimmed = editText.trim()
+    // Read latest text directly from the store ref to avoid stale closures
+    const latestText = store.getEditingText()
+    const trimmed = latestText.trim()
     const originalText = msg.text?.replace(/ \[edited\]$/, '') || ''
+    console.log('[v0] submitEdit', { trimmed, originalText, msgId: msg.id, match: trimmed === originalText, empty: !trimmed })
     if (!trimmed || trimmed === originalText) {
       setIsEditing(false)
       return
     }
-    // Edit in-place: update the message text locally without deleting + re-sending
-    store.editMessageInPlace(msg.id, trimmed)
+    // Close edit UI first, then fire async delete + resend
     setIsEditing(false)
+    store.editMessageInPlace(msg.id, trimmed)
   }
 
   function handleQuickEmoji(emoji: string) {
