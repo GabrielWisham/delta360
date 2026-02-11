@@ -122,7 +122,7 @@ export const MessageCard = memo(function MessageCard({
     const latestText = store.getEditingText()
     const trimmed = latestText.trim()
     const originalText = msg.text?.replace(/ \[edited\]$/, '') || ''
-    console.log('[v0] submitEdit', { trimmed, originalText, msgId: msg.id, match: trimmed === originalText, empty: !trimmed })
+
     if (!trimmed || trimmed === originalText) {
       setIsEditing(false)
       return

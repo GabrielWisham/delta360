@@ -1187,11 +1187,19 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       if (optimistic.length > 0) {
         const serverIds = new Set(msgs.map(m => m.id))
         const now = Math.floor(Date.now() / 1000)
-        const pending = optimistic.filter(o =>
-          !serverIds.has(o.id) && (now - o.created_at) < 10
-          // Also check if a server msg has the same text (real version arrived)
-          && !msgs.some(s => s.text === o.text && Math.abs(s.created_at - o.created_at) < 15)
-        )
+        const pending = optimistic.filter(o => {
+          if (serverIds.has(o.id)) return false
+          if ((now - o.created_at) >= 10) return false
+          const realMsg = msgs.find(s => s.text === o.text && Math.abs(s.created_at - o.created_at) < 15)
+          if (realMsg) {
+            // If this optimistic msg was being edited, schedule transfer after this updater
+            if (editingMessageId === o.id) {
+              queueMicrotask(() => _setEditingMessageId(realMsg.id))
+            }
+            return false
+          }
+          return true
+        })
         if (pending.length > 0) {
           const merged = [...msgs, ...pending]
           merged.sort((a, b) => a.created_at - b.created_at)
@@ -2054,7 +2062,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       // Find the original message to get group/DM info
       const allMsgs = panelMessages.flat()
       const original = allMsgs.find(m => m.id === mid)
-      console.log('[v0] editMessageInPlace', { mid, newText, foundOriginal: !!original, groupId: original?.group_id, convId: original?.conversation_id, totalMsgs: allMsgs.length })
       if (!original) return
 
       const groupId = original.group_id || ''
@@ -2074,13 +2081,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       try {
         // Delete old message from GroupMe
         const deleteConvId = groupId || original.conversation_id || ''
-        console.log('[v0] edit: deleting', { deleteConvId, mid })
         await api.deleteMessage(deleteConvId, mid)
-        console.log('[v0] edit: delete success')
 
         // Send the new text with [edited] marker
         const editedText = `${newText} [edited]`
-        console.log('[v0] edit: sending new text', { editedText, groupId, isDm })
         if (groupId) {
           await sendMessageDirect('group', groupId, editedText, original.attachments || [])
         } else if (isDm) {
@@ -2095,8 +2099,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             await sendMessageDirect('dm', dmTarget, editedText, original.attachments || [])
           }
         }
-      } catch (err) {
-        console.log('[v0] edit: ERROR', err)
+      } catch {
         showToast('Error', 'Could not save edit')
       } finally {
         // Clean up after a delay to let the poll catch the new message
