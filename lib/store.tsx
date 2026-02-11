@@ -1189,43 +1189,40 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         return prev
       }
 
-      // Smoothly transition optimistic messages to real server messages.
-      // Keep optimistic messages in the array until we can swap seamlessly.
+      // Reconcile optimistic messages with real server messages.
+      // Replace optimistic msgs with real server data (real IDs) so edit/delete work.
       const optimistic = existing.filter(
         m => typeof m.id === 'string' && m.id.startsWith('optimistic-')
       )
       if (optimistic.length > 0) {
         const now = Math.floor(Date.now() / 1000)
         const matchedServerIds = new Set<string>()
-        // Map optimistic ID -> real server msg (with data from server but keeping optimistic ID)
-        const swapMap = new Map<string, typeof msgs[0]>()
+        const matchedOptimisticIds = new Set<string>()
 
         for (const o of optimistic) {
-          if ((now - o.created_at) >= 10) continue // expired, let it drop
+          if ((now - o.created_at) >= 10) continue
           const realMsg = msgs.find(s => s.text === o.text && Math.abs(s.created_at - o.created_at) < 15)
           if (realMsg) {
             matchedServerIds.add(realMsg.id)
-            // Keep optimistic msg in place but update its data from server
-            swapMap.set(o.id, o)
+            matchedOptimisticIds.add(o.id)
             if (editingMessageId === o.id) {
               queueMicrotask(() => _setEditingMessageId(realMsg.id))
             }
           }
         }
 
-        if (swapMap.size > 0 || optimistic.some(o => (now - o.created_at) < 10 && !swapMap.has(o.id) && !msgs.some(s => s.id === o.id))) {
-          // Keep non-matched server msgs + optimistic msgs that matched (preserving their key)
-          // + still-pending optimistic msgs
-          const serverOnly = msgs.filter(m => !matchedServerIds.has(m.id))
-          const pendingOptimistic = optimistic.filter(o =>
-            (now - o.created_at) < 10 && !swapMap.has(o.id) && !msgs.some(s => s.id === o.id)
-          )
-          const merged = [...serverOnly, ...Array.from(swapMap.values()), ...pendingOptimistic]
+        // If there are still-pending optimistic msgs, merge them with server data
+        const pendingOptimistic = optimistic.filter(o =>
+          (now - o.created_at) < 10 && !matchedOptimisticIds.has(o.id) && !msgs.some(s => s.id === o.id)
+        )
+        if (pendingOptimistic.length > 0) {
+          const merged = [...msgs, ...pendingOptimistic]
           merged.sort((a, b) => a.created_at - b.created_at)
           const next = [...prev]
           next[panelIdx] = merged
           return next
         }
+        // Otherwise fall through -- use server msgs directly (real IDs)
       }
 
       // Preserve locally edited messages that the poll hasn't caught up to yet
@@ -2099,21 +2096,23 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     likeMessage: async (gid: string, mid: string) => { try { await api.likeMessage(gid, mid) } catch {} },
     unlikeMessage: async (gid: string, mid: string) => { try { await api.unlikeMessage(gid, mid) } catch {} },
     deleteMessage: async (conversationId: string, mid: string) => {
-      console.log('[v0] store.deleteMessage called', { conversationId, mid })
+      // Can't delete optimistic messages from GroupMe -- they don't exist on the server yet
+      if (typeof mid === 'string' && mid.startsWith('optimistic-')) {
+        // Just remove it from the local panel
+        setPanelMessages(prev => prev.map(panel => panel.filter(m => m.id !== mid)))
+        return
+      }
+
       // Track this ID so polls don't bring the message back
       deletedMsgIdsRef.current.add(mid)
 
       // Optimistically mark as deleted for instant inline "Message Deleted" bubble
-      setPanelMessages(prev => {
-        const found = prev.flat().some(m => m.id === mid)
-        console.log('[v0] store.deleteMessage setPanelMessages, found msg:', found, 'panels:', prev.map(p => p.length))
-        return prev.map(panel =>
-          panel.map(m => m.id === mid
-            ? { ...m, text: 'Message Deleted', _deleted: true, attachments: [] } as typeof m
-            : m
-          )
+      setPanelMessages(prev => prev.map(panel =>
+        panel.map(m => m.id === mid
+          ? { ...m, text: 'Message Deleted', _deleted: true, attachments: [] } as typeof m
+          : m
         )
-      })
+      ))
       try {
         await api.deleteMessage(conversationId, mid)
       } catch {
@@ -2126,6 +2125,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
     },
     editMessageInPlace: async (mid: string, newText: string) => {
+      // Can't edit optimistic messages -- wait for the real ID
+      if (typeof mid === 'string' && mid.startsWith('optimistic-')) {
+        showToast('Wait', 'Message is still sending, try again in a moment')
+        return
+      }
       // Find the original message to get group/DM info
       const allMsgs = panelMessages.flat()
       const original = allMsgs.find(m => m.id === mid)
