@@ -107,8 +107,14 @@ export const MessageCard = memo(function MessageCard({
   function handleDelete() {
     if (!confirmDelete) { setConfirmDelete(true); return }
     const conversationId = msg.group_id || msg.conversation_id || ''
+    console.log('[v0] DELETE clicked', msg.id, '_deleted before:', msg._deleted)
     store.deleteMessage(conversationId, msg.id)
     setConfirmDelete(false)
+  }
+
+  // Debug: track when _deleted changes
+  if (msg._deleted) {
+    console.log('[v0] MessageCard rendering with _deleted=true', msg.id)
   }
 
   function startEdit() {
