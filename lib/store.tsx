@@ -1177,22 +1177,30 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     })
 
     // Pre-scan: if we have text-tracked deletions (from optimistic deletes),
-    // check incoming server msgs for matches. When found, delete from GroupMe
-    // and track by real ID so the message stays filtered out permanently.
+    // check incoming server msgs for matches. When found, delete from GroupMe.
+    // Keep BOTH text and ID tracking until the API delete actually succeeds.
     const _deletedTexts = deletedMsgTextsRef.current
     if (_deletedTexts.size > 0) {
       for (const m of msgs) {
         if (m.text && _deletedTexts.has(m.text)) {
-          // Found the real server message -- delete it from GroupMe
+          // Only start delete attempt if we haven't already for this ID
           if (!deletedMsgIdsRef.current.has(m.id)) {
             deletedMsgIdsRef.current.add(m.id)
-            setTimeout(() => { deletedMsgIdsRef.current.delete(m.id) }, 30_000)
             const convId = m.group_id || m.conversation_id || ''
             if (convId) {
-              api.deleteMessage(convId, m.id).catch(() => {})
+              const tryDelete = (attempts: number) => {
+                api.deleteMessage(convId, m.id).then(() => {
+                  // Success -- clean up text tracker; ID stays for 15s as safety
+                  _deletedTexts.delete(m.text!)
+                  setTimeout(() => { deletedMsgIdsRef.current.delete(m.id) }, 15_000)
+                }).catch(() => {
+                  if (attempts > 0) {
+                    setTimeout(() => tryDelete(attempts - 1), 2000)
+                  }
+                })
+              }
+              tryDelete(5)
             }
-            // Text tracking no longer needed -- we have the real ID now
-            _deletedTexts.delete(m.text)
           }
         }
       }
