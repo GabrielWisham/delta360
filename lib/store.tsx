@@ -2083,17 +2083,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     likeMessage: async (gid: string, mid: string) => { try { await api.likeMessage(gid, mid) } catch {} },
     unlikeMessage: async (gid: string, mid: string) => { try { await api.unlikeMessage(gid, mid) } catch {} },
     deleteMessage: async (conversationId: string, mid: string) => {
-      // Optimistically remove from UI first for instant feedback
+      // Optimistically remove from UI immediately
       setPanelMessages(prev => prev.map(panel =>
-        panel.map(m => m.id === mid
-          ? { ...m, text: 'This message has been deleted.', attachments: [], _deleted: true } as typeof m
-          : m
-        )
+        panel.filter(m => m.id !== mid)
       ))
       try {
         await api.deleteMessage(conversationId, mid)
+        showToast('Deleted', 'Message deleted successfully')
       } catch {
-        // Revert the optimistic delete on failure
         showToast('Error', 'Could not delete message')
       }
     },
