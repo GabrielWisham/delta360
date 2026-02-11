@@ -449,8 +449,13 @@ export function ShiftChangeModal() {
                   const groupCount = stream.ids.length
                   const displayName = store.streamRenames?.[name] || name
                   return (
-                    <label
+                    <div
                       key={`stream-${name}`}
+                      role="checkbox"
+                      aria-checked={isSelected}
+                      tabIndex={0}
+                      onClick={() => toggleStream(name)}
+                      onKeyDown={e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); toggleStream(name) } }}
                       className={`flex items-center gap-2.5 text-xs cursor-pointer px-3 py-1.5 transition-colors border-b border-border/30 ${
                         isSelected ? 'bg-[var(--d360-orange)]/10' : 'hover:bg-secondary/40'
                       }`}
@@ -462,8 +467,7 @@ export function ShiftChangeModal() {
                       </div>
                       <span className="text-foreground truncate flex-1" style={{ fontFamily: 'var(--font-mono)' }}>{displayName}</span>
                       <span className="text-[9px] text-muted-foreground shrink-0" style={{ fontFamily: 'var(--font-mono)' }}>{groupCount} groups</span>
-                      <input type="checkbox" className="sr-only" checked={isSelected} onChange={() => toggleStream(name)} />
-                    </label>
+                    </div>
                   )
                 })}
               </>
@@ -479,8 +483,13 @@ export function ShiftChangeModal() {
                 {filteredDMs.map(d => {
                   const isSelected = selectedDMs.has(d.other_user.id)
                   return (
-                    <label
+                    <div
                       key={d.other_user.id}
+                      role="checkbox"
+                      aria-checked={isSelected}
+                      tabIndex={0}
+                      onClick={() => toggleDM(d.other_user.id)}
+                      onKeyDown={e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); toggleDM(d.other_user.id) } }}
                       className={`flex items-center gap-2.5 text-xs cursor-pointer px-3 py-1.5 transition-colors border-b border-border/30 ${
                         isSelected ? 'bg-[var(--d360-orange)]/10' : 'hover:bg-secondary/40'
                       }`}
@@ -491,8 +500,7 @@ export function ShiftChangeModal() {
                         {isSelected && <Check className="w-2.5 h-2.5 text-white" />}
                       </div>
                       <span className="text-foreground truncate" style={{ fontFamily: 'var(--font-mono)' }}>{d.other_user.name}</span>
-                      <input type="checkbox" className="sr-only" checked={isSelected} onChange={() => toggleDM(d.other_user.id)} />
-                    </label>
+                    </div>
                   )
                 })}
               </>
@@ -506,8 +514,13 @@ export function ShiftChangeModal() {
             {filteredGroups.map(g => {
               const isSelected = selectedGroups.has(g.id)
               return (
-                <label
+                <div
                   key={g.id}
+                  role="checkbox"
+                  aria-checked={isSelected}
+                  tabIndex={0}
+                  onClick={() => toggleGroup(g.id)}
+                  onKeyDown={e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); toggleGroup(g.id) } }}
                   className={`flex items-center gap-2.5 text-xs cursor-pointer px-3 py-1.5 transition-colors border-b border-border/30 ${
                     isSelected ? 'bg-[var(--d360-orange)]/10' : 'hover:bg-secondary/40'
                   }`}
@@ -518,8 +531,7 @@ export function ShiftChangeModal() {
                     {isSelected && <Check className="w-2.5 h-2.5 text-white" />}
                   </div>
                   <span className="text-foreground truncate" style={{ fontFamily: 'var(--font-mono)' }}>{g.name}</span>
-                  <input type="checkbox" className="sr-only" checked={isSelected} onChange={() => toggleGroup(g.id)} />
-                </label>
+                </div>
               )
             })}
           </div>
