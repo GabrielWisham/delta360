@@ -1246,7 +1246,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             // If the optimistic msg was edited, fire delete+resend with new text
             if (hasPendingEdit) {
               const editedText = pendingOptimisticEditsRef.current.get(o.id)!
-              pendingOptimisticEditsRef.current.delete(o.id)
+              const oId = o.id
               const convId = realMsg.group_id || realMsg.conversation_id || ''
               if (convId && editedText !== realMsg.text) {
                 deletedMsgIdsRef.current.add(realMsg.id)
@@ -1259,7 +1259,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                     api.sendDM(sendTarget, editedText, realMsg.attachments || []).catch(() => {})
                   }
                   setTimeout(() => { deletedMsgIdsRef.current.delete(realMsg.id) }, 15_000)
-                }).catch(() => {})
+                  // Clean up the pending edit ref now that resend is done
+                  pendingOptimisticEditsRef.current.delete(oId)
+                }).catch(() => {
+                  // On failure, still clean up so we don't loop forever
+                  pendingOptimisticEditsRef.current.delete(oId)
+                })
+              } else {
+                // Text matches already or no convId -- clean up
+                pendingOptimisticEditsRef.current.delete(oId)
               }
             }
             if (editingMessageId === o.id) {
@@ -1272,11 +1280,20 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         const pendingOptimistic = optimistic.filter(o =>
           (now - o.created_at) < 10 && !matchedOptimisticIds.has(o.id) && !msgs.some(s => s.id === o.id)
         )
-        if (pendingOptimistic.length > 0 || matchedServerIds.size > 0) {
-          // Build merged list: server msgs + pending optimistic, filtering out deleted
+        // Collect edited optimistic msgs that matched -- keep them in panel
+        // instead of the real server msg so the edited text is preserved
+        const editedOptimistic = optimistic.filter(o =>
+          matchedOptimisticIds.has(o.id) && pendingOptimisticEditsRef.current.has(o.id)
+        )
+        if (pendingOptimistic.length > 0 || matchedServerIds.size > 0 || editedOptimistic.length > 0) {
+          // Build merged list: server msgs + pending optimistic + edited optimistic, filtering out deleted
           const deleted = deletedMsgIdsRef.current
           const deletedTexts = deletedMsgTextsRef.current
-          let merged = [...msgs, ...pendingOptimistic].filter(m => {
+          // Exclude server msgs that are replaced by edited optimistic msgs
+          const serverMsgs = editedOptimistic.length > 0
+            ? msgs.filter(m => !matchedServerIds.has(m.id))
+            : msgs
+          let merged = [...serverMsgs, ...pendingOptimistic, ...editedOptimistic].filter(m => {
             if (deleted.has(m.id)) return false
             if (m.text && deletedTexts.has(m.text)) return false
             return true
