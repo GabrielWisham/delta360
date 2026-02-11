@@ -671,7 +671,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               const sentTs = recentlySent.current[`g:${group.id}`] ?? recentlySent.current['__any__']
               const isSelf = prev.sender_id === userIdRef.current
                 || (sentTs != null && Date.now() - sentTs < 12_000)
-              console.log('[v0] GROUP notif check', { groupName: group.name, senderIdInPreview: prev.sender_id, userIdRef: userIdRef.current, sentTs, isSelf, nickname: prev.nickname })
+
               // Suppress notifications if the user is already viewing this group
               const isViewingThis = cv.type === 'group' && cv.id === group.id
               const senderName = prev.nickname || 'Someone'
@@ -685,7 +685,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                 const notifBody = `${senderName}: ${text}`
                 pendingSounds.push(() => { playSound('siren' as SoundName); sendDesktopNotification(notifTitle, notifBody) })
               } else if (!isSelf && !isViewingThis) {
-                console.log('[v0] GROUP SOUND PATH', { groupName: group.name, senderName, isSelf })
                 // Collect sounds from all TOGGLED streams that contain this group.
                 // Each toggled stream plays its own sound independently.
                 const matchedStreamSounds: SoundName[] = []
@@ -718,7 +717,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                 }
               }
               if (!isSelf && !isViewingThis) {
-              console.log('[v0] GROUP TOAST PUSHED', { groupName: group.name, senderName, isSelf, isViewingThis })
               pendingToasts.push({ sourceKey: `group:${group.id}`, sourceName: group.name, senderName, text, messageId: lmid, viewType: 'group', viewId: group.id, originType: 'group', originId: group.id, ...(matchedAlert ? { alertWord: matchedAlert } : {}) })
               } else if (matchedAlert && !isSelf) {
                 pendingToasts.push({ sourceKey: `group:${group.id}`, sourceName: group.name, senderName, text, messageId: lmid, viewType: 'group', viewId: group.id, originType: 'group', originId: group.id, alertWord: matchedAlert })
@@ -749,7 +747,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             const sentDmTs = recentlySent.current[`d:${otherId}`] ?? recentlySent.current['__any__']
             const isSelf = (lm.sender_id || lm.user_id) === userIdRef.current
               || (sentDmTs != null && Date.now() - sentDmTs < 12_000)
-            console.log('[v0] DM notif check', { otherName: dm.other_user?.name, senderIdInLm: lm.sender_id, userIdInLm: lm.user_id, userIdRef: userIdRef.current, sentDmTs, isSelf })
+
             // Suppress notifications if the user is already viewing this DM
             const isViewingThis = cv.type === 'dm' && cv.id === otherId
             const senderName = lm.name || dm.other_user?.name || 'DM'
@@ -764,14 +762,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               const notifBody = `${senderName}: ${text}`
               pendingSounds.push(() => { playSound('siren' as SoundName); sendDesktopNotification(notifTitle, notifBody) })
             } else if (!isSelf && !isViewingThis && !globalMuteRef.current && !dmMutedRef.current) {
-              console.log('[v0] DM SOUND PATH', { otherName: dm.other_user?.name, senderName, isSelf })
               const soundToPlay = dmSoundRef.current
               const notifTitle = 'Delta 360 - DM'
               const notifBody = `${senderName}: ${text}`
               pendingSounds.push(() => { playSound(soundToPlay); sendDesktopNotification(notifTitle, notifBody) })
             }
             if (!isSelf && !isViewingThis) {
-              console.log('[v0] DM TOAST PUSHED', { otherName: dm.other_user?.name, senderName, isSelf, isViewingThis })
               pendingToasts.push({ sourceKey: `dm:${otherId}`, sourceName: dm.other_user?.name || 'DM', senderName, text, messageId: lmid, viewType: 'dm', viewId: otherId, originType: 'dm', originId: otherId, ...(matchedAlert ? { alertWord: matchedAlert } : {}) })
             } else if (matchedAlert && !isSelf) {
               pendingToasts.push({ sourceKey: `dm:${otherId}`, sourceName: dm.other_user?.name || 'DM', senderName, text, messageId: lmid, viewType: 'dm', viewId: otherId, originType: 'dm', originId: otherId, alertWord: matchedAlert })
@@ -959,7 +955,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   // arrive in the exact same visual frame -- no perceptible gap.
   useLayoutEffect(() => {
     if (!pendingNotifications) return
-    console.log('[v0] DRAINING notifications', { soundCount: pendingNotifications.sounds.length, toastCount: pendingNotifications.toasts.length, toasts: pendingNotifications.toasts.map(t => ({ sourceKey: t.sourceKey, senderName: t.senderName })) })
     for (const fn of pendingNotifications.sounds) fn()
     for (const t of pendingNotifications.toasts) {
       showMsgToast(t)
@@ -1568,10 +1563,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     // (all, stream, unified_streams, dms) the actual API target is still a
     // group or DM, so we derive the key from the view's underlying id.
     if (id) {
+      const now = Date.now()
+      recentlySent.current['__any__'] = now
       if (type === 'group') {
-        recentlySent.current[`g:${id}`] = Date.now()
+        recentlySent.current[`g:${id}`] = now
       } else if (type === 'dm') {
-        recentlySent.current[`d:${id}`] = Date.now()
+        recentlySent.current[`d:${id}`] = now
       } else {
         // Aggregate view -- we can't know which specific group/DM the message
         // will land in (sendMessage doesn't have that info in aggregate mode).
@@ -1636,9 +1633,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const sendMessageDirect = useCallback(async (targetType: 'group' | 'dm', targetId: string, text: string, attachments: GroupMeMessage['attachments'] = []) => {
     // Suppress all loadMessages calls for 5s so the optimistic message stays stable
     suppressRefreshUntilRef.current = Date.now() + 5000
-    // Mark this target so pollLoop skips notifications for our own message
+    // Mark this target so pollLoop skips notifications for our own message.
+    // Also set __any__ so notifications from OTHER groups/DMs arriving in
+    // the same poll cycle don't fire confusingly right after the user sends.
     const trackerKey = targetType === 'group' ? `g:${targetId}` : `d:${targetId}`
-    recentlySent.current[trackerKey] = Date.now()
+    const now = Date.now()
+    recentlySent.current[trackerKey] = now
+    recentlySent.current['__any__'] = now
     // Optimistic insert
     const optimisticId = `optimistic-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     if (user) {
