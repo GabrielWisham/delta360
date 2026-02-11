@@ -89,6 +89,28 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view?.id])
 
+  // Re-snap scroll to latest edge when images / videos finish loading.
+  // Uses event delegation (capture) on the scroll container so every <img>
+  // load event inside any message bubble triggers a check.
+  useEffect(() => {
+    const container = scrollRef.current
+    if (!container) return
+    function handleImgLoad() {
+      if (!scrollRef.current) return
+      // Only re-snap if user hasn't scrolled away and we're not in a transition
+      if (userScrolledRef.current || transitioningRef.current) return
+      const c = scrollRef.current
+      if (store.oldestFirst) {
+        c.scrollTop = c.scrollHeight
+      } else {
+        c.scrollTop = 0
+      }
+    }
+    container.addEventListener('load', handleImgLoad, true) // capture phase
+    return () => container.removeEventListener('load', handleImgLoad, true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [store.oldestFirst])
+
   // Check if scrolled to the "latest" edge (bottom if oldestFirst, top if newestFirst).
   function isAtLatestEdge(el: HTMLDivElement, threshold = 120) {
     if (store.oldestFirst) {
