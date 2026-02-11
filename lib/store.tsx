@@ -573,7 +573,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               const prev = group.messages.preview
               // sender_id is optional in the preview -- fall back to recentlySent
               // tracker to suppress notifications for the user's own messages.
-              const sentTs = recentlySent.current[`g:${group.id}`]
+              const sentTs = recentlySent.current[`g:${group.id}`] ?? recentlySent.current['__any__']
               const isSelf = prev.sender_id === userIdRef.current
                 || (sentTs != null && Date.now() - sentTs < 12_000)
               // Suppress notifications if the user is already viewing this group
@@ -645,7 +645,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             if (cv.type === 'unified_streams') {
               needsUnifiedRefresh = true
             }
-            const sentDmTs = recentlySent.current[`d:${otherId}`]
+            const sentDmTs = recentlySent.current[`d:${otherId}`] ?? recentlySent.current['__any__']
             const isSelf = (lm.sender_id || lm.user_id) === userIdRef.current
               || (sentDmTs != null && Date.now() - sentDmTs < 12_000)
             // Suppress notifications if the user is already viewing this DM
@@ -1350,10 +1350,22 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     // Suppress all loadMessages calls for 5s so the optimistic message
     // stays on-screen without flashing from poll/tick/interval refetches.
     suppressRefreshUntilRef.current = Date.now() + 5000
-    // Mark this target so pollLoop skips notifications for our own message
+    // Mark this target so pollLoop skips notifications for our own message.
+    // For direct group/dm views the key is straightforward. For aggregate views
+    // (all, stream, unified_streams, dms) the actual API target is still a
+    // group or DM, so we derive the key from the view's underlying id.
     if (id) {
-      const trackerKey = type === 'group' ? `g:${id}` : type === 'dm' ? `d:${id}` : null
-      if (trackerKey) recentlySent.current[trackerKey] = Date.now()
+      if (type === 'group') {
+        recentlySent.current[`g:${id}`] = Date.now()
+      } else if (type === 'dm') {
+        recentlySent.current[`d:${id}`] = Date.now()
+      } else {
+        // Aggregate view -- we can't know which specific group/DM the message
+        // will land in (sendMessage doesn't have that info in aggregate mode).
+        // Set a blanket flag so the poll loop skips ALL self-notifications
+        // for the next 12s.
+        recentlySent.current['__any__'] = Date.now()
+      }
     }
     // Optimistic insert so the message appears instantly
     const optimisticId = `optimistic-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
