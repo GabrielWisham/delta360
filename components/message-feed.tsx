@@ -5,7 +5,7 @@ import { useStore } from '@/lib/store'
 import { getDayLabel, getFullDate } from '@/lib/date-helpers'
 import { MessageCard } from './message-card'
 import { EMOJIS } from '@/lib/types'
-import { ArrowDown, ArrowUp, History, Loader2, FileText, Paperclip, Send, SmilePlus, AlertTriangle, X, Reply } from 'lucide-react'
+import { ArrowDown, ArrowUp, History, Loader2, FileText, Paperclip, Send, SmilePlus, AlertTriangle, X, Reply, Search, Pin, Image as ImageIcon } from 'lucide-react'
 import type { GroupMeMessage } from '@/lib/types'
 
 export function MessageFeed({ panelIdx }: { panelIdx: number }) {
@@ -27,6 +27,12 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   const [replyingTo, setReplyingTo] = useState<GroupMeMessage | null>(null)
   const [showChatAlerts, setShowChatAlerts] = useState(false)
   const [newChatAlert, setNewChatAlert] = useState('')
+  const [channelSearchOpen, setChannelSearchOpen] = useState(false)
+  const [channelSearchQuery, setChannelSearchQuery] = useState('')
+  const [channelSearchResults, setChannelSearchResults] = useState<GroupMeMessage[]>([])
+  const channelSearchRef = useRef<HTMLInputElement>(null)
+  const [pinnedViewerOpen, setPinnedViewerOpen] = useState(false)
+  const [galleryOpen, setGalleryOpen] = useState(false)
   const mainEmojiRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -711,6 +717,41 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   const isSpecificView = view?.type === 'group' || view?.type === 'dm' || view?.type === 'stream'
   const canSend = isSpecificView || !!replyingTo
 
+  // Channel search - searches through loaded messages
+  useEffect(() => {
+    if (!channelSearchQuery.trim()) { setChannelSearchResults([]); return }
+    const q = channelSearchQuery.toLowerCase()
+    const results = messages.filter(m =>
+      (m.text && m.text.toLowerCase().includes(q)) ||
+      (m.name && m.name.toLowerCase().includes(q))
+    )
+    setChannelSearchResults(results)
+  }, [channelSearchQuery, messages])
+
+  // Focus search input when opened
+  useEffect(() => {
+    if (channelSearchOpen) setTimeout(() => channelSearchRef.current?.focus(), 100)
+  }, [channelSearchOpen])
+
+  // Pinned messages for this chat
+  const chatPinnedMessages = useMemo(() => {
+    return messages.filter(m => store.pinnedMessages[m.id])
+  }, [messages, store.pinnedMessages])
+
+  // Gallery: all images/gifs from this chat
+  const galleryItems = useMemo(() => {
+    const items: { url: string; sender: string; ts: number; msgId: string }[] = []
+    for (const m of messages) {
+      if (!m.attachments) continue
+      for (const att of m.attachments) {
+        if ((att.type === 'image' || att.type === 'linked_image') && att.url) {
+          items.push({ url: att.url, sender: m.name || 'Unknown', ts: m.created_at, msgId: m.id })
+        }
+      }
+    }
+    return items.sort((a, b) => b.ts - a.ts)
+  }, [messages])
+
   const inputSection = (
     <div className={`${store.compact ? 'px-2 py-1.5' : 'px-3 py-2.5'} ${store.inputBottom ? 'border-t' : 'border-b'} border-border bg-card/95 backdrop-blur-sm relative z-20 overflow-visible`}>
       {/* Per-chat alert words panel */}
@@ -949,6 +990,38 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
         >
           {title}
         </span>
+
+        {/* Channel search */}
+        <button
+          onClick={(e) => { e.stopPropagation(); setChannelSearchOpen(!channelSearchOpen); setChannelSearchQuery('') }}
+          className={`p-1 rounded transition-colors ${channelSearchOpen ? 'text-[var(--d360-orange)] bg-[var(--d360-orange)]/10' : 'text-muted-foreground hover:text-foreground'}`}
+          title="Search messages"
+        >
+          <Search className="w-3.5 h-3.5" />
+        </button>
+
+        {/* Pinned messages viewer */}
+        {chatPinnedMessages.length > 0 && (
+          <button
+            onClick={(e) => { e.stopPropagation(); setPinnedViewerOpen(!pinnedViewerOpen) }}
+            className={`p-1 rounded transition-colors ${pinnedViewerOpen ? 'text-[var(--d360-yellow)] bg-[var(--d360-yellow)]/10' : 'text-muted-foreground hover:text-foreground'}`}
+            title={`Pinned messages (${chatPinnedMessages.length})`}
+          >
+            <Pin className="w-3.5 h-3.5" />
+          </button>
+        )}
+
+        {/* Gallery */}
+        {galleryItems.length > 0 && (
+          <button
+            onClick={(e) => { e.stopPropagation(); setGalleryOpen(!galleryOpen) }}
+            className={`p-1 rounded transition-colors ${galleryOpen ? 'text-[var(--d360-cyan)] bg-[var(--d360-cyan)]/10' : 'text-muted-foreground hover:text-foreground'}`}
+            title={`Gallery (${galleryItems.length} photos)`}
+          >
+            <ImageIcon className="w-3.5 h-3.5" />
+          </button>
+        )}
+
         {panelIdx > 0 && (
           <button
             onClick={(e) => { e.stopPropagation(); store.closePanel(panelIdx) }}
@@ -958,6 +1031,117 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
           </button>
         )}
       </div>
+
+      {/* Channel search bar */}
+      {channelSearchOpen && (
+        <div className="px-3 py-2 border-b border-border bg-card/95 flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+            <input
+              ref={channelSearchRef}
+              value={channelSearchQuery}
+              onChange={e => setChannelSearchQuery(e.target.value)}
+              placeholder="Search messages in this chat..."
+              className="flex-1 text-xs bg-secondary/30 border border-border rounded-lg px-3 py-1.5 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)]"
+              style={{ fontFamily: 'var(--font-mono)' }}
+              onKeyDown={e => { if (e.key === 'Escape') { setChannelSearchOpen(false); setChannelSearchQuery('') } }}
+            />
+            <button
+              onClick={() => { setChannelSearchOpen(false); setChannelSearchQuery('') }}
+              className="p-1 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          {channelSearchQuery.trim() && (
+            <div className="max-h-[200px] overflow-y-auto flex flex-col gap-1">
+              <span className="text-[9px] uppercase tracking-widest text-muted-foreground" style={{ fontFamily: 'var(--font-mono)' }}>
+                {channelSearchResults.length} result{channelSearchResults.length !== 1 ? 's' : ''} found
+              </span>
+              {channelSearchResults.slice(0, 50).map(m => (
+                <button
+                  key={m.id}
+                  onClick={() => { scrollToMsg(m.id); setChannelSearchOpen(false); setChannelSearchQuery('') }}
+                  className="flex items-start gap-2 px-2 py-1.5 rounded-lg hover:bg-secondary/40 text-left transition-colors"
+                >
+                  <span className="text-[10px] font-bold text-[var(--d360-orange)] shrink-0 w-16 truncate" style={{ fontFamily: 'var(--font-mono)' }}>
+                    {m.name}
+                  </span>
+                  <span className="text-[10px] text-foreground/80 flex-1 line-clamp-2" style={{ fontFamily: 'var(--font-mono)' }}>
+                    {m.text || '(attachment)'}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Pinned messages viewer overlay */}
+      {pinnedViewerOpen && chatPinnedMessages.length > 0 && (
+        <div className="px-3 py-2 border-b border-border bg-card/95 max-h-[300px] overflow-y-auto">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[9px] uppercase tracking-widest text-[var(--d360-yellow)] font-semibold flex items-center gap-1" style={{ fontFamily: 'var(--font-mono)' }}>
+              <Pin className="w-3 h-3" /> Pinned Messages ({chatPinnedMessages.length})
+            </span>
+            <button
+              onClick={() => setPinnedViewerOpen(false)}
+              className="p-0.5 text-muted-foreground hover:text-foreground"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            {chatPinnedMessages.map(m => (
+              <button
+                key={m.id}
+                onClick={() => { scrollToMsg(m.id); setPinnedViewerOpen(false) }}
+                className="flex items-start gap-2 px-2 py-2 rounded-lg border border-[var(--d360-yellow)]/20 bg-[var(--d360-yellow)]/5 hover:bg-[var(--d360-yellow)]/10 text-left transition-colors"
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="text-[10px] font-bold text-[var(--d360-orange)]" style={{ fontFamily: 'var(--font-mono)' }}>{m.name}</span>
+                    <span className="text-[9px] text-muted-foreground/60" style={{ fontFamily: 'var(--font-mono)' }}>{getFullDate(m.created_at)}</span>
+                  </div>
+                  <span className="text-[10px] text-foreground/80 line-clamp-2" style={{ fontFamily: 'var(--font-mono)' }}>{m.text || '(attachment)'}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Gallery overlay */}
+      {galleryOpen && galleryItems.length > 0 && (
+        <div className="px-3 py-2 border-b border-border bg-card/95 max-h-[400px] overflow-y-auto">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[9px] uppercase tracking-widest text-[var(--d360-cyan)] font-semibold flex items-center gap-1" style={{ fontFamily: 'var(--font-mono)' }}>
+              <ImageIcon className="w-3 h-3" /> Gallery ({galleryItems.length})
+            </span>
+            <button
+              onClick={() => setGalleryOpen(false)}
+              className="p-0.5 text-muted-foreground hover:text-foreground"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+          <div className="grid grid-cols-4 gap-1.5">
+            {galleryItems.map((item, i) => (
+              <div key={i} className="relative group aspect-square">
+                <img
+                  src={item.url}
+                  alt=""
+                  className="w-full h-full object-cover rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
+                  onClick={() => store.setLightboxUrl(item.url)}
+                />
+                <div className="absolute bottom-0 left-0 right-0 bg-black/60 rounded-b-lg px-1 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <span className="text-[8px] text-white truncate block" style={{ fontFamily: 'var(--font-mono)' }}>{item.sender}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Input (top or bottom) */}
       {!store.inputBottom && inputSection}

@@ -159,14 +159,14 @@ export function ConfigPanel() {
         </div>
 
         {/* Tab bar */}
-        <div className="flex px-5 pt-3 pb-0 gap-1" role="tablist">
+        <div className="flex px-5 pt-3 pb-0 gap-0.5 overflow-x-auto scrollbar-none" role="tablist">
           {TABS.map(tab => (
             <button
               key={tab.key}
               role="tab"
               aria-selected={activeTab === tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-t-lg text-[11px] uppercase tracking-widest transition-colors border-b-2 ${
+              className={`flex items-center gap-1.5 px-2.5 py-2 rounded-t-lg text-[11px] uppercase tracking-widest transition-colors border-b-2 shrink-0 ${
                 activeTab === tab.key
                   ? 'text-[var(--d360-orange)] border-[var(--d360-orange)] bg-secondary/40'
                   : 'text-muted-foreground hover:text-foreground border-transparent hover:bg-secondary/20'

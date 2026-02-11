@@ -527,11 +527,104 @@ export function Sidebar() {
     },
   }
 
+  /* ── Collapsed icon rail (GroupMe-style) ── */
+  const iconRailItems = useMemo(() => {
+    // Show pinned first, then active groups sorted by recent
+    const items = [...pinnedItems, ...active.filter(i => i.type === 'group')]
+    // Deduplicate
+    const seen = new Set<string>()
+    return items.filter(i => { if (seen.has(i.id)) return false; seen.add(i.id); return true })
+  }, [pinnedItems, active])
+
   return (
     <>
       {store.sidebarMobileOpen && (
         <div className="fixed inset-0 bg-black/40 z-30 md:hidden" onClick={() => store.toggleSidebarMobile()} />
       )}
+
+      {/* ── Skinny icon rail when collapsed on desktop ── */}
+      {isDesktopHidden && (
+        <aside
+          className="hidden md:flex flex-col items-center w-[52px] shrink-0 border-r border-border py-2 gap-1 overflow-y-auto overflow-x-hidden scrollbar-none"
+          style={{ background: 'var(--d360-sidebar-bg)' }}
+        >
+          {/* Expand sidebar button */}
+          <button
+            onClick={() => store.toggleSidebar()}
+            className="w-9 h-9 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors mb-1"
+            title="Expand sidebar"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+              <rect x="3" y="3" width="18" height="18" rx="2" /><line x1="9" y1="3" x2="9" y2="21" /><polyline points="14 9 17 12 14 15" />
+            </svg>
+          </button>
+
+          {/* New message / compose */}
+          <button
+            onClick={() => store.switchView('dms', null)}
+            className="w-9 h-9 rounded-lg flex items-center justify-center text-muted-foreground hover:text-[var(--d360-cyan)] hover:bg-[var(--d360-cyan)]/10 transition-colors mb-1"
+            title="Direct Messages"
+          >
+            <EditIcon className="w-4 h-4" />
+          </button>
+
+          <div className="w-6 h-px bg-border mb-1" />
+
+          {/* Universal Feed icon */}
+          <button
+            onClick={() => store.switchView('all', null)}
+            className={`w-9 h-9 rounded-lg flex items-center justify-center transition-colors ${
+              store.currentView.type === 'all' ? 'bg-[var(--d360-orange)]/20 text-[var(--d360-orange)]' : 'text-muted-foreground hover:text-foreground hover:bg-secondary/60'
+            }`}
+            title="Universal Feed"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+              <circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" />
+            </svg>
+          </button>
+
+          <div className="w-6 h-px bg-border my-1" />
+
+          {/* Group/DM icons */}
+          {iconRailItems.map(item => {
+            const isSelected = store.currentView.type === item.type && store.currentView.id === item.id
+            const isUnread = store.isUnread(item.id, item.ts)
+            const group = item.type === 'group' ? store.groups.find((g: { id: string; image_url?: string | null }) => g.id === item.id) : null
+            const imgUrl = group?.image_url || (item as { imageUrl?: string }).imageUrl || null
+
+            return (
+              <button
+                key={item.id}
+                onClick={(e) => handleClick(item.type, item.id, e)}
+                className={`relative w-9 h-9 rounded-lg flex items-center justify-center transition-all shrink-0 ${
+                  isSelected
+                    ? 'ring-2 ring-[var(--d360-orange)] bg-[var(--d360-orange)]/15'
+                    : 'hover:bg-secondary/60'
+                }`}
+                title={item.name}
+              >
+                {imgUrl ? (
+                  <img src={imgUrl} alt="" className="w-7 h-7 rounded-md object-cover" />
+                ) : (
+                  <div
+                    className="w-7 h-7 rounded-md flex items-center justify-center text-[10px] font-bold"
+                    style={{
+                      background: item.type === 'dm' ? 'rgba(34,211,238,0.15)' : 'rgba(255,106,0,0.15)',
+                      color: item.type === 'dm' ? 'var(--d360-cyan)' : 'var(--d360-orange)',
+                    }}
+                  >
+                    {item.name?.[0]?.toUpperCase() || '?'}
+                  </div>
+                )}
+                {isUnread && (
+                  <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full animate-pulse-glow" style={{ background: 'var(--d360-orange)' }} />
+                )}
+              </button>
+            )
+          })}
+        </aside>
+      )}
+
       <aside
         className={`
           flex flex-col border-r border-border overflow-y-auto overflow-x-hidden transition-all duration-300 ease-in-out shrink-0
@@ -543,27 +636,38 @@ export function Sidebar() {
         style={{ background: 'var(--d360-sidebar-bg)' }}
       >
         <div className="p-3 flex flex-col gap-1">
-          {/* Sidebar search bar */}
-          <div className="relative mb-2">
-            <SearchIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
-            <input
-              ref={searchInputRef}
-              value={sidebarSearch}
-              onChange={e => setSidebarSearch(e.target.value)}
-              placeholder="Search groups... (Ctrl+G)"
-              className="w-full text-[11px] bg-secondary/40 border border-border rounded-lg pl-8 pr-8 py-2 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)] transition-shadow"
-              style={{ fontFamily: 'var(--font-mono)' }}
-            />
-            {sidebarSearch && (
-              <button
-                onClick={() => setSidebarSearch('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
-                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
-            )}
+          {/* Collapse sidebar button */}
+          <div className="flex items-center justify-between mb-2">
+            <div className="relative flex-1">
+              <SearchIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+              <input
+                ref={searchInputRef}
+                value={sidebarSearch}
+                onChange={e => setSidebarSearch(e.target.value)}
+                placeholder="Search groups... (Ctrl+G)"
+                className="w-full text-[11px] bg-secondary/40 border border-border rounded-lg pl-8 pr-8 py-2 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)] transition-shadow"
+                style={{ fontFamily: 'var(--font-mono)' }}
+              />
+              {sidebarSearch && (
+                <button
+                  onClick={() => setSidebarSearch('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
+                    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              )}
+            </div>
+            <button
+              onClick={() => store.toggleSidebar()}
+              className="ml-2 p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors shrink-0"
+              title="Collapse sidebar"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                <rect x="3" y="3" width="18" height="18" rx="2" /><line x1="9" y1="3" x2="9" y2="21" /><polyline points="14 15 11 12 14 9" />
+              </svg>
+            </button>
           </div>
           {store.sectionOrder.map((sectionKey, idx) => {
             const sec = sections[sectionKey]

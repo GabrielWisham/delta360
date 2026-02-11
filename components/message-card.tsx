@@ -338,11 +338,6 @@ export const MessageCard = memo(function MessageCard({
             </div>
             {/* Action buttons */}
             <div className="flex items-center gap-0.5 bg-card border border-border rounded-full px-1.5 py-0.5 shadow-md">
-              {!isDm && <CompactAction Icon={ThumbsUp} title="Like" active={likedBy.includes(store.user?.id || '')} onClick={() => {
-                const gid = msg.group_id || ''
-                if (likedBy.includes(store.user?.id || '')) store.unlikeMessage(gid, msg.id)
-                else store.likeMessage(gid, msg.id)
-              }} />}
               <CompactAction Icon={Pin} title="Pin" active={isPinned} onClick={() => store.togglePinMessage(msg.id)} />
               <CompactAction Icon={Forward} title="Forward" onClick={() => store.setForwardMsg({ id: msg.id, name: msg.name, text: msg.text || '', groupId: msg.group_id })} />
               {isSelf && <CompactAction Icon={Pencil} title="Edit" onClick={startEdit} />}
@@ -533,11 +528,6 @@ export const MessageCard = memo(function MessageCard({
             </div>
             {/* Action buttons */}
             <div className="flex items-center gap-0.5 bg-card border border-border rounded-full px-1.5 py-0.5 shadow-md">
-              {!isDm && <CompactAction Icon={ThumbsUp} title="Like" active={likedBy.includes(store.user?.id || '')} onClick={() => {
-                const gid = msg.group_id || ''
-                if (likedBy.includes(store.user?.id || '')) store.unlikeMessage(gid, msg.id)
-                else store.likeMessage(gid, msg.id)
-              }} />}
               <CompactAction Icon={Pin} title="Pin" active={isPinned} onClick={() => store.togglePinMessage(msg.id)} />
               <CompactAction Icon={Forward} title="Forward" onClick={() => store.setForwardMsg({ id: msg.id, name: msg.name, text: msg.text || '', groupId: msg.group_id })} />
               {isSelf && <CompactAction Icon={Pencil} title="Edit" onClick={startEdit} />}
