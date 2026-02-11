@@ -1987,7 +1987,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     try {
       const url = await api.uploadImage(file)
       setPendingImage(url)
-      showToast('Image', 'Uploaded successfully')
       return url
     } catch {
       showToast('Error', 'Upload failed')
@@ -2132,7 +2131,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     editMessageInPlace: async (mid: string, newText: string) => {
       // Can't edit optimistic messages -- wait for the real ID
       if (typeof mid === 'string' && mid.startsWith('optimistic-')) {
-        showToast('Wait', 'Message is still sending, try again in a moment')
         return
       }
       // Find the original message to get group/DM info
