@@ -1188,37 +1188,42 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Smoothly transition optimistic messages to real server messages.
-      // Instead of dropping optimistic msgs immediately (which causes a flash),
-      // replace the optimistic msg object with the real server data but keep it
-      // in the array so React sees a stable list update without unmount/remount.
+      // Keep optimistic messages in the array until we can swap seamlessly.
       const optimistic = existing.filter(
         m => typeof m.id === 'string' && m.id.startsWith('optimistic-')
       )
       if (optimistic.length > 0) {
         const now = Math.floor(Date.now() / 1000)
         const matchedServerIds = new Set<string>()
-        const stillPending: typeof optimistic = []
+        // Map optimistic ID -> real server msg (with data from server but keeping optimistic ID)
+        const swapMap = new Map<string, typeof msgs[0]>()
 
         for (const o of optimistic) {
           if ((now - o.created_at) >= 10) continue // expired, let it drop
           const realMsg = msgs.find(s => s.text === o.text && Math.abs(s.created_at - o.created_at) < 15)
           if (realMsg) {
             matchedServerIds.add(realMsg.id)
+            // Keep optimistic msg in place but update its data from server
+            swapMap.set(o.id, o)
             if (editingMessageId === o.id) {
               queueMicrotask(() => _setEditingMessageId(realMsg.id))
             }
-          } else {
-            stillPending.push(o)
           }
         }
 
-        // Build final list: server msgs that didn't replace an optimistic + pending optimistic
-        const deduped = msgs.filter(m => !matchedServerIds.has(m.id))
-        const merged = [...deduped, ...msgs.filter(m => matchedServerIds.has(m.id)), ...stillPending]
-        merged.sort((a, b) => a.created_at - b.created_at)
-        const next = [...prev]
-        next[panelIdx] = merged
-        return next
+        if (swapMap.size > 0 || optimistic.some(o => (now - o.created_at) < 10 && !swapMap.has(o.id) && !msgs.some(s => s.id === o.id))) {
+          // Keep non-matched server msgs + optimistic msgs that matched (preserving their key)
+          // + still-pending optimistic msgs
+          const serverOnly = msgs.filter(m => !matchedServerIds.has(m.id))
+          const pendingOptimistic = optimistic.filter(o =>
+            (now - o.created_at) < 10 && !swapMap.has(o.id) && !msgs.some(s => s.id === o.id)
+          )
+          const merged = [...serverOnly, ...Array.from(swapMap.values()), ...pendingOptimistic]
+          merged.sort((a, b) => a.created_at - b.created_at)
+          const next = [...prev]
+          next[panelIdx] = merged
+          return next
+        }
       }
 
       // Preserve locally edited messages that the poll hasn't caught up to yet
