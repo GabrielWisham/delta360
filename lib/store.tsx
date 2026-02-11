@@ -2098,8 +2098,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     deleteMessage: async (conversationId: string, mid: string) => {
       // Can't delete optimistic messages from GroupMe -- they don't exist on the server yet
       if (typeof mid === 'string' && mid.startsWith('optimistic-')) {
-        // Just remove it from the local panel
-        setPanelMessages(prev => prev.map(panel => panel.filter(m => m.id !== mid)))
+        // Show "Message Deleted" bubble locally
+        setPanelMessages(prev => prev.map(panel =>
+          panel.map(m => m.id === mid
+            ? { ...m, text: 'Message Deleted', _deleted: true, attachments: [] } as typeof m
+            : m
+          )
+        ))
         return
       }
 

@@ -51,6 +51,7 @@ export const MessageCard = memo(function MessageCard({
 }) {
   const store = useStore()
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [localDeleted, setLocalDeleted] = useState(false)
 
   const isEditing = store.editingMessageId === msg.id
   // editText lives in the store ref so it survives component unmount/remount
@@ -106,15 +107,12 @@ export const MessageCard = memo(function MessageCard({
 
   function handleDelete() {
     if (!confirmDelete) { setConfirmDelete(true); return }
-    const conversationId = msg.group_id || msg.conversation_id || ''
-    console.log('[v0] DELETE clicked', msg.id, '_deleted before:', msg._deleted)
-    store.deleteMessage(conversationId, msg.id)
+    // Instantly show "Message Deleted" bubble via local state
+    setLocalDeleted(true)
     setConfirmDelete(false)
-  }
-
-  // Debug: track when _deleted changes
-  if (msg._deleted) {
-    console.log('[v0] MessageCard rendering with _deleted=true', msg.id)
+    // Fire the API call in the background
+    const conversationId = msg.group_id || msg.conversation_id || ''
+    store.deleteMessage(conversationId, msg.id)
   }
 
   function startEdit() {
@@ -166,7 +164,7 @@ export const MessageCard = memo(function MessageCard({
   /*  COMPACT MODE                            */
   /* ======================================= */
   // Deleted message: render a subtle system-style bubble
-  if (msg._deleted) {
+  if (msg._deleted || localDeleted) {
     return (
       <div
         id={`msg-${msg.id}`}
