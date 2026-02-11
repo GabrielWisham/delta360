@@ -1496,7 +1496,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           }
         }
         merged.sort((a, b) => a.created_at - b.created_at)
-        const trimmed = merged.length > 80 ? merged.slice(merged.length - 80) : merged
+        // Apply local edit overrides so polls don't revert edited messages
+        const edits = editedMessagesRef.current
+        const protected_ = edits.size > 0
+          ? merged.map(m => {
+              const edit = edits.get(m.id)
+              if (edit) return { ...m, text: edit.newText, _edited: true } as typeof m
+              return m
+            })
+          : merged
+        const trimmed = protected_.length > 80 ? protected_.slice(protected_.length - 80) : protected_
         mergedResult = trimmed
         const next = [...prev]
         next[0] = trimmed
@@ -2107,10 +2116,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       ))
       editedMessagesRef.current.set(mid, { newText: editedText, originalId: mid, ts: Date.now() })
 
-      // 2. Fire delete + resend in background
+      // 2. Fire delete + resend in background. Keep editedMessagesRef entry
+      //    alive the entire time so polls can't revert the optimistic text.
       try {
         const deleteConvId = groupId || original.conversation_id || ''
-        await api.deleteMessage(deleteConvId, mid)
 
         // Determine target for resend
         let targetType: 'group' | 'dm' = 'group'
@@ -2126,18 +2135,21 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             : otherUserId
         }
 
+        // Delete the old message
+        await api.deleteMessage(deleteConvId, mid)
+
         if (targetId) {
-          // Remove the old message right before sending so the new optimistic insert replaces it
+          // Remove the old message from panel, then send the new one
           setPanelMessages(prev => prev.map(panel =>
             panel.filter(m => m.id !== mid)
           ))
-          editedMessagesRef.current.delete(mid)
           await sendMessageDirect(targetType, targetId, editedText, original.attachments || [])
         }
       } catch {
         showToast('Error', 'Could not save edit')
       } finally {
-        setTimeout(() => { editedMessagesRef.current.delete(mid) }, 15_000)
+        // Keep the ref protection for 20s so polls don't revert the text
+        setTimeout(() => { editedMessagesRef.current.delete(mid) }, 20_000)
       }
     },
     toggleTheme: () => {
