@@ -669,6 +669,9 @@ export function Sidebar() {
               </svg>
             </button>
           </div>
+          {/* New Message compose button */}
+          <NewMessageCompose store={store} sortedGroups={sortedGroups} />
+
           {store.sectionOrder.map((sectionKey, idx) => {
             const sec = sections[sectionKey]
             if (!sec) return null
@@ -1280,5 +1283,125 @@ function ChatCard({ item, store, onClick, isPinned = false, isInactive = false, 
         <AddMemberModal groupId={item.id} onClose={() => setShowAddMember(false)} />
       )}
     </>
+  )
+}
+
+/* ===== New Message Compose Flow ===== */
+function NewMessageCompose({ store, sortedGroups }: {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  store: any
+  sortedGroups: { type: 'group' | 'dm'; id: string; name: string; ts: number; imageUrl?: string | null }[]
+}) {
+  const [open, setOpen] = useState(false)
+  const [filter, setFilter] = useState('')
+  const filterRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (open) setTimeout(() => filterRef.current?.focus(), 80)
+  }, [open])
+
+  const filtered = useMemo(() => {
+    if (!filter.trim()) return sortedGroups
+    const q = filter.toLowerCase()
+    return sortedGroups.filter(i => i.name.toLowerCase().includes(q))
+  }, [sortedGroups, filter])
+
+  function selectTarget(type: 'group' | 'dm', id: string) {
+    store.switchView(type, id)
+    setOpen(false)
+    setFilter('')
+    // Focus the message input after navigation
+    setTimeout(() => {
+      const input = document.querySelector<HTMLTextAreaElement>('[data-message-input]')
+      if (input) input.focus()
+    }, 200)
+  }
+
+  return (
+    <div className="mb-2">
+      <button
+        onClick={() => setOpen(!open)}
+        className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-[11px] uppercase tracking-widest font-semibold transition-all ${
+          open
+            ? 'bg-[var(--d360-orange)]/15 text-[var(--d360-orange)] border border-[var(--d360-orange)]/30'
+            : 'bg-secondary/30 text-muted-foreground hover:text-foreground hover:bg-secondary/50 border border-transparent'
+        }`}
+        style={{ fontFamily: 'var(--font-mono)' }}
+      >
+        <EditIcon className="w-4 h-4" />
+        <span>New Message</span>
+      </button>
+
+      {open && (
+        <div className="mt-1 rounded-lg border border-border bg-card overflow-hidden animate-in slide-in-from-top-1 duration-150">
+          {/* Search filter */}
+          <div className="relative">
+            <SearchIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground pointer-events-none" />
+            <input
+              ref={filterRef}
+              value={filter}
+              onChange={e => setFilter(e.target.value)}
+              placeholder="Find a group or person..."
+              className="w-full text-[10px] bg-transparent border-b border-border pl-7 pr-3 py-2 text-foreground placeholder:text-muted-foreground/50 focus:outline-none"
+              style={{ fontFamily: 'var(--font-mono)' }}
+              onKeyDown={e => {
+                if (e.key === 'Escape') { setOpen(false); setFilter('') }
+                if (e.key === 'Enter' && filtered.length > 0) {
+                  selectTarget(filtered[0].type, filtered[0].id)
+                }
+              }}
+            />
+          </div>
+
+          {/* Recent groups/DMs list */}
+          <div className="max-h-[240px] overflow-y-auto">
+            {filtered.length === 0 ? (
+              <div className="px-3 py-4 text-center text-[10px] text-muted-foreground" style={{ fontFamily: 'var(--font-mono)' }}>
+                No matches found
+              </div>
+            ) : (
+              filtered.slice(0, 30).map(item => {
+                const group = item.type === 'group' ? store.groups.find((g: { id: string; image_url?: string | null }) => g.id === item.id) : null
+                const imgUrl = group?.image_url || item.imageUrl || null
+
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => selectTarget(item.type, item.id)}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-secondary/40 transition-colors"
+                  >
+                    {/* Avatar */}
+                    {imgUrl ? (
+                      <img src={imgUrl} alt="" className="w-7 h-7 rounded-md object-cover shrink-0" />
+                    ) : (
+                      <div
+                        className="w-7 h-7 rounded-md flex items-center justify-center text-[10px] font-bold shrink-0"
+                        style={{
+                          background: item.type === 'dm' ? 'rgba(34,211,238,0.15)' : 'rgba(255,106,0,0.15)',
+                          color: item.type === 'dm' ? 'var(--d360-cyan)' : 'var(--d360-orange)',
+                        }}
+                      >
+                        {item.name?.[0]?.toUpperCase() || '?'}
+                      </div>
+                    )}
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs text-foreground font-medium truncate" style={{ fontFamily: 'var(--font-mono)' }}>
+                          {item.name}
+                        </span>
+                        <span className="text-[8px] px-1.5 py-0.5 rounded-full border border-border text-muted-foreground/60 shrink-0" style={{ fontFamily: 'var(--font-mono)' }}>
+                          {item.type === 'dm' ? 'DM' : 'GRP'}
+                        </span>
+                      </div>
+                    </div>
+                  </button>
+                )
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   )
 }

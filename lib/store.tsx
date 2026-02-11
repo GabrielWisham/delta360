@@ -909,31 +909,73 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, [])
   showMsgToastRef.current = showMsgToast
 
+  // ── Scrolling tab title for new messages ──
+  const tabTitleIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const tabTitleQueue = useRef<string[]>([])
+
+  const startTabTitleScroll = useCallback((senderName: string) => {
+    // Add to queue (deduplicate)
+    if (!tabTitleQueue.current.includes(senderName)) {
+      tabTitleQueue.current.push(senderName)
+    }
+    // If already scrolling, the interval will pick up the new name
+    if (tabTitleIntervalRef.current) return
+
+    const baseTitle = 'Delta 360'
+    let charIdx = 0
+    let queueIdx = 0
+
+    tabTitleIntervalRef.current = setInterval(() => {
+      if (tabTitleQueue.current.length === 0) {
+        if (tabTitleIntervalRef.current) clearInterval(tabTitleIntervalRef.current)
+        tabTitleIntervalRef.current = null
+        document.title = `${baseTitle} | Dispatch Command Center`
+        return
+      }
+      const name = tabTitleQueue.current[queueIdx % tabTitleQueue.current.length]
+      const fullText = `New message from ${name}`
+      // Scroll the text like a ticker
+      const visible = fullText.substring(charIdx) + '   ' + fullText.substring(0, charIdx)
+      document.title = `${visible.substring(0, 40).trim()} | ${baseTitle}`
+      charIdx++
+      if (charIdx >= fullText.length + 3) {
+        charIdx = 0
+        queueIdx++
+      }
+    }, 250)
+  }, [])
+
   // Drain pending notifications synchronously after React mutates the DOM but
   // BEFORE the browser paints. This makes the message appearance and the toast
   // arrive in the exact same visual frame -- no perceptible gap.
   useLayoutEffect(() => {
-  if (!pendingNotifications) return
-  for (const fn of pendingNotifications.sounds) fn()
-  for (const t of pendingNotifications.toasts) {
-  showMsgToast(t)
-  // Update browser tab title with sender name
-  if (typeof document !== 'undefined') {
-  document.title = `New Message from ${t.senderName} | Delta 360`
-  }
-  }
-  setPendingNotifications(null)
-  }, [pendingNotifications, showMsgToast])
+    if (!pendingNotifications) return
+    for (const fn of pendingNotifications.sounds) fn()
+    for (const t of pendingNotifications.toasts) {
+      showMsgToast(t)
+      // Scroll browser tab title with sender name
+      if (typeof document !== 'undefined' && t.senderName) {
+        startTabTitleScroll(t.senderName)
+      }
+    }
+    setPendingNotifications(null)
+  }, [pendingNotifications, showMsgToast, startTabTitleScroll])
 
   // Reset tab title when user returns to the tab
   useEffect(() => {
-  function handleVisibility() {
-  if (!document.hidden) {
-  document.title = 'Delta 360 | Dispatch Command Center'
-  }
-  }
-  document.addEventListener('visibilitychange', handleVisibility)
-  return () => document.removeEventListener('visibilitychange', handleVisibility)
+    function handleVisibility() {
+      if (!document.hidden) {
+        // Clear scroll and reset
+        if (tabTitleIntervalRef.current) {
+          clearInterval(tabTitleIntervalRef.current)
+          tabTitleIntervalRef.current = null
+        }
+        tabTitleQueue.current = []
+        document.title = 'Delta 360 | Dispatch Command Center'
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
   }, [])
   
   const removeMsgToast = useCallback((id: number) => {

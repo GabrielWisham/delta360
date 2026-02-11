@@ -915,6 +915,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
         {/* Auto-expanding textarea -- supports up to ~15 lines */}
         <textarea
           ref={textareaRef}
+          data-message-input
           value={mainInput}
           onChange={e => setMainInput(e.target.value)}
           onKeyDown={e => {
@@ -922,7 +923,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
           }}
           placeholder={canSend ? (replyingTo && !isSpecificView ? `Reply to ${replyingTo.name}...` : `Message ${dmRecipientName || title}...`) : 'Select a chat or reply to a message'}
           disabled={!canSend}
-          className="flex-1 text-sm bg-secondary/30 border border-border rounded-2xl px-4 py-2.5 resize-none text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)] disabled:opacity-50 transition-all"
+          className="flex-1 text-sm bg-secondary/30 border border-border rounded-full px-4 py-2.5 resize-none text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)] disabled:opacity-50 transition-all"
           style={{ fontFamily: 'var(--font-mono)', maxHeight: '360px', overflow: 'auto' }}
           rows={1}
         />

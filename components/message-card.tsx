@@ -254,19 +254,19 @@ export const MessageCard = memo(function MessageCard({
 
             {/* Text / Inline edit */}
             {isEditing ? (
-              <div className="flex flex-col gap-1 w-full">
+              <div className="flex flex-col gap-1.5 w-full -mx-1">
                   <textarea
                     autoFocus
                     value={editText}
                     onChange={e => setEditText(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitEdit() } if (e.key === 'Escape') setIsEditing(false) }}
-                    className="w-full text-xs leading-relaxed bg-background/60 border border-border rounded px-2 py-1 resize-y focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)]"
-                    rows={4}
-                    style={{ minHeight: '60px', maxHeight: '200px' }}
+                    className="w-full text-xs leading-relaxed bg-background/80 border border-[var(--d360-orange)]/40 rounded-full px-4 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)]"
+                    rows={1}
+                    style={{ fontFamily: 'var(--font-mono)' }}
                   />
-                <div className="flex items-center gap-1.5">
-                  <button onClick={submitEdit} className="text-[9px] font-medium px-2 py-0.5 rounded bg-[var(--d360-orange)] text-white hover:opacity-80 transition-opacity" style={{ fontFamily: 'var(--font-mono)' }}>Save</button>
-                  <button onClick={() => setIsEditing(false)} className="text-[9px] font-medium px-2 py-0.5 rounded border border-border text-muted-foreground hover:bg-muted/40 transition-colors" style={{ fontFamily: 'var(--font-mono)' }}>Cancel</button>
+                <div className="flex items-center gap-1.5 px-2">
+                  <button onClick={submitEdit} className="text-[9px] font-medium px-2.5 py-1 rounded-full bg-[var(--d360-orange)] text-white hover:opacity-80 transition-opacity" style={{ fontFamily: 'var(--font-mono)' }}>Save</button>
+                  <button onClick={() => setIsEditing(false)} className="text-[9px] font-medium px-2.5 py-1 rounded-full border border-border text-muted-foreground hover:bg-muted/40 transition-colors" style={{ fontFamily: 'var(--font-mono)' }}>Cancel</button>
                   <span className="text-[8px] text-muted-foreground/40 ml-auto" style={{ fontFamily: 'var(--font-mono)' }}>esc to cancel</span>
                 </div>
               </div>
@@ -441,13 +441,13 @@ export const MessageCard = memo(function MessageCard({
                 value={editText}
                 onChange={e => setEditText(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitEdit() } if (e.key === 'Escape') setIsEditing(false) }}
-                className="w-full text-sm leading-6 bg-background/60 border border-border rounded-lg px-3 py-2 resize-y focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)]"
-                rows={5}
-                style={{ minHeight: '100px', maxHeight: '300px' }}
+                className="w-full text-sm leading-6 bg-background/80 border border-[var(--d360-orange)]/40 rounded-full px-5 py-2.5 resize-none focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)]"
+                rows={1}
+                style={{ fontFamily: 'var(--font-mono)' }}
               />
-              <div className="flex items-center gap-2">
-                <button onClick={submitEdit} className="text-[10px] font-medium px-3 py-1 rounded-md bg-[var(--d360-orange)] text-white hover:opacity-80 transition-opacity" style={{ fontFamily: 'var(--font-mono)' }}>Save</button>
-                <button onClick={() => setIsEditing(false)} className="text-[10px] font-medium px-3 py-1 rounded-md border border-border text-muted-foreground hover:bg-muted/40 transition-colors" style={{ fontFamily: 'var(--font-mono)' }}>Cancel</button>
+              <div className="flex items-center gap-2 px-2">
+                <button onClick={submitEdit} className="text-[10px] font-medium px-3 py-1 rounded-full bg-[var(--d360-orange)] text-white hover:opacity-80 transition-opacity" style={{ fontFamily: 'var(--font-mono)' }}>Save</button>
+                <button onClick={() => setIsEditing(false)} className="text-[10px] font-medium px-3 py-1 rounded-full border border-border text-muted-foreground hover:bg-muted/40 transition-colors" style={{ fontFamily: 'var(--font-mono)' }}>Cancel</button>
                 <span className="text-[9px] text-muted-foreground/40 ml-auto" style={{ fontFamily: 'var(--font-mono)' }}>esc to cancel</span>
               </div>
             </div>

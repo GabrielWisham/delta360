@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useStore } from '@/lib/store'
 import {
   X, Copy, Check, Trash2, Plus, GripVertical, ChevronDown, ChevronUp,
