@@ -1176,26 +1176,23 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       return true
     })
 
-    // Pre-scan: if we have optimistic messages in the current panel, figure out
-    // which ones match real server msgs BEFORE entering the updater so we can
-    // fire side-effects (API calls, ref mutations) outside the pure updater.
-    const _existingPanel = panelMessagesRef.current[panelIdx] || []
-    const _optimistic = _existingPanel.filter(
-      m => typeof m.id === 'string' && m.id.startsWith('optimistic-')
-    )
-    if (_optimistic.length > 0) {
-      const _now = Math.floor(Date.now() / 1000)
-      for (const o of _optimistic) {
-        if ((_now - o.created_at) >= 10) continue
-        if (!o._deleted) continue
-        // Match deleted optimistic msg to real server msg by timestamp+sender
-        const realMsg = msgs.find(s => Math.abs(s.created_at - o.created_at) < 5 && s.sender_id === o.sender_id)
-        if (realMsg) {
-          // Side effects OUTSIDE the updater
-          deletedMsgIdsRef.current.add(realMsg.id)
-          const convId = realMsg.group_id || realMsg.conversation_id || ''
-          if (convId) {
-            api.deleteMessage(convId, realMsg.id).catch(() => {})
+    // Pre-scan: if we have text-tracked deletions (from optimistic deletes),
+    // check incoming server msgs for matches. When found, delete from GroupMe
+    // and track by real ID so the message stays filtered out permanently.
+    const _deletedTexts = deletedMsgTextsRef.current
+    if (_deletedTexts.size > 0) {
+      for (const m of msgs) {
+        if (m.text && _deletedTexts.has(m.text)) {
+          // Found the real server message -- delete it from GroupMe
+          if (!deletedMsgIdsRef.current.has(m.id)) {
+            deletedMsgIdsRef.current.add(m.id)
+            setTimeout(() => { deletedMsgIdsRef.current.delete(m.id) }, 30_000)
+            const convId = m.group_id || m.conversation_id || ''
+            if (convId) {
+              api.deleteMessage(convId, m.id).catch(() => {})
+            }
+            // Text tracking no longer needed -- we have the real ID now
+            _deletedTexts.delete(m.text)
           }
         }
       }
@@ -2148,6 +2145,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           deletedMsgTextsRef.current.add(optimisticMsg.text)
           setTimeout(() => { deletedMsgTextsRef.current.delete(optimisticMsg.text!) }, 30_000)
         }
+        // Remove the optimistic message from the panel immediately
+        setPanelMessages(prev => prev.map(panel => panel.filter(m => m.id !== mid)))
         // Don't call GroupMe API -- message doesn't exist there yet
         // The pre-scan in loadMessages will find the real msg and delete it
         return
