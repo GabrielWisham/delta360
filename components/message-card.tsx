@@ -50,7 +50,6 @@ export const MessageCard = memo(function MessageCard({
   replyNameMap?: Map<string, string>
 }) {
   const store = useStore()
-  const [confirmDelete, setConfirmDelete] = useState(false)
   const [localDeleted, setLocalDeleted] = useState(false)
 
   const isEditing = store.editingMessageId === msg.id
@@ -106,10 +105,8 @@ export const MessageCard = memo(function MessageCard({
         : 'var(--d360-cyan)'
 
   function handleDelete() {
-    if (!confirmDelete) { setConfirmDelete(true); return }
     // Instantly show "Message Deleted" bubble via local state
     setLocalDeleted(true)
-    setConfirmDelete(false)
     // Fire the API call in the background
     const conversationId = msg.group_id || msg.conversation_id || ''
     store.deleteMessage(conversationId, msg.id)
@@ -349,7 +346,7 @@ export const MessageCard = memo(function MessageCard({
               <CompactAction Icon={Pin} title="Pin" active={isPinned} onClick={() => store.togglePinMessage(msg.id)} />
               <CompactAction Icon={Forward} title="Forward" onClick={() => store.setForwardMsg({ id: msg.id, name: msg.name, text: msg.text || '', groupId: msg.group_id })} />
               {isSelf && <CompactAction Icon={Pencil} title="Edit" onClick={startEdit} />}
-              {isSelf && <CompactAction Icon={Trash2} title={confirmDelete ? 'Confirm?' : 'Delete'} danger active={confirmDelete} onClick={handleDelete} />}
+              {isSelf && <CompactAction Icon={Trash2} title="Delete" danger onClick={handleDelete} />}
             </div>
           </div>
         </div>
@@ -550,7 +547,7 @@ export const MessageCard = memo(function MessageCard({
               <CompactAction Icon={Pin} title="Pin" active={isPinned} onClick={() => store.togglePinMessage(msg.id)} />
               <CompactAction Icon={Forward} title="Forward" onClick={() => store.setForwardMsg({ id: msg.id, name: msg.name, text: msg.text || '', groupId: msg.group_id })} />
               {isSelf && <CompactAction Icon={Pencil} title="Edit" onClick={startEdit} />}
-              {isSelf && <CompactAction Icon={Trash2} title={confirmDelete ? 'Confirm?' : 'Delete'} danger active={confirmDelete} onClick={handleDelete} />}
+              {isSelf && <CompactAction Icon={Trash2} title="Delete" danger onClick={handleDelete} />}
             </div>
           </div>
       </div>
