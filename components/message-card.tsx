@@ -586,7 +586,11 @@ function EditPill({ value, onChange, onSubmit, onCancel, size }: {
     if (!mounted.current) {
       mounted.current = true
       resize()
-      ref.current?.focus()
+      const el = ref.current
+      if (el) {
+        el.focus()
+        el.selectionStart = el.selectionEnd = el.value.length
+      }
     }
   }, [resize])
 
