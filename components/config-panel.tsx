@@ -159,7 +159,8 @@ export function ConfigPanel() {
         </div>
 
         {/* Tab bar */}
-        <div className="flex overflow-x-auto px-5 pt-3 pb-0 gap-1 scrollbar-none" role="tablist" style={{ scrollbarWidth: 'none' }}>
+        <div className="overflow-x-auto pt-3 pb-0 scrollbar-none" style={{ scrollbarWidth: 'none' }}>
+          <div className="flex px-5 gap-1 min-w-max" role="tablist">
           {TABS.map(tab => (
             <button
               key={tab.key}
@@ -177,6 +178,7 @@ export function ConfigPanel() {
               <span className="hidden sm:inline">{tab.label}</span>
             </button>
           ))}
+          </div>
         </div>
 
         <div className="border-t border-border" />
