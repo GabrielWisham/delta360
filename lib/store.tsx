@@ -1358,6 +1358,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         if ('direct_messages' in r) newMsgs.push(...(r.direct_messages || []))
       })
       if (newMsgs.length === 0) return
+      let mergedResult: GroupMeMessage[] = []
       setPanelMessages(prev => {
         const existing = prev[0] || []
         const merged = [...existing]
@@ -1373,13 +1374,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         }
         merged.sort((a, b) => a.created_at - b.created_at)
         const trimmed = merged.length > 80 ? merged.slice(merged.length - 80) : merged
+        mergedResult = trimmed
         const next = [...prev]
         next[0] = trimmed
         return next
       })
-      // Update cache so the next loadMessages call sees fresh data
+      // Update cache with the merged result so the next loadMessages call
+      // sees the patched data and doesn't re-fetch / flash.
       const cacheKey = 'all:_'
-      msgCache.current[cacheKey] = { msgs: [], ts: 0 } // invalidate cache
+      msgCache.current[cacheKey] = { msgs: mergedResult, ts: Date.now() }
     } catch { /* ignore */ }
   }, [])
   const patchAllFeedRef = useRef(patchAllFeed)
