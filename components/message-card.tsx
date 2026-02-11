@@ -51,20 +51,13 @@ export const MessageCard = memo(function MessageCard({
 }) {
   const store = useStore()
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const [editText, setEditText] = useState('')
-  const [isEditingLocal, setIsEditingLocal] = useState(false)
 
-  // Close this card's edit if another card starts editing
-  useEffect(() => {
-    if (isEditingLocal && store.editingMessageId !== null && store.editingMessageId !== msg.id) {
-      setIsEditingLocal(false)
-    }
-  }, [store.editingMessageId, msg.id, isEditingLocal])
-
-  const isEditing = isEditingLocal
+  const isEditing = store.editingMessageId === msg.id
+  // editText lives in the store ref so it survives component unmount/remount
+  const editText = isEditing ? store.getEditingText() : ''
+  const setEditText = (text: string) => store.setEditingText(text)
   const setIsEditing = (v: boolean) => {
-    setIsEditingLocal(v)
-    store.setEditingMessageId(v ? msg.id : null)
+    store.setEditingMessageId(v ? msg.id : null, v ? (msg.text || '') : undefined)
   }
 
   const isSelf = msg.user_id === store.user?.id || msg.sender_id === store.user?.id
@@ -120,8 +113,8 @@ export const MessageCard = memo(function MessageCard({
   }
 
   function startEdit() {
-    setEditText(msg.text?.replace(/ \[edited\]$/, '') || '')
-    setIsEditing(true)
+    const cleanText = msg.text?.replace(/ \[edited\]$/, '') || ''
+    store.setEditingMessageId(msg.id, cleanText)
   }
 
   function submitEdit() {
@@ -579,7 +572,9 @@ function EditPill({ value, onChange, onSubmit, onCancel, size }: {
   size: 'compact' | 'standard'
 }) {
   const ref = useRef<HTMLTextAreaElement>(null)
-  const mounted = useRef(false)
+  // Local display text -- initialized from prop, synced back to store on change.
+  // This survives re-renders caused by poll updates without losing keystrokes.
+  const [localText, setLocalText] = useState(value)
 
   const resize = useCallback(() => {
     const el = ref.current
@@ -592,26 +587,24 @@ function EditPill({ value, onChange, onSubmit, onCancel, size }: {
     el.style.overflowY = el.scrollHeight > 300 ? 'auto' : 'hidden'
   }, [size])
 
-  // Size once on mount, then focus
+  // Size and focus on mount
   useEffect(() => {
-    if (!mounted.current) {
-      mounted.current = true
-      resize()
-      const el = ref.current
-      if (el) {
-        el.focus()
-        el.selectionStart = el.selectionEnd = el.value.length
-      }
+    resize()
+    const el = ref.current
+    if (el) {
+      el.focus()
+      el.selectionStart = el.selectionEnd = el.value.length
     }
-  }, [resize])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const isCompact = size === 'compact'
 
   return (
     <textarea
       ref={ref}
-      value={value}
-      onChange={e => { onChange(e.target.value); resize() }}
+      value={localText}
+      onChange={e => { setLocalText(e.target.value); onChange(e.target.value); resize() }}
       onKeyDown={e => {
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSubmit() }
         if (e.key === 'Escape') onCancel()

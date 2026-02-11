@@ -177,7 +177,9 @@ interface StoreActions {
   unlikeMessage: (groupId: string, messageId: string) => Promise<void>
   deleteMessage: (groupId: string, messageId: string) => Promise<void>
   editMessageInPlace: (messageId: string, newText: string) => Promise<void>
-  setEditingMessageId: (id: string | null) => void
+  setEditingMessageId: (id: string | null, text?: string) => void
+  getEditingText: () => string
+  setEditingText: (text: string) => void
   toggleTheme: () => void
   toggleCompact: () => void
   toggleInputBottom: () => void
@@ -369,7 +371,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [currentView, setCurrentView] = useState<ViewState>({ type: 'all', id: null })
   const [panels, setPanels] = useState<(PanelState | null)[]>([null, null, null])
   const [activePanelIdx, setActivePanelIdx] = useState(0)
-  const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
+  const [editingMessageId, _setEditingMessageId] = useState<string | null>(null)
+  const editingTextRef = useRef<string>('')
+  const setEditingMessageId = useCallback((id: string | null, text?: string) => {
+    _setEditingMessageId(id)
+    if (id !== null && text !== undefined) editingTextRef.current = text
+    if (id === null) editingTextRef.current = ''
+  }, [])
   // Track locally edited messages so poll cycles don't overwrite them
   const editedMessagesRef = useRef<Map<string, { newText: string; originalId: string; ts: number }>>(new Map())
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
@@ -1947,6 +1955,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     activePanelIdx,
     editingMessageId,
     setEditingMessageId,
+    getEditingText: useCallback(() => editingTextRef.current, []),
+    setEditingText: useCallback((text: string) => { editingTextRef.current = text }, []),
     sidebarCollapsed,
     sidebarMobileOpen,
     sortMode,
