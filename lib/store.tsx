@@ -1178,15 +1178,25 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       return true
     })
 
-    // Pre-scan: if we have text-tracked deletions (from optimistic deletes that
-    // were cancelled via cancelledOptimisticRef), also track the real server msg
-    // by ID so the filter catches it even after text tracking expires.
+    // Pre-scan: if we have text-tracked deletions (from optimistic deletes),
+    // find the real server msg, track by ID, and actually delete from GroupMe.
     const _deletedTexts = deletedMsgTextsRef.current
     if (_deletedTexts.size > 0) {
       for (const m of msgs) {
         if (m.text && _deletedTexts.has(m.text) && !deletedMsgIdsRef.current.has(m.id)) {
           deletedMsgIdsRef.current.add(m.id)
-          setTimeout(() => { deletedMsgIdsRef.current.delete(m.id) }, 30_000)
+          // Actually delete from GroupMe
+          const convId = m.group_id || m.conversation_id || ''
+          if (convId) {
+            api.deleteMessage(convId, m.id).then(() => {
+              // Success -- clean up text tracking, keep ID for safety
+              _deletedTexts.delete(m.text!)
+              setTimeout(() => { deletedMsgIdsRef.current.delete(m.id) }, 15_000)
+            }).catch(() => {
+              // Will retry on next poll cycle
+              deletedMsgIdsRef.current.delete(m.id)
+            })
+          }
         }
       }
     }
@@ -1792,30 +1802,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         resp = await api.sendDM(targetId, text, attachments)
       }
       setPendingImage(null)
-      console.log('[v0] sendMessageDirect success, optimisticId:', optimisticId)
-      console.log('[v0] cancelledOptimisticRef has it?', cancelledOptimisticRef.current.has(optimisticId))
-      console.log('[v0] resp:', JSON.stringify(resp).substring(0, 500))
       // If the user deleted this optimistic msg while it was sending, delete the real msg now
       if (cancelledOptimisticRef.current.has(optimisticId)) {
         cancelledOptimisticRef.current.delete(optimisticId)
         deletedMsgTextsRef.current.delete(text)
-        // Extract real message ID from GroupMe response
         const realMsg = resp?.message || resp?.direct_message
         const realId = realMsg?.id as string | undefined
         const convId = targetType === 'group' ? targetId : (realMsg?.conversation_id || targetId)
-        console.log('[v0] cancelled msg: realId=', realId, 'convId=', convId)
         if (realId && convId) {
           deletedMsgIdsRef.current.add(realId)
           setTimeout(() => { deletedMsgIdsRef.current.delete(realId) }, 30_000)
-          api.deleteMessage(convId, realId).then(() => {
-            console.log('[v0] deleteMessage API succeeded for', realId)
-          }).catch((err) => {
-            console.log('[v0] deleteMessage API failed for', realId, err)
-          })
-        } else {
-          console.log('[v0] no realId or convId, cannot delete from GroupMe')
+          api.deleteMessage(convId, realId).catch(() => {})
         }
-        // Also remove the optimistic entry from the panel
         setPanelMessages(prev => prev.map(panel => panel.filter(m => m.id !== optimisticId)))
       }
     } catch {
@@ -2165,14 +2163,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       // For optimistic messages, track by text so we can intercept the real server msg
       if (typeof mid === 'string' && mid.startsWith('optimistic-')) {
         const optimisticMsg = panelMessagesRef.current.flat().find(m => m.id === mid)
-        console.log('[v0] deleteMessage: optimistic delete, mid=', mid, 'foundMsg=', !!optimisticMsg, 'text=', optimisticMsg?.text?.substring(0, 30))
         if (optimisticMsg?.text) {
           deletedMsgTextsRef.current.add(optimisticMsg.text)
           setTimeout(() => { deletedMsgTextsRef.current.delete(optimisticMsg.text!) }, 30_000)
         }
         // Flag so sendMessageDirect deletes the real msg after sending
         cancelledOptimisticRef.current.add(mid)
-        console.log('[v0] cancelledOptimisticRef now has:', Array.from(cancelledOptimisticRef.current))
         setTimeout(() => { cancelledOptimisticRef.current.delete(mid) }, 30_000)
         // Remove the optimistic message from the panel immediately
         setPanelMessages(prev => prev.map(panel => panel.filter(m => m.id !== mid)))
