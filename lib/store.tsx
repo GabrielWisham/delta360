@@ -1184,17 +1184,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     if (_deletedTexts.size > 0) {
       for (const m of msgs) {
         if (m.text && _deletedTexts.has(m.text) && !deletedMsgIdsRef.current.has(m.id)) {
+          // Track by ID permanently (until success cleanup)
           deletedMsgIdsRef.current.add(m.id)
-          // Actually delete from GroupMe
           const convId = m.group_id || m.conversation_id || ''
           if (convId) {
             api.deleteMessage(convId, m.id).then(() => {
-              // Success -- clean up text tracking, keep ID for safety
+              // Success -- clean up text tracking; keep ID filter for 60s
+              // so GroupMe's cache has time to propagate the deletion
               _deletedTexts.delete(m.text!)
-              setTimeout(() => { deletedMsgIdsRef.current.delete(m.id) }, 15_000)
+              setTimeout(() => { deletedMsgIdsRef.current.delete(m.id) }, 60_000)
             }).catch(() => {
-              // Will retry on next poll cycle
-              deletedMsgIdsRef.current.delete(m.id)
+              // Keep ID tracked so message stays hidden; text tracking
+              // remains too, so next poll cycle will retry the API delete
             })
           }
         }
