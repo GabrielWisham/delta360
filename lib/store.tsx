@@ -373,6 +373,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const showMsgToastRef = useRef<(toast: Omit<MsgToast, 'id' | 'ts'>) => void>(() => {})
   const isLoggingInRef = useRef(false)
   const userIdRef = useRef<string | null>(null)
+  // Track recently-sent targets so pollLoop skips notifications for own messages.
+  // Keyed by tracker key (e.g. "g:123", "d:456"), value is timestamp of last send.
+  const recentlySent = useRef<Record<string, number>>({})
 
   // Load persisted settings on mount
   useEffect(() => {
@@ -538,6 +541,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       setGroups(g)
       setDmChats(d)
 
+      // Prune expired entries from recentlySent (>15s old)
+      const now = Date.now()
+      for (const k of Object.keys(recentlySent.current)) {
+        if (now - recentlySent.current[k] > 15_000) delete recentlySent.current[k]
+      }
+
       // --- Instant notification detection from group/DM list metadata ---
       if (trackerSeeded.current) {
         const cv = currentViewRef.current
@@ -562,7 +571,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             }
             if (group.messages?.preview) {
               const prev = group.messages.preview
+              // sender_id is optional in the preview -- fall back to recentlySent
+              // tracker to suppress notifications for the user's own messages.
+              const sentTs = recentlySent.current[`g:${group.id}`]
               const isSelf = prev.sender_id === userIdRef.current
+                || (sentTs != null && Date.now() - sentTs < 12_000)
               // Suppress notifications if the user is already viewing this group
               const isViewingThis = cv.type === 'group' && cv.id === group.id
               const senderName = prev.nickname || 'Someone'
@@ -632,7 +645,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             if (cv.type === 'unified_streams') {
               needsUnifiedRefresh = true
             }
+            const sentDmTs = recentlySent.current[`d:${otherId}`]
             const isSelf = (lm.sender_id || lm.user_id) === userIdRef.current
+              || (sentDmTs != null && Date.now() - sentDmTs < 12_000)
             // Suppress notifications if the user is already viewing this DM
             const isViewingThis = cv.type === 'dm' && cv.id === otherId
             const senderName = lm.name || dm.other_user?.name || 'DM'
@@ -1335,6 +1350,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     // Suppress all loadMessages calls for 5s so the optimistic message
     // stays on-screen without flashing from poll/tick/interval refetches.
     suppressRefreshUntilRef.current = Date.now() + 5000
+    // Mark this target so pollLoop skips notifications for our own message
+    if (id) {
+      const trackerKey = type === 'group' ? `g:${id}` : type === 'dm' ? `d:${id}` : null
+      if (trackerKey) recentlySent.current[trackerKey] = Date.now()
+    }
     // Optimistic insert so the message appears instantly
     const optimisticId = `optimistic-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     if (user && id) {
@@ -1391,6 +1411,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const sendMessageDirect = useCallback(async (targetType: 'group' | 'dm', targetId: string, text: string, attachments: GroupMeMessage['attachments'] = []) => {
     // Suppress all loadMessages calls for 5s so the optimistic message stays stable
     suppressRefreshUntilRef.current = Date.now() + 5000
+    // Mark this target so pollLoop skips notifications for our own message
+    const trackerKey = targetType === 'group' ? `g:${targetId}` : `d:${targetId}`
+    recentlySent.current[trackerKey] = Date.now()
     // Optimistic insert
     const optimisticId = `optimistic-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     if (user) {
