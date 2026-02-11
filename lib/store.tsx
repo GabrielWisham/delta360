@@ -1796,12 +1796,17 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       // Don't bump feedRefreshTick -- deferred loadMessages handles reconciliation
     }
     try {
+      // Read the current text from the panel in case the user edited it
+      // while the optimistic message was waiting to be sent
+      const currentMsg = panelMessagesRef.current.flat().find(m => m.id === optimisticId)
+      const sendText = currentMsg?.text ?? text
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let resp: any
       if (targetType === 'group') {
-        resp = await api.sendGroupMessage(targetId, text, attachments)
+        resp = await api.sendGroupMessage(targetId, sendText, attachments)
       } else {
-        resp = await api.sendDM(targetId, text, attachments)
+        resp = await api.sendDM(targetId, sendText, attachments)
       }
       setPendingImage(null)
       // If the user deleted this optimistic msg while it was sending, delete the real msg now
