@@ -555,7 +555,10 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     const prevH = el.offsetHeight
     el.style.height = 'auto'
     const maxTextareaHeight = 360 // ~15 lines
-    el.style.height = Math.min(el.scrollHeight, maxTextareaHeight) + 'px'
+    const clamped = Math.min(el.scrollHeight, maxTextareaHeight)
+    el.style.height = clamped + 'px'
+    // Only show scrollbar when content exceeds max height
+    el.style.overflowY = el.scrollHeight > maxTextareaHeight ? 'auto' : 'hidden'
     const newH = el.offsetHeight
     // If textarea grew/shrank and input is at bottom, re-anchor scroll
     if (store.inputBottom && scrollRef.current && prevH !== newH && !userScrolledRef.current && !justSentRef.current) {
@@ -924,7 +927,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
           placeholder={canSend ? (replyingTo && !isSpecificView ? `Reply to ${replyingTo.name}...` : `Message ${dmRecipientName || title}...`) : 'Select a chat or reply to a message'}
           disabled={!canSend}
           className="flex-1 text-sm bg-secondary/30 border border-border rounded-full px-4 py-2.5 resize-none text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)] disabled:opacity-50 transition-all"
-          style={{ fontFamily: 'var(--font-mono)', maxHeight: '360px', overflow: 'auto' }}
+          style={{ fontFamily: 'var(--font-mono)', maxHeight: '360px', overflowY: 'hidden' }}
           rows={1}
         />
 
