@@ -70,7 +70,7 @@
 }
 
 [data-theme="light"] {
-  --d360-sidebar-bg: hsl(228 14% 96%);
+  --d360-sidebar-bg: hsl(225 20% 90%);
   --d360-glass: rgba(0, 0, 0, 0.03);
   --d360-orange-glow: rgba(255, 106, 0, 0.08);
   --d360-cyan-glow: rgba(34, 211, 238, 0.06);

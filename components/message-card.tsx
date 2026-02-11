@@ -99,7 +99,9 @@ export const MessageCard = memo(function MessageCard({
 
   async function handleDelete() {
     if (!confirmDelete) { setConfirmDelete(true); return }
-    await store.deleteMessage(msg.group_id || '', msg.id)
+    // For DMs, use conversation_id or construct it; for groups use group_id
+    const conversationId = msg.group_id || msg.conversation_id || ''
+    await store.deleteMessage(conversationId, msg.id)
     setConfirmDelete(false)
   }
 
@@ -267,14 +269,15 @@ export const MessageCard = memo(function MessageCard({
             {/* Text / Inline edit */}
             {isEditing ? (
               <div className="flex flex-col gap-1 w-full">
-                <textarea
-                  autoFocus
-                  value={editText}
-                  onChange={e => setEditText(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitEdit() } if (e.key === 'Escape') setIsEditing(false) }}
-                  className="w-full text-xs leading-relaxed bg-background/60 border border-border rounded px-2 py-1 resize-none focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)]"
-                  rows={2}
-                />
+                  <textarea
+                    autoFocus
+                    value={editText}
+                    onChange={e => setEditText(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitEdit() } if (e.key === 'Escape') setIsEditing(false) }}
+                    className="w-full text-xs leading-relaxed bg-background/60 border border-border rounded px-2 py-1 resize-y focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)]"
+                    rows={4}
+                    style={{ minHeight: '60px', maxHeight: '200px' }}
+                  />
                 <div className="flex items-center gap-1.5">
                   <button onClick={submitEdit} className="text-[9px] font-medium px-2 py-0.5 rounded bg-[var(--d360-orange)] text-white hover:opacity-80 transition-opacity" style={{ fontFamily: 'var(--font-mono)' }}>Save</button>
                   <button onClick={() => setIsEditing(false)} className="text-[9px] font-medium px-2 py-0.5 rounded border border-border text-muted-foreground hover:bg-muted/40 transition-colors" style={{ fontFamily: 'var(--font-mono)' }}>Cancel</button>
@@ -454,8 +457,9 @@ export const MessageCard = memo(function MessageCard({
                 value={editText}
                 onChange={e => setEditText(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitEdit() } if (e.key === 'Escape') setIsEditing(false) }}
-                className="w-full text-sm leading-6 bg-background/60 border border-border rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)]"
-                rows={3}
+                className="w-full text-sm leading-6 bg-background/60 border border-border rounded-lg px-3 py-2 resize-y focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)]"
+                rows={5}
+                style={{ minHeight: '100px', maxHeight: '300px' }}
               />
               <div className="flex items-center gap-2">
                 <button onClick={submitEdit} className="text-[10px] font-medium px-3 py-1 rounded-md bg-[var(--d360-orange)] text-white hover:opacity-80 transition-opacity" style={{ fontFamily: 'var(--font-mono)' }}>Save</button>
@@ -471,10 +475,10 @@ export const MessageCard = memo(function MessageCard({
             </p>
           ) : null}
 
-          {/* Attachments */}
-          {hasMediaAttachments && (
+          {/* Non-image attachments (files, location, video stay inside bubble) */}
+          {(videoAttachments.length > 0 || fileAttachments.length > 0 || locationAttachments.length > 0) && (
             <AttachmentBlock
-              imageAttachments={imageAttachments}
+              imageAttachments={[]}
               videoAttachments={videoAttachments}
               fileAttachments={fileAttachments}
               locationAttachments={locationAttachments}
@@ -501,6 +505,21 @@ export const MessageCard = memo(function MessageCard({
             )}
           </div>
         </div>
+
+        {/* Images rendered outside the bubble like GroupMe */}
+        {imageAttachments.length > 0 && (
+          <div className={`flex flex-wrap gap-2 mt-1.5 ${isSelf ? 'justify-end' : ''}`}>
+            {imageAttachments.map((att, i) => (
+              <img
+                key={i}
+                src={att.url}
+                alt="Attachment"
+                className="max-w-[220px] max-h-[160px] rounded-xl object-cover cursor-pointer hover:opacity-80 transition-opacity shadow-sm"
+                onClick={() => store.setLightboxUrl(att.url || '')}
+              />
+            ))}
+          </div>
+        )}
 
           {/* Hover action tray (pin, like, forward, delete) */}
           <div className={`absolute ${isSelf ? 'right-full mr-1' : 'left-full ml-1'} top-0 opacity-0 group-hover/msg:opacity-100 transition-opacity flex flex-col items-end gap-0.5 z-10`}>
@@ -557,59 +576,60 @@ function AttachmentBlock({
   compact?: boolean
   onLightbox: (url: string) => void
 }) {
-  const imgSize = compact ? 'w-20 h-14' : 'max-w-[180px] max-h-[120px]'
+  const imgSize = compact ? 'w-20 h-14' : 'max-w-[220px] max-h-[160px]'
   const gap = compact ? 'gap-1' : 'gap-2'
 
   return (
     <>
-      {/* Images */}
+      {/* Images -- rendered outside the bubble for a more visual look */}
       {imageAttachments.length > 0 && (
-        <div className={`flex flex-wrap ${gap} mt-1`}>
+        <div className={`flex flex-wrap ${gap} mt-1.5`}>
           {imageAttachments.map((att, i) => (
             <img
               key={i}
               src={att.url}
               alt="Attachment"
-              className={`${imgSize} rounded-lg object-cover cursor-pointer hover:opacity-80 transition-opacity`}
+              className={`${imgSize} rounded-xl object-cover cursor-pointer hover:opacity-80 transition-opacity shadow-sm`}
               onClick={() => onLightbox(att.url || '')}
             />
           ))}
         </div>
       )}
 
-      {/* Videos */}
+      {/* Videos -- use <video> tag so they actually play inline */}
       {videoAttachments.length > 0 && (
-        <div className={`flex flex-wrap ${gap} mt-1`}>
+        <div className={`flex flex-wrap ${gap} mt-1.5`}>
           {videoAttachments.map((att, i) => (
-            <a
+            <div
               key={i}
-              href={att.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`relative ${imgSize} rounded-lg overflow-hidden bg-black/20 border border-border flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity`}
+              className={`relative rounded-xl overflow-hidden bg-black/20 border border-border ${compact ? 'w-32 h-20' : 'w-56 h-36'}`}
             >
-              {att.preview_url ? (
-                <img src={att.preview_url} alt="Video" className="absolute inset-0 w-full h-full object-cover" />
-              ) : null}
-              <div className="relative z-10 w-8 h-8 rounded-full bg-black/60 flex items-center justify-center">
-                <Play className="w-4 h-4 text-white ml-0.5" />
-              </div>
-            </a>
+              <video
+                src={att.url}
+                poster={att.preview_url || undefined}
+                controls
+                preload="metadata"
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+            </div>
           ))}
         </div>
       )}
 
-      {/* Files */}
+      {/* Files -- link to GroupMe file proxy with proper download URL */}
       {fileAttachments.length > 0 && (
         <div className="flex flex-col gap-1 mt-1">
           {fileAttachments.map((att, i) => (
             <a
               key={i}
-              href={att.file_id ? `https://file.groupme.com/v1/files/${att.file_id}` : '#'}
+              href={att.file_id ? `https://file.groupme.com/v1/${att.file_id}` : '#'}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-secondary/30 hover:bg-secondary/60 transition-colors text-xs"
               style={{ fontFamily: 'var(--font-mono)' }}
+              onClick={(e) => {
+                if (!att.file_id) { e.preventDefault(); return }
+              }}
             >
               <FileText className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
               <span className="truncate text-foreground">{att.name || 'File attachment'}</span>

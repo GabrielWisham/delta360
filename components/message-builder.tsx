@@ -4,8 +4,9 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useStore } from '@/lib/store'
 import {
   X, Copy, Check, Trash2, Plus, GripVertical, ChevronDown, ChevronUp,
-  Save, FolderOpen, RotateCcw, Truck,
+  Save, FolderOpen, RotateCcw, Truck, Send, Search,
 } from 'lucide-react'
+import { api } from '@/lib/groupme-api'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -116,6 +117,11 @@ export function MessageBuilder() {
   const [dragIdx, setDragIdx] = useState<number | null>(null)
   const [overIdx, setOverIdx] = useState<number | null>(null)
   const formScrollRef = useRef<HTMLDivElement>(null)
+  // Send-to state
+  const [sendTarget, setSendTarget] = useState<{ type: 'group' | 'dm'; id: string; name: string } | null>(null)
+  const [sendFilter, setSendFilter] = useState('')
+  const [showSendPicker, setShowSendPicker] = useState(false)
+  const [sendingMsg, setSendingMsg] = useState(false)
 
   // Hydrate templates
   useEffect(() => {
@@ -319,6 +325,38 @@ export function MessageBuilder() {
       store.showToast('Error', 'Failed to copy')
     }
   }
+
+  // ── Send to GroupMe ──
+  async function sendToTarget() {
+    if (!sendTarget || sendingMsg) return
+    setSendingMsg(true)
+    try {
+      const text = generateMessage()
+      if (sendTarget.type === 'group') {
+        await api.sendGroupMessage(sendTarget.id, text)
+      } else {
+        await api.sendDM(sendTarget.id, text)
+      }
+      store.showToast('Sent', `Message sent to ${sendTarget.name}`)
+    } catch {
+      store.showToast('Error', 'Failed to send message')
+    } finally {
+      setSendingMsg(false)
+    }
+  }
+
+  // Filtered targets for send-to picker
+  const sendTargets = useMemo(() => {
+    const q = sendFilter.toLowerCase()
+    const groups = store.groups
+      .filter(g => g.name.toLowerCase().includes(q))
+      .map(g => ({ type: 'group' as const, id: g.id, name: g.name }))
+    const dms = store.dmChats
+      .filter(d => store.approved[d.other_user?.id] !== false)
+      .filter(d => d.other_user?.name?.toLowerCase().includes(q))
+      .map(d => ({ type: 'dm' as const, id: d.other_user?.id || '', name: d.other_user?.name || 'DM' }))
+    return [...dms, ...groups]
+  }, [store.groups, store.dmChats, store.approved, sendFilter])
 
   // ── Helpers ──
 
@@ -650,6 +688,74 @@ export function MessageBuilder() {
               {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
               {copied ? 'Copied!' : 'Copy to Clipboard'}
             </button>
+          </div>
+
+          {/* Send-to picker */}
+          <div className="px-4 py-2 border-b border-border bg-secondary/5 shrink-0">
+            <div className="flex items-center gap-2">
+              <label className="text-[9px] uppercase tracking-widest text-muted-foreground font-semibold shrink-0" style={mono}>
+                Send To:
+              </label>
+              {sendTarget ? (
+                <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                  <span className="text-xs font-semibold text-foreground truncate" style={mono}>{sendTarget.name}</span>
+                  <span className="text-[9px] text-muted-foreground/60 shrink-0" style={mono}>({sendTarget.type === 'dm' ? 'DM' : 'Group'})</span>
+                  <button onClick={() => { setSendTarget(null); setShowSendPicker(false) }} className="p-0.5 rounded hover:bg-secondary/60 text-muted-foreground hover:text-foreground transition-colors shrink-0">
+                    <X className="w-3 h-3" />
+                  </button>
+                  <div className="flex-1" />
+                  <button
+                    onClick={sendToTarget}
+                    disabled={sendingMsg}
+                    className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest font-semibold px-3 py-1.5 rounded-lg text-white hover:brightness-110 transition-all disabled:opacity-50"
+                    style={{ background: 'var(--d360-gradient)', ...mono }}
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    {sendingMsg ? 'Sending...' : 'Send'}
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowSendPicker(!showSendPicker)}
+                  className="flex items-center gap-1 text-[10px] text-[var(--d360-orange)] hover:brightness-125 transition-colors"
+                  style={mono}
+                >
+                  <ChevronDown className={`w-3 h-3 transition-transform ${showSendPicker ? 'rotate-180' : ''}`} />
+                  Choose a driver or group
+                </button>
+              )}
+            </div>
+            {showSendPicker && !sendTarget && (
+              <div className="mt-2 rounded-lg border border-border bg-secondary/20 overflow-hidden">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground pointer-events-none" />
+                  <input
+                    value={sendFilter}
+                    onChange={e => setSendFilter(e.target.value)}
+                    placeholder="Search by name..."
+                    className="w-full text-[10px] bg-transparent border-b border-border pl-7 pr-3 py-2 text-foreground placeholder:text-muted-foreground/50 focus:outline-none"
+                    style={mono}
+                    autoFocus
+                  />
+                </div>
+                <div className="max-h-[140px] overflow-y-auto">
+                  {sendTargets.length === 0 ? (
+                    <div className="px-3 py-3 text-center text-[10px] text-muted-foreground" style={mono}>No matches</div>
+                  ) : sendTargets.map(t => (
+                    <button
+                      key={`${t.type}:${t.id}`}
+                      onClick={() => { setSendTarget(t); setShowSendPicker(false); setSendFilter('') }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-secondary/40 transition-colors"
+                    >
+                      <span className="text-[9px] px-1.5 py-0.5 rounded-full border border-border text-muted-foreground shrink-0" style={mono}>
+                        {t.type === 'dm' ? 'DM' : 'GRP'}
+                      </span>
+                      <span className="text-xs text-foreground truncate" style={mono}>{t.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Preview body */}

@@ -15,7 +15,8 @@ export function ShiftChangeModal() {
   const store = useStore()
   const [outgoing, setOutgoing] = useState(store.user?.name || '')
   const [incoming, setIncoming] = useState('')
-  const [phone, setPhone] = useState('')
+  const [phone, setPhone] = useState('318-674-4406')
+  const [extension, setExtension] = useState('')
   const [selectedGroups, setSelectedGroups] = useState<Set<string>>(new Set())
   const [selectedDMs, setSelectedDMs] = useState<Set<string>>(new Set())
   const [selectedStreams, setSelectedStreams] = useState<Set<string>>(new Set())
@@ -42,7 +43,8 @@ export function ShiftChangeModal() {
     return () => window.removeEventListener('keydown', handler)
   }, [store])
 
-  const message = `\u{1F4CB} SHIFT CHANGE\n${outgoing} is going off shift.\n${incoming} is now on dispatch \u2014 ${phone}.`
+  const phoneDisplay = extension.trim() ? `${phone} ext. ${extension.trim()}` : phone
+  const message = `\u{1F4CB} SHIFT CHANGE\n${outgoing} is going off shift.\n${incoming} is now on dispatch \u2014 ${phoneDisplay}.`
 
   const filteredGroups = useMemo(
     () => store.groups.filter(g => g.name.toLowerCase().includes(filter.toLowerCase())),
@@ -377,18 +379,32 @@ export function ShiftChangeModal() {
             />
           </div>
 
-          {/* Phone */}
+          {/* Phone + Extension */}
+          <div className="grid grid-cols-[1fr_auto] gap-2">
           <div className="space-y-1">
-            <label className="text-[9px] uppercase tracking-widest text-muted-foreground font-semibold" style={{ fontFamily: 'var(--font-mono)' }}>
-              Phone Number
-            </label>
-            <input
-              value={phone}
-              onChange={e => setPhone(e.target.value)}
-              placeholder="Contact number"
-              className="w-full text-xs bg-secondary/30 border border-border rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)]"
-              style={{ fontFamily: 'var(--font-mono)' }}
-            />
+          <label className="text-[9px] uppercase tracking-widest text-muted-foreground font-semibold" style={{ fontFamily: 'var(--font-mono)' }}>
+          Dispatch Phone
+          </label>
+          <input
+          value={phone}
+          onChange={e => setPhone(e.target.value)}
+          placeholder="318-674-4406"
+          className="w-full text-xs bg-secondary/30 border border-border rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)]"
+          style={{ fontFamily: 'var(--font-mono)' }}
+          />
+          </div>
+          <div className="space-y-1">
+          <label className="text-[9px] uppercase tracking-widest text-muted-foreground font-semibold" style={{ fontFamily: 'var(--font-mono)' }}>
+          Ext.
+          </label>
+          <input
+          value={extension}
+          onChange={e => setExtension(e.target.value)}
+          placeholder="Optional"
+          className="w-[80px] text-xs bg-secondary/30 border border-border rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)]"
+          style={{ fontFamily: 'var(--font-mono)' }}
+          />
+          </div>
           </div>
 
           {/* Preview */}

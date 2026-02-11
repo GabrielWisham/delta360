@@ -869,7 +869,11 @@ function ThemeTab({ store }: { store: ReturnType<typeof useStore> }) {
         style={{ background: previewGrad }}
       >
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-[10px] uppercase tracking-widest text-white/60 font-semibold" style={{ fontFamily: 'var(--font-mono)' }}>
+          <span className="text-[10px] uppercase tracking-widest font-semibold" style={{
+            fontFamily: 'var(--font-mono)',
+            color: ((start[0] + end[0]) / 2 * 0.299 + (start[1] + end[1]) / 2 * 0.587 + (start[2] + end[2]) / 2 * 0.114) / 255 > 0.5
+              ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.6)',
+          }}>
             Preview
           </span>
         </div>

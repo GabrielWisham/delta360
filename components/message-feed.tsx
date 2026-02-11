@@ -542,12 +542,14 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   // value on the DOM element, so scrollHeight reflects the actual content.
   // Also re-anchors scroll to bottom when input grows (inputBottom mode),
   // so the last message stays visible above the expanding input bar.
+  // Auto-resize textarea: allow up to ~15 lines (roughly 360px at 1.5 line-height with 14px font)
   useEffect(() => {
     const el = textareaRef.current
     if (!el) return
     const prevH = el.offsetHeight
     el.style.height = 'auto'
-    el.style.height = Math.min(el.scrollHeight, 160) + 'px'
+    const maxTextareaHeight = 360 // ~15 lines
+    el.style.height = Math.min(el.scrollHeight, maxTextareaHeight) + 'px'
     const newH = el.offsetHeight
     // If textarea grew/shrank and input is at bottom, re-anchor scroll
     if (store.inputBottom && scrollRef.current && prevH !== newH && !userScrolledRef.current && !justSentRef.current) {
@@ -710,7 +712,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   const canSend = isSpecificView || !!replyingTo
 
   const inputSection = (
-    <div className={`${store.compact ? 'px-2 py-1.5' : 'px-3 py-2'} border-b border-border bg-card relative z-20 overflow-visible`}>
+    <div className={`${store.compact ? 'px-2 py-1.5' : 'px-3 py-2.5'} ${store.inputBottom ? 'border-t' : 'border-b'} border-border bg-card/95 backdrop-blur-sm relative z-20 overflow-visible`}>
       {/* Per-chat alert words panel */}
       {showChatAlerts && isSpecificView && chatId && (
         <div className="mb-2 p-2.5 rounded-lg border border-border bg-secondary/20">
@@ -869,7 +871,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
           </button>
         )}
 
-        {/* Auto-expanding textarea */}
+        {/* Auto-expanding textarea -- supports up to ~15 lines */}
         <textarea
           ref={textareaRef}
           value={mainInput}
@@ -877,10 +879,10 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
           onKeyDown={e => {
             if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); if (textareaRef.current) { textareaRef.current.style.height = 'auto' } }
           }}
-  placeholder={canSend ? (replyingTo && !isSpecificView ? `Reply to ${replyingTo.name}...` : `Message ${dmRecipientName || title}...`) : 'Select a chat or reply to a message'}
-  disabled={!canSend}
-          className="flex-1 text-sm bg-secondary/30 border border-border rounded-lg px-3 py-2 resize-none text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)] disabled:opacity-50 transition-all"
-          style={{ fontFamily: 'var(--font-mono)', maxHeight: '160px', overflow: 'auto' }}
+          placeholder={canSend ? (replyingTo && !isSpecificView ? `Reply to ${replyingTo.name}...` : `Message ${dmRecipientName || title}...`) : 'Select a chat or reply to a message'}
+          disabled={!canSend}
+          className="flex-1 text-sm bg-secondary/30 border border-border rounded-2xl px-4 py-2.5 resize-none text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)] disabled:opacity-50 transition-all"
+          style={{ fontFamily: 'var(--font-mono)', maxHeight: '360px', overflow: 'auto' }}
           rows={1}
         />
 
@@ -989,7 +991,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
           <>
             {/* Load earlier messages (at top when oldest-first, since oldest is at top) */}
             {store.oldestFirst && (view?.type === 'group' || view?.type === 'dm') && messages.length >= 5 && !noMoreMessages && (
-              <div className="flex justify-center py-2">
+              <div className="flex justify-center py-3 mb-2 relative z-10">
                 <button
                   onClick={async () => {
                     const loaded = await store.loadMoreMessages(panelIdx)
@@ -1121,12 +1123,12 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
         </div>
       )}
 
-      {/* Jump to latest / new messages button */}
+      {/* Jump to latest / new messages button -- positioned well above the input bar */}
       {showJumpToLatest && (
         <button
           onClick={jumpToLatest}
-          className={`absolute right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-white text-[10px] uppercase tracking-widest font-semibold shadow-lg hover:brightness-110 transition-all z-10 ${
-            store.inputBottom ? (replyingTo ? 'bottom-32' : 'bottom-20') : 'bottom-4'
+          className={`absolute right-4 flex items-center gap-1.5 px-4 py-2 rounded-full text-white text-[10px] uppercase tracking-widest font-semibold shadow-xl hover:brightness-110 transition-all z-10 ${
+            store.inputBottom ? (replyingTo ? 'bottom-40' : 'bottom-28') : 'bottom-6'
           } ${newMsgCount > 0 ? 'animate-pulse' : ''}`}
           style={{ background: newMsgCount > 0 ? 'var(--d360-orange)' : 'var(--d360-gradient)', fontFamily: 'var(--font-mono)' }}
         >

@@ -292,10 +292,10 @@ export const SHORTCUT_DEFS: ShortcutDef[] = [
   { action: 'openContacts',    label: 'Open Contacts',      category: 'Panels',     defaultKey: 'k' },
   { action: 'openMsgBuilder',  label: 'Message Builder',    category: 'Panels',     defaultKey: 'b' },
   { action: 'openOrderSearch', label: 'Order Search',       category: 'Panels',     defaultKey: 'o' },
-  { action: 'toggleCompact',   label: 'Toggle Compact',     category: 'View',       defaultKey: 'Shift+C' },
-  { action: 'togglePortrait',  label: 'Toggle Portrait',    category: 'View',       defaultKey: 'Shift+P' },
-  { action: 'toggleMute',      label: 'Toggle Mute',        category: 'View',       defaultKey: 'Shift+M' },
-  { action: 'toggleSidebar',   label: 'Toggle Sidebar',     category: 'View',       defaultKey: '[' },
+  { action: 'toggleCompact',   label: 'Toggle Compact',     category: 'View',       defaultKey: 'Ctrl+Shift+C' },
+  { action: 'togglePortrait',  label: 'Toggle Portrait',    category: 'View',       defaultKey: 'Ctrl+Shift+P' },
+  { action: 'toggleMute',      label: 'Toggle Mute',        category: 'View',       defaultKey: 'Ctrl+Shift+M' },
+  { action: 'toggleSidebar',   label: 'Toggle Sidebar',     category: 'View',       defaultKey: 'Ctrl+[' },
 ]
 
 /**
@@ -432,7 +432,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [editingStream, setEditingStream] = useState<StoreState['editingStream']>(null)
   const [chatRenames, setChatRenames] = useState<Record<string, string>>({})
   const [streamRenames, setStreamRenames] = useState<Record<string, string>>({})
-  const [sectionOrder, setSectionOrderState] = useState<string[]>(['command', 'streams', 'pending', 'pinned', 'active', 'inactive'])
+  const [sectionOrder, setSectionOrderState] = useState<string[]>(['command', 'streams', 'pending', 'dms', 'pinned', 'active', 'inactive'])
   const [toasts, setToasts] = useState<ToastItem[]>([])
   const toastIdRef = useRef(0)
   const [msgToasts, setMsgToasts] = useState<MsgToast[]>([])
@@ -912,11 +912,28 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   // BEFORE the browser paints. This makes the message appearance and the toast
   // arrive in the exact same visual frame -- no perceptible gap.
   useLayoutEffect(() => {
-    if (!pendingNotifications) return
-    for (const fn of pendingNotifications.sounds) fn()
-    for (const t of pendingNotifications.toasts) showMsgToast(t)
-    setPendingNotifications(null)
+  if (!pendingNotifications) return
+  for (const fn of pendingNotifications.sounds) fn()
+  for (const t of pendingNotifications.toasts) {
+  showMsgToast(t)
+  // Update browser tab title with sender name
+  if (typeof document !== 'undefined') {
+  document.title = `New Message from ${t.senderName} | Delta 360`
+  }
+  }
+  setPendingNotifications(null)
   }, [pendingNotifications, showMsgToast])
+
+  // Reset tab title when user returns to the tab
+  useEffect(() => {
+  function handleVisibility() {
+  if (!document.hidden) {
+  document.title = 'Delta 360 | Dispatch Command Center'
+  }
+  }
+  document.addEventListener('visibilitychange', handleVisibility)
+  return () => document.removeEventListener('visibilitychange', handleVisibility)
+  }, [])
   
   const removeMsgToast = useCallback((id: number) => {
     setMsgToasts(prev => prev.filter(t => t.id !== id))
@@ -1940,18 +1957,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     sendMessageDirect,
     likeMessage: async (gid: string, mid: string) => { try { await api.likeMessage(gid, mid) } catch {} },
     unlikeMessage: async (gid: string, mid: string) => { try { await api.unlikeMessage(gid, mid) } catch {} },
-    deleteMessage: async (gid: string, mid: string) => {
+    deleteMessage: async (conversationId: string, mid: string) => {
+      // Optimistically remove from UI first for instant feedback
+      setPanelMessages(prev => prev.map(panel =>
+        panel.map(m => m.id === mid
+          ? { ...m, text: 'This message has been deleted.', attachments: [], _deleted: true } as typeof m
+          : m
+        )
+      ))
       try {
-        await api.deleteMessage(gid, mid)
-        // Optimistically replace the message with a deleted placeholder
-        setPanelMessages(prev => prev.map(panel =>
-          panel.map(m => m.id === mid
-            ? { ...m, text: 'This message has been deleted.', attachments: [], _deleted: true } as typeof m
-            : m
-          )
-        ))
-        setPendingScrollToMsgId(mid)
+        await api.deleteMessage(conversationId, mid)
       } catch {
+        // Revert the optimistic delete on failure
         showToast('Error', 'Could not delete message')
       }
     },

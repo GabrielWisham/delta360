@@ -231,10 +231,23 @@ function AddMemberModal({ groupId, onClose }: { groupId: string; onClose: () => 
   )
 }
 
+/* ===== Search icon ===== */
+function SearchIcon({ className = '' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+  )
+}
+
 /* ===== Main Sidebar ===== */
 export function Sidebar() {
   const store = useStore()
   const now = Math.floor(Date.now() / 1000)
+
+  /* Sidebar search */
+  const [sidebarSearch, setSidebarSearch] = useState('')
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
   /* Section-level drag */
   const [dragIdx, setDragIdx] = useState<number | null>(null)
@@ -260,6 +273,28 @@ export function Sidebar() {
   const feedMuted = store.feedMuted
   const dmsMuted = store.dmMuted
 
+  // Auto-collapse sidebar when a 3rd panel is opened
+  const panelCount = [store.panels[1], store.panels[2]].filter(Boolean).length
+  useEffect(() => {
+    if (panelCount >= 2 && !store.sidebarCollapsed) {
+      store.toggleSidebar()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [panelCount])
+
+  // Ctrl+G / Cmd+G to focus sidebar search
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'g') {
+        e.preventDefault()
+        if (store.sidebarCollapsed) store.toggleSidebar()
+        setTimeout(() => searchInputRef.current?.focus(), 100)
+      }
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [store])
+
   const sortedGroups = useMemo(() => {
     const items = store.groups.map(g => ({
       type: 'group' as const, id: g.id, name: g.name,
@@ -275,10 +310,19 @@ export function Sidebar() {
     return [...items, ...dmItems].sort((a, b) => b.ts - a.ts)
   }, [store.groups, store.dmChats, store.approved])
 
+  // Filter items by sidebar search
+  const filteredGroups = useMemo(() => {
+    if (!sidebarSearch.trim()) return sortedGroups
+    const q = sidebarSearch.toLowerCase()
+    return sortedGroups.filter(i => i.name.toLowerCase().includes(q))
+  }, [sortedGroups, sidebarSearch])
+
   const pinnedIds = useMemo(() => new Set(Object.keys(store.pinnedChats).filter(k => store.pinnedChats[k])), [store.pinnedChats])
-  const pinnedItems = useMemo(() => sortedGroups.filter(i => pinnedIds.has(i.id)), [sortedGroups, pinnedIds])
-  const active = useMemo(() => sortedGroups.filter(i => (now - i.ts) < FOUR_HOURS && !pinnedIds.has(i.id)), [sortedGroups, now, pinnedIds])
-  const inactive = useMemo(() => sortedGroups.filter(i => (now - i.ts) >= FOUR_HOURS && !pinnedIds.has(i.id)), [sortedGroups, now, pinnedIds])
+  const pinnedItems = useMemo(() => filteredGroups.filter(i => pinnedIds.has(i.id)), [filteredGroups, pinnedIds])
+  const active = useMemo(() => filteredGroups.filter(i => (now - i.ts) < FOUR_HOURS && !pinnedIds.has(i.id)), [filteredGroups, now, pinnedIds])
+  const inactive = useMemo(() => filteredGroups.filter(i => (now - i.ts) >= FOUR_HOURS && !pinnedIds.has(i.id)), [filteredGroups, now, pinnedIds])
+  // Dedicated DM list (separate from the mixed active/inactive)
+  const dmItems = useMemo(() => filteredGroups.filter(i => i.type === 'dm'), [filteredGroups])
 
   const pendingDMs = useMemo(() => {
     return store.dmChats.filter(d => {
@@ -437,6 +481,17 @@ export function Sidebar() {
       ) : null,
     },
 
+    dms: {
+      label: `DMs (${dmItems.length})`,
+      render: () => dmItems.length > 0 ? (
+        <>
+          {dmItems.map(item => (
+            <ChatCard key={item.id} item={item} store={store} onClick={(e) => handleClick(item.type, item.id, e)} menuOpenId={menuOpenId} setMenuOpenId={setMenuOpenId} />
+          ))}
+        </>
+      ) : null,
+    },
+
     pinned: {
       label: 'Pinned',
       render: () => pinnedItems.length > 0 ? (
@@ -488,6 +543,28 @@ export function Sidebar() {
         style={{ background: 'var(--d360-sidebar-bg)' }}
       >
         <div className="p-3 flex flex-col gap-1">
+          {/* Sidebar search bar */}
+          <div className="relative mb-2">
+            <SearchIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+            <input
+              ref={searchInputRef}
+              value={sidebarSearch}
+              onChange={e => setSidebarSearch(e.target.value)}
+              placeholder="Search groups... (Ctrl+G)"
+              className="w-full text-[11px] bg-secondary/40 border border-border rounded-lg pl-8 pr-8 py-2 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)] transition-shadow"
+              style={{ fontFamily: 'var(--font-mono)' }}
+            />
+            {sidebarSearch && (
+              <button
+                onClick={() => setSidebarSearch('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
+                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            )}
+          </div>
           {store.sectionOrder.map((sectionKey, idx) => {
             const sec = sections[sectionKey]
             if (!sec) return null
