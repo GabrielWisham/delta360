@@ -384,6 +384,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const deletedMsgIdsRef = useRef<Set<string>>(new Set())
   // Track deleted message texts so we can match real server msgs for optimistic deletes
   const deletedMsgTextsRef = useRef<Set<string>>(new Set())
+  // Track optimistic IDs whose messages should be deleted as soon as they're sent
+  const cancelledOptimisticRef = useRef<Set<string>>(new Set())
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false)
   const [sortMode, setSortModeState] = useState<'recent' | 'heat'>('recent')
@@ -1176,32 +1178,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       return true
     })
 
-    // Pre-scan: if we have text-tracked deletions (from optimistic deletes),
-    // check incoming server msgs for matches. When found, delete from GroupMe.
-    // Keep BOTH text and ID tracking until the API delete actually succeeds.
+    // Pre-scan: if we have text-tracked deletions (from optimistic deletes that
+    // were cancelled via cancelledOptimisticRef), also track the real server msg
+    // by ID so the filter catches it even after text tracking expires.
     const _deletedTexts = deletedMsgTextsRef.current
     if (_deletedTexts.size > 0) {
       for (const m of msgs) {
-        if (m.text && _deletedTexts.has(m.text)) {
-          // Only start delete attempt if we haven't already for this ID
-          if (!deletedMsgIdsRef.current.has(m.id)) {
-            deletedMsgIdsRef.current.add(m.id)
-            const convId = m.group_id || m.conversation_id || ''
-            if (convId) {
-              const tryDelete = (attempts: number) => {
-                api.deleteMessage(convId, m.id).then(() => {
-                  // Success -- clean up text tracker; ID stays for 15s as safety
-                  _deletedTexts.delete(m.text!)
-                  setTimeout(() => { deletedMsgIdsRef.current.delete(m.id) }, 15_000)
-                }).catch(() => {
-                  if (attempts > 0) {
-                    setTimeout(() => tryDelete(attempts - 1), 2000)
-                  }
-                })
-              }
-              tryDelete(5)
-            }
-          }
+        if (m.text && _deletedTexts.has(m.text) && !deletedMsgIdsRef.current.has(m.id)) {
+          deletedMsgIdsRef.current.add(m.id)
+          setTimeout(() => { deletedMsgIdsRef.current.delete(m.id) }, 30_000)
         }
       }
     }
@@ -1799,20 +1784,41 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       // Don't bump feedRefreshTick -- deferred loadMessages handles reconciliation
     }
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let resp: any
       if (targetType === 'group') {
-        await api.sendGroupMessage(targetId, text, attachments)
+        resp = await api.sendGroupMessage(targetId, text, attachments)
       } else {
-        await api.sendDM(targetId, text, attachments)
+        resp = await api.sendDM(targetId, text, attachments)
       }
       setPendingImage(null)
-      // No eager refetch -- poll cycle reconciles naturally
+      // If the user deleted this optimistic msg while it was sending, delete the real msg now
+      if (cancelledOptimisticRef.current.has(optimisticId)) {
+        cancelledOptimisticRef.current.delete(optimisticId)
+        deletedMsgTextsRef.current.delete(text)
+        // Extract real message ID from GroupMe response
+        const realMsg = resp?.message || resp?.direct_message
+        const realId = realMsg?.id as string | undefined
+        const convId = targetType === 'group' ? targetId : (realMsg?.conversation_id || targetId)
+        if (realId && convId) {
+          deletedMsgIdsRef.current.add(realId)
+          setTimeout(() => { deletedMsgIdsRef.current.delete(realId) }, 30_000)
+          api.deleteMessage(convId, realId).catch(() => {})
+        }
+        // Also remove the optimistic entry from the panel
+        setPanelMessages(prev => prev.map(panel => panel.filter(m => m.id !== optimisticId)))
+      }
     } catch {
       setPanelMessages(prev => {
         const next = [...prev]
         next[0] = (next[0] || []).filter(m => m.id !== optimisticId)
         return next
       })
-      showToast('Error', 'Failed to send message')
+      // If it was cancelled, just silently drop it
+      if (!cancelledOptimisticRef.current.has(optimisticId)) {
+        showToast('Error', 'Failed to send message')
+      }
+      cancelledOptimisticRef.current.delete(optimisticId)
     }
   }, [showToast, user, oldestFirst])
 
@@ -2153,10 +2159,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           deletedMsgTextsRef.current.add(optimisticMsg.text)
           setTimeout(() => { deletedMsgTextsRef.current.delete(optimisticMsg.text!) }, 30_000)
         }
+        // Flag so sendMessageDirect deletes the real msg after sending
+        cancelledOptimisticRef.current.add(mid)
+        setTimeout(() => { cancelledOptimisticRef.current.delete(mid) }, 30_000)
         // Remove the optimistic message from the panel immediately
         setPanelMessages(prev => prev.map(panel => panel.filter(m => m.id !== mid)))
-        // Don't call GroupMe API -- message doesn't exist there yet
-        // The pre-scan in loadMessages will find the real msg and delete it
         return
       }
 
