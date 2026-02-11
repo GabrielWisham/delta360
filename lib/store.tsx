@@ -380,6 +380,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, [])
   // Track locally edited messages so poll cycles don't overwrite them
   const editedMessagesRef = useRef<Map<string, { newText: string; originalId: string; ts: number }>>(new Map())
+  // Track locally deleted message IDs so poll cycles don't bring them back
+  const deletedMsgIdsRef = useRef<Set<string>>(new Set())
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false)
   const [sortMode, setSortModeState] = useState<'recent' | 'heat'>('recent')
@@ -1228,13 +1230,20 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
       // Preserve locally edited messages that the poll hasn't caught up to yet
       const edits = editedMessagesRef.current
-      const finalMsgs = edits.size > 0
+      const deleted = deletedMsgIdsRef.current
+      let finalMsgs = edits.size > 0
         ? msgs.map(m => {
             const edit = edits.get(m.id)
             if (edit) return { ...m, text: edit.newText, _edited: true } as typeof m
             return m
           })
         : msgs
+      // Re-apply _deleted flag for messages the poll brought back before the server processed the delete
+      if (deleted.size > 0) {
+        finalMsgs = finalMsgs.map(m =>
+          deleted.has(m.id) ? { ...m, text: 'Message Deleted', _deleted: true, attachments: [] } as typeof m : m
+        )
+      }
 
       const next = [...prev]
       next[panelIdx] = finalMsgs
@@ -1498,13 +1507,20 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         merged.sort((a, b) => a.created_at - b.created_at)
         // Apply local edit overrides so polls don't revert edited messages
         const edits = editedMessagesRef.current
-        const protected_ = edits.size > 0
+        const deleted = deletedMsgIdsRef.current
+        let protected_ = edits.size > 0
           ? merged.map(m => {
               const edit = edits.get(m.id)
               if (edit) return { ...m, text: edit.newText, _edited: true } as typeof m
               return m
             })
           : merged
+        // Re-apply _deleted flag for locally deleted messages
+        if (deleted.size > 0) {
+          protected_ = protected_.map(m =>
+            deleted.has(m.id) ? { ...m, text: 'Message Deleted', _deleted: true, attachments: [] } as typeof m : m
+          )
+        }
         const trimmed = protected_.length > 80 ? protected_.slice(protected_.length - 80) : protected_
         mergedResult = trimmed
         const next = [...prev]
@@ -2083,6 +2099,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     likeMessage: async (gid: string, mid: string) => { try { await api.likeMessage(gid, mid) } catch {} },
     unlikeMessage: async (gid: string, mid: string) => { try { await api.unlikeMessage(gid, mid) } catch {} },
     deleteMessage: async (conversationId: string, mid: string) => {
+      // Track this ID so polls don't bring the message back
+      deletedMsgIdsRef.current.add(mid)
+
       // Optimistically mark as deleted for instant inline "Message Deleted" bubble
       setPanelMessages(prev => prev.map(panel =>
         panel.map(m => m.id === mid
@@ -2093,7 +2112,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       try {
         await api.deleteMessage(conversationId, mid)
       } catch {
+        // Revert on failure
+        deletedMsgIdsRef.current.delete(mid)
         showToast('Error', 'Could not delete message')
+      } finally {
+        // Clean up after 30s -- by then the server has processed the delete
+        setTimeout(() => { deletedMsgIdsRef.current.delete(mid) }, 30_000)
       }
     },
     editMessageInPlace: async (mid: string, newText: string) => {
