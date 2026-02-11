@@ -1249,19 +1249,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           (now - o.created_at) < 10 && !matchedOptimisticIds.has(o.id) && !msgs.some(s => s.id === o.id)
         )
         if (pendingOptimistic.length > 0 || matchedServerIds.size > 0) {
-          // Build merged list: server msgs + pending optimistic
-          let merged = [...msgs, ...pendingOptimistic]
-          merged.sort((a, b) => a.created_at - b.created_at)
-          // Apply deleted flags to the merged list
+          // Build merged list: server msgs + pending optimistic, filtering out deleted
           const deleted = deletedMsgIdsRef.current
           const deletedTexts = deletedMsgTextsRef.current
-          if (deleted.size > 0 || deletedTexts.size > 0) {
-            merged = merged.map(m => {
-              if (deleted.has(m.id)) return { ...m, text: 'Message Deleted', _deleted: true, attachments: [] } as typeof m
-              if (m.text && deletedTexts.has(m.text)) return { ...m, text: 'Message Deleted', _deleted: true, attachments: [] } as typeof m
-              return m
-            })
-          }
+          let merged = [...msgs, ...pendingOptimistic].filter(m => {
+            if (deleted.has(m.id)) return false
+            if (m.text && deletedTexts.has(m.text)) return false
+            return true
+          })
+          merged.sort((a, b) => a.created_at - b.created_at)
           const next = [...prev]
           next[panelIdx] = merged
           return next
@@ -1279,13 +1275,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             return m
           })
         : msgs
-      // Re-apply _deleted flag for messages the poll brought back before the server processed the delete
+      // Filter out locally deleted messages so they don't reappear
       const deletedTexts = deletedMsgTextsRef.current
       if (deleted.size > 0 || deletedTexts.size > 0) {
-        finalMsgs = finalMsgs.map(m => {
-          if (deleted.has(m.id)) return { ...m, text: 'Message Deleted', _deleted: true, attachments: [] } as typeof m
-          if (m.text && deletedTexts.has(m.text)) return { ...m, text: 'Message Deleted', _deleted: true, attachments: [] } as typeof m
-          return m
+        finalMsgs = finalMsgs.filter(m => {
+          if (deleted.has(m.id)) return false
+          if (m.text && deletedTexts.has(m.text)) return false
+          return true
         })
       }
 
@@ -1559,13 +1555,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               return m
             })
           : merged
-        // Re-apply _deleted flag for locally deleted messages
+        // Filter out locally deleted messages
         const deletedTexts = deletedMsgTextsRef.current
         if (deleted.size > 0 || deletedTexts.size > 0) {
-          protected_ = protected_.map(m => {
-            if (deleted.has(m.id)) return { ...m, text: 'Message Deleted', _deleted: true, attachments: [] } as typeof m
-            if (m.text && deletedTexts.has(m.text)) return { ...m, text: 'Message Deleted', _deleted: true, attachments: [] } as typeof m
-            return m
+          protected_ = protected_.filter(m => {
+            if (deleted.has(m.id)) return false
+            if (m.text && deletedTexts.has(m.text)) return false
+            return true
           })
         }
         const trimmed = protected_.length > 80 ? protected_.slice(protected_.length - 80) : protected_
@@ -2145,43 +2141,26 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     likeMessage: async (gid: string, mid: string) => { try { await api.likeMessage(gid, mid) } catch {} },
     unlikeMessage: async (gid: string, mid: string) => { try { await api.unlikeMessage(gid, mid) } catch {} },
     deleteMessage: async (conversationId: string, mid: string) => {
-      // Can't delete optimistic messages from GroupMe -- they don't exist on the server yet
+      // For optimistic messages, track by text so we can intercept the real server msg
       if (typeof mid === 'string' && mid.startsWith('optimistic-')) {
-        // Find the original text before marking deleted, so we can match the real server msg later
-        const optimisticMsg = panelMessages.flat().find(m => m.id === mid)
+        const optimisticMsg = panelMessagesRef.current.flat().find(m => m.id === mid)
         if (optimisticMsg?.text) {
-          // Track by original text so when the real server msg arrives, we delete it too
           deletedMsgTextsRef.current.add(optimisticMsg.text)
           setTimeout(() => { deletedMsgTextsRef.current.delete(optimisticMsg.text!) }, 30_000)
         }
-        // Show "Message Deleted" bubble locally
-        setPanelMessages(prev => prev.map(panel =>
-          panel.map(m => m.id === mid
-            ? { ...m, text: 'Message Deleted', _deleted: true, attachments: [] } as typeof m
-            : m
-          )
-        ))
+        // Don't call GroupMe API -- message doesn't exist there yet
+        // The pre-scan in loadMessages will find the real msg and delete it
         return
       }
 
-      // Track this ID so polls don't bring the message back
+      // Track this ID so polls filter it out
       deletedMsgIdsRef.current.add(mid)
-
-      // Optimistically mark as deleted for instant inline "Message Deleted" bubble
-      setPanelMessages(prev => prev.map(panel =>
-        panel.map(m => m.id === mid
-          ? { ...m, text: 'Message Deleted', _deleted: true, attachments: [] } as typeof m
-          : m
-        )
-      ))
       try {
         await api.deleteMessage(conversationId, mid)
       } catch {
-        // Revert on failure
         deletedMsgIdsRef.current.delete(mid)
         showToast('Error', 'Could not delete message')
       } finally {
-        // Clean up after 30s -- by then the server has processed the delete
         setTimeout(() => { deletedMsgIdsRef.current.delete(mid) }, 30_000)
       }
     },
