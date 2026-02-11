@@ -197,42 +197,26 @@ export function ConfigPanel() {
             />
           )}
           {activeTab === 'templates' && (
-            <div className="h-full overflow-y-auto">
-              <TemplatesTab
-                templates={store.templates}
-                newTemplate={newTemplate}
-                setNewTemplate={setNewTemplate}
-                addTemplate={addTemplate}
-                removeTemplate={removeTemplate}
-              />
-            </div>
+            <TemplatesTab
+              templates={store.templates}
+              newTemplate={newTemplate}
+              setNewTemplate={setNewTemplate}
+              addTemplate={addTemplate}
+              removeTemplate={removeTemplate}
+            />
           )}
           {activeTab === 'alerts' && (
-            <div className="h-full overflow-y-auto">
-              <AlertsTab
-                alertWords={store.alertWords}
-                newAlert={newAlert}
-                setNewAlert={setNewAlert}
-                addAlertWord={addAlertWord}
-                removeAlertWord={removeAlertWord}
-              />
-            </div>
+            <AlertsTab
+              alertWords={store.alertWords}
+              newAlert={newAlert}
+              setNewAlert={setNewAlert}
+              addAlertWord={addAlertWord}
+              removeAlertWord={removeAlertWord}
+            />
           )}
-          {activeTab === 'audio' && (
-            <div className="h-full overflow-y-auto">
-              <AudioTab store={store} />
-            </div>
-          )}
-          {activeTab === 'shortcuts' && (
-            <div className="h-full overflow-y-auto">
-              <ShortcutsTab store={store} />
-            </div>
-          )}
-          {activeTab === 'theme' && (
-            <div className="h-full overflow-y-auto">
-              <ThemeTab store={store} />
-            </div>
-          )}
+          {activeTab === 'audio' && <AudioTab store={store} />}
+          {activeTab === 'shortcuts' && <ShortcutsTab store={store} />}
+          {activeTab === 'theme' && <ThemeTab store={store} />}
         </div>
       </div>
     </div>
