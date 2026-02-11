@@ -176,7 +176,7 @@ interface StoreActions {
   likeMessage: (groupId: string, messageId: string) => Promise<void>
   unlikeMessage: (groupId: string, messageId: string) => Promise<void>
   deleteMessage: (groupId: string, messageId: string) => Promise<void>
-  editMessageInPlace: (messageId: string, newText: string) => void
+  editMessageInPlace: (messageId: string, newText: string) => Promise<void>
   setEditingMessageId: (id: string | null) => void
   toggleTheme: () => void
   toggleCompact: () => void
@@ -370,6 +370,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [panels, setPanels] = useState<(PanelState | null)[]>([null, null, null])
   const [activePanelIdx, setActivePanelIdx] = useState(0)
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
+  // Track locally edited messages so poll cycles don't overwrite them
+  const editedMessagesRef = useRef<Map<string, { newText: string; originalId: string; ts: number }>>(new Map())
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false)
   const [sortMode, setSortModeState] = useState<'recent' | 'heat'>('recent')
@@ -1191,8 +1193,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
+      // Preserve locally edited messages that the poll hasn't caught up to yet
+      const edits = editedMessagesRef.current
+      const finalMsgs = edits.size > 0
+        ? msgs.map(m => {
+            const edit = edits.get(m.id)
+            if (edit) return { ...m, text: edit.newText, _edited: true } as typeof m
+            return m
+          })
+        : msgs
+
       const next = [...prev]
-      next[panelIdx] = msgs
+      next[panelIdx] = finalMsgs
       return next
     })
   }, [currentView, panels, groups, dmChats, approved, streams, user])
@@ -2028,13 +2040,54 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         showToast('Error', 'Could not delete message')
       }
     },
-    editMessageInPlace: (mid: string, newText: string) => {
+    editMessageInPlace: async (mid: string, newText: string) => {
+      // Find the original message to get group/DM info
+      const allMsgs = panelMessages.flat()
+      const original = allMsgs.find(m => m.id === mid)
+      if (!original) return
+
+      const groupId = original.group_id || ''
+      const isDm = !groupId
+
+      // Optimistically update local text immediately
       setPanelMessages(prev => prev.map(panel =>
         panel.map(m => m.id === mid
           ? { ...m, text: newText, _edited: true } as typeof m
           : m
         )
       ))
+
+      // Track this edit so poll cycles don't overwrite it
+      editedMessagesRef.current.set(mid, { newText, originalId: mid, ts: Date.now() })
+
+      try {
+        // Delete old message from GroupMe
+        await api.deleteMessage(groupId || original.conversation_id || '', mid)
+
+        // Send the new text with [edited] marker
+        const editedText = `${newText} [edited]`
+        if (groupId) {
+          await sendMessageDirect('group', groupId, editedText, original.attachments || [])
+        } else if (isDm) {
+          const otherUserId = original.recipient_id || (
+            original.sender_id !== user?.id ? original.sender_id :
+            original.user_id !== user?.id ? original.user_id : ''
+          ) || ''
+          const dmTarget = original.conversation_id
+            ? original.conversation_id.split('+').find((id: string) => id !== user?.id) || otherUserId
+            : otherUserId
+          if (dmTarget) {
+            await sendMessageDirect('dm', dmTarget, editedText, original.attachments || [])
+          }
+        }
+      } catch {
+        showToast('Error', 'Could not save edit')
+      } finally {
+        // Clean up after a delay to let the poll catch the new message
+        setTimeout(() => {
+          editedMessagesRef.current.delete(mid)
+        }, 15_000)
+      }
     },
     toggleTheme: () => {
       setTheme(prev => {
