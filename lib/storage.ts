@@ -189,4 +189,8 @@ export const storage = {
   // Per-chat alert sounds
   getChatSounds: () => get<Record<string, string>>('gm_v3_chat_sounds', {}),
   setChatSounds: (v: Record<string, string>) => set('gm_v3_chat_sounds', v),
+
+  // Keyboard shortcut overrides (only stores user-customized bindings)
+  getShortcuts: () => get<Record<string, string>>('gm_v3_shortcuts', {}),
+  setShortcuts: (v: Record<string, string>) => set('gm_v3_shortcuts', v),
 }

@@ -131,6 +131,8 @@ interface StoreState {
   chatAlertWords: Record<string, string[]>
   // Per-chat alert sounds
   chatSounds: Record<string, SoundName>
+  // Keyboard shortcut overrides (action -> binding string)
+  shortcutOverrides: Record<string, string>
   // Unified streams loading
   unifiedLoading: boolean
   // Jump behavior on unread
@@ -244,6 +246,11 @@ interface StoreActions {
   reorderStreams: (fromIdx: number, toIdx: number) => void
   setChatSound: (id: string, sound: SoundName) => void
   clearChatSound: (id: string) => void
+  // Shortcut management
+  getShortcutBinding: (action: ShortcutAction) => string
+  setShortcutBinding: (action: ShortcutAction, binding: string) => void
+  resetShortcut: (action: ShortcutAction) => void
+  resetAllShortcuts: () => void
 }
 
 interface ToastItem {
@@ -252,6 +259,79 @@ interface ToastItem {
   body: string
   isPriority: boolean
   groupId?: string
+}
+
+/* ------------------------------------------------------------------ */
+/*  Keyboard Shortcut System                                           */
+/* ------------------------------------------------------------------ */
+export type ShortcutAction =
+  | 'openSearch'
+  | 'openClipboard'
+  | 'openSettings'
+  | 'openContacts'
+  | 'openMsgBuilder'
+  | 'openOrderSearch'
+  | 'toggleCompact'
+  | 'togglePortrait'
+  | 'toggleMute'
+  | 'toggleSidebar'
+
+export interface ShortcutDef {
+  action: ShortcutAction
+  label: string
+  category: 'Navigation' | 'Panels' | 'View'
+  /** Default binding string, e.g. "/" or "Ctrl+K" or "Shift+M" */
+  defaultKey: string
+}
+
+/** Canonical list of all bindable shortcuts */
+export const SHORTCUT_DEFS: ShortcutDef[] = [
+  { action: 'openSearch',      label: 'Open Search',        category: 'Panels',     defaultKey: '/' },
+  { action: 'openClipboard',   label: 'Open Clipboard',     category: 'Panels',     defaultKey: 'c' },
+  { action: 'openSettings',    label: 'Open Settings',      category: 'Panels',     defaultKey: ',' },
+  { action: 'openContacts',    label: 'Open Contacts',      category: 'Panels',     defaultKey: 'k' },
+  { action: 'openMsgBuilder',  label: 'Message Builder',    category: 'Panels',     defaultKey: 'b' },
+  { action: 'openOrderSearch', label: 'Order Search',       category: 'Panels',     defaultKey: 'o' },
+  { action: 'toggleCompact',   label: 'Toggle Compact',     category: 'View',       defaultKey: 'Shift+C' },
+  { action: 'togglePortrait',  label: 'Toggle Portrait',    category: 'View',       defaultKey: 'Shift+P' },
+  { action: 'toggleMute',      label: 'Toggle Mute',        category: 'View',       defaultKey: 'Shift+M' },
+  { action: 'toggleSidebar',   label: 'Toggle Sidebar',     category: 'View',       defaultKey: '[' },
+]
+
+/**
+ * Parse a binding string like "Shift+C" or "Ctrl+K" into
+ * its component parts for matching against KeyboardEvent.
+ */
+export function parseBinding(binding: string): { ctrl: boolean; shift: boolean; alt: boolean; meta: boolean; key: string } {
+  const parts = binding.split('+')
+  const key = parts.pop()!
+  const mods = new Set(parts.map(p => p.toLowerCase()))
+  return {
+    ctrl: mods.has('ctrl'),
+    shift: mods.has('shift'),
+    alt: mods.has('alt'),
+    meta: mods.has('meta'),
+    key,
+  }
+}
+
+/** Check if a KeyboardEvent matches a binding string */
+export function eventMatchesBinding(e: KeyboardEvent, binding: string): boolean {
+  const b = parseBinding(binding)
+  if (e.ctrlKey !== b.ctrl) return false
+  if (e.altKey !== b.alt) return false
+  if (e.metaKey !== b.meta) return false
+  // For shift-modified shortcuts: require shiftKey. For single-char shortcuts: allow either.
+  if (b.shift && !e.shiftKey) return false
+  if (!b.shift && e.shiftKey && b.key.length === 1) return false
+  const eventKey = e.key.length === 1 ? e.key.toLowerCase() : e.key
+  const bindKey = b.key.length === 1 ? b.key.toLowerCase() : b.key
+  return eventKey === bindKey
+}
+
+/** Format a binding string for display, e.g. "Shift+C" => "Shift + C" */
+export function formatBinding(binding: string): string {
+  return binding.split('+').join(' + ')
 }
 
 /** Check message text against global and per-chat alert words (case-insensitive).
@@ -317,6 +397,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [unifiedMuted, setUnifiedMutedState] = useState(false)
   const [allNotif, setAllNotifState] = useState(false)
   const [boardGradient, setBoardGradientState] = useState<{ start: [number, number, number]; end: [number, number, number]; angle: number } | null>(null)
+  const [shortcutOverrides, setShortcutOverrides] = useState<Record<string, string>>({})
   const [lastSeen, setLastSeen] = useState<Record<string, number>>({})
   const [approved, setApproved] = useState<Record<string, boolean>>({})
   const [pinnedMessages, setPinnedMessages] = useState<Record<string, number>>({})
@@ -405,6 +486,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setMutedGroups(storage.getMuted())
     setTemplatesState(storage.getTemplates())
     setAlertWordsState(storage.getAlertWords())
+    setShortcutOverrides(storage.getShortcuts())
     const savedStreams = storage.getStreams() as StreamsMap
     setStreams(savedStreams)
     // All streams toggled on by default so the unified feed shows everything
@@ -1784,6 +1866,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     sectionOrder,
     editingStream,
     chatSounds,
+    shortcutOverrides,
     unifiedLoading,
     toasts,
     msgToasts,
@@ -1942,6 +2025,31 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     loadMessages,
     loadUnifiedStreams,
     getPanelTitle,
+    // Shortcut management
+    getShortcutBinding: (action: ShortcutAction) => {
+      if (shortcutOverrides[action]) return shortcutOverrides[action]
+      const def = SHORTCUT_DEFS.find(d => d.action === action)
+      return def?.defaultKey ?? ''
+    },
+    setShortcutBinding: (action: ShortcutAction, binding: string) => {
+      setShortcutOverrides(prev => {
+        const next = { ...prev, [action]: binding }
+        storage.setShortcuts(next)
+        return next
+      })
+    },
+    resetShortcut: (action: ShortcutAction) => {
+      setShortcutOverrides(prev => {
+        const next = { ...prev }
+        delete next[action]
+        storage.setShortcuts(next)
+        return next
+      })
+    },
+    resetAllShortcuts: () => {
+      setShortcutOverrides({})
+      storage.setShortcuts({})
+    },
   }
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>
