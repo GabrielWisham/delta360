@@ -1203,7 +1203,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
         for (const o of optimistic) {
           if ((now - o.created_at) >= 10) continue
-          // If the optimistic msg was locally deleted, match any server msg with the same timestamp range
+          // If the optimistic msg was locally deleted, match by timestamp+sender
           // (its text was changed to "Message Deleted" so we can't match by text)
           const realMsg = o._deleted
             ? msgs.find(s => Math.abs(s.created_at - o.created_at) < 5 && s.sender_id === o.sender_id)
@@ -1211,9 +1211,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           if (realMsg) {
             matchedServerIds.add(realMsg.id)
             matchedOptimisticIds.add(o.id)
-            // Transfer deletion to the real message ID
+            // If the optimistic msg was deleted, actually delete the real msg from GroupMe
             if (o._deleted) {
               deletedMsgIdsRef.current.add(realMsg.id)
+              const convId = realMsg.group_id || realMsg.conversation_id || ''
+              if (convId) {
+                api.deleteMessage(convId, realMsg.id).catch(() => {})
+              }
             }
             if (editingMessageId === o.id) {
               queueMicrotask(() => _setEditingMessageId(realMsg.id))
@@ -1221,13 +1225,24 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           }
         }
 
-        // If there are still-pending optimistic msgs, merge them with server data
+        // Collect still-pending optimistic msgs (not yet matched to server)
         const pendingOptimistic = optimistic.filter(o =>
           (now - o.created_at) < 10 && !matchedOptimisticIds.has(o.id) && !msgs.some(s => s.id === o.id)
         )
-        if (pendingOptimistic.length > 0) {
-          const merged = [...msgs, ...pendingOptimistic]
+        if (pendingOptimistic.length > 0 || matchedServerIds.size > 0) {
+          // Build merged list: server msgs + pending optimistic
+          let merged = [...msgs, ...pendingOptimistic]
           merged.sort((a, b) => a.created_at - b.created_at)
+          // Apply deleted flags to the merged list
+          const deleted = deletedMsgIdsRef.current
+          const deletedTexts = deletedMsgTextsRef.current
+          if (deleted.size > 0 || deletedTexts.size > 0) {
+            merged = merged.map(m => {
+              if (deleted.has(m.id)) return { ...m, text: 'Message Deleted', _deleted: true, attachments: [] } as typeof m
+              if (m.text && deletedTexts.has(m.text)) return { ...m, text: 'Message Deleted', _deleted: true, attachments: [] } as typeof m
+              return m
+            })
+          }
           const next = [...prev]
           next[panelIdx] = merged
           return next
