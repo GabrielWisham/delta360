@@ -19,15 +19,18 @@ import {
   Search,
   Palette,
   RotateCcw,
+  Keyboard,
 } from 'lucide-react'
+import { SHORTCUT_DEFS, formatBinding, type ShortcutAction } from '@/lib/store'
 
-type Tab = 'streams' | 'templates' | 'alerts' | 'audio' | 'theme'
+type Tab = 'streams' | 'templates' | 'alerts' | 'audio' | 'shortcuts' | 'theme'
 
 const TABS: { key: Tab; label: string; Icon: typeof Radio }[] = [
   { key: 'streams', label: 'Streams', Icon: Radio },
   { key: 'templates', label: 'Templates', Icon: MessageSquareText },
   { key: 'alerts', label: 'Alerts', Icon: Bell },
   { key: 'audio', label: 'Audio', Icon: Volume2 },
+  { key: 'shortcuts', label: 'Keys', Icon: Keyboard },
   { key: 'theme', label: 'Theme', Icon: Palette },
 ]
 
@@ -218,6 +221,11 @@ export function ConfigPanel() {
           {activeTab === 'audio' && (
             <div className="h-full overflow-y-auto">
               <AudioTab store={store} />
+            </div>
+          )}
+          {activeTab === 'shortcuts' && (
+            <div className="h-full overflow-y-auto">
+              <ShortcutsTab store={store} />
             </div>
           )}
           {activeTab === 'theme' && (
@@ -601,6 +609,150 @@ function AudioTab({ store }: { store: ReturnType<typeof useStore> }) {
           Fires a test sound + toast right now. If you hear a chime and see a toast, notifications are working.
         </p>
       </button>
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/*  Tab: Shortcuts                                                     */
+/* ------------------------------------------------------------------ */
+function ShortcutsTab({ store }: { store: ReturnType<typeof useStore> }) {
+  const [recording, setRecording] = useState<ShortcutAction | null>(null)
+
+  // Capture the next keystroke when in recording mode
+  useEffect(() => {
+    if (!recording) return
+    function handleKey(e: KeyboardEvent) {
+      e.preventDefault()
+      e.stopPropagation()
+
+      // Escape cancels recording
+      if (e.key === 'Escape') { setRecording(null); return }
+
+      // Ignore bare modifier keys
+      if (['Shift', 'Control', 'Alt', 'Meta'].includes(e.key)) return
+
+      // Build binding string
+      const parts: string[] = []
+      if (e.ctrlKey) parts.push('Ctrl')
+      if (e.altKey) parts.push('Alt')
+      if (e.metaKey) parts.push('Meta')
+      if (e.shiftKey) parts.push('Shift')
+
+      // Normalize key
+      const key = e.key.length === 1 ? e.key.toUpperCase() : e.key
+      parts.push(key)
+
+      const binding = parts.join('+')
+
+      // Check for conflicts with other shortcuts
+      const conflicting = SHORTCUT_DEFS.find(def => {
+        if (def.action === recording) return false
+        const existing = store.getShortcutBinding(def.action)
+        return existing.toLowerCase() === binding.toLowerCase()
+      })
+
+      if (conflicting) {
+        store.showToast('Conflict', `"${binding}" is already used by "${conflicting.label}"`)
+        setRecording(null)
+        return
+      }
+
+      store.setShortcutBinding(recording, binding)
+      setRecording(null)
+    }
+
+    // Use capture to intercept before any other handler
+    window.addEventListener('keydown', handleKey, true)
+    return () => window.removeEventListener('keydown', handleKey, true)
+  }, [recording, store])
+
+  // Group shortcuts by category
+  const categories = Array.from(new Set(SHORTCUT_DEFS.map(d => d.category)))
+
+  return (
+    <div className="space-y-5 pr-1">
+      <div className="flex items-center justify-between">
+        <SectionLabel>Keyboard shortcuts</SectionLabel>
+        <button
+          onClick={() => { store.resetAllShortcuts(); store.showToast('Reset', 'All shortcuts restored to defaults') }}
+          className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest px-2.5 py-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
+          style={{ fontFamily: 'var(--font-mono)' }}
+        >
+          <RotateCcw className="w-3 h-3" />
+          Reset All
+        </button>
+      </div>
+
+      <p className="text-[11px] text-muted-foreground leading-relaxed">
+        Click a key binding to reassign it. Press any key or combination to set the new shortcut. Press Escape to cancel.
+      </p>
+
+      {categories.map(cat => {
+        const defs = SHORTCUT_DEFS.filter(d => d.category === cat)
+        return (
+          <div key={cat} className="space-y-1.5">
+            <h5
+              className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground/70 font-semibold pt-1"
+              style={{ fontFamily: 'var(--font-mono)' }}
+            >
+              {cat}
+            </h5>
+            <div className="rounded-lg border border-border bg-secondary/20 divide-y divide-border/50">
+              {defs.map(def => {
+                const currentBinding = store.getShortcutBinding(def.action)
+                const isDefault = currentBinding === def.defaultKey
+                const isRecordingThis = recording === def.action
+
+                return (
+                  <div
+                    key={def.action}
+                    className="flex items-center justify-between px-3 py-2.5 group"
+                  >
+                    {/* Label */}
+                    <span
+                      className="text-xs text-foreground"
+                      style={{ fontFamily: 'var(--font-mono)' }}
+                    >
+                      {def.label}
+                    </span>
+
+                    {/* Binding + controls */}
+                    <div className="flex items-center gap-2">
+                      {/* Reset button (only if customized) */}
+                      {!isDefault && !isRecordingThis && (
+                        <button
+                          onClick={() => store.resetShortcut(def.action)}
+                          className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-secondary/60 text-muted-foreground hover:text-foreground transition-all"
+                          title={`Reset to ${formatBinding(def.defaultKey)}`}
+                        >
+                          <RotateCcw className="w-3 h-3" />
+                        </button>
+                      )}
+
+                      {/* Binding badge */}
+                      <button
+                        onClick={() => setRecording(isRecordingThis ? null : def.action)}
+                        className={`min-w-[64px] text-center text-[11px] px-2.5 py-1 rounded-md border transition-all ${
+                          isRecordingThis
+                            ? 'border-[var(--d360-orange)] bg-[var(--d360-orange)]/15 text-[var(--d360-orange)] animate-pulse'
+                            : isDefault
+                              ? 'border-border bg-secondary/40 text-muted-foreground hover:text-foreground hover:border-muted-foreground'
+                              : 'border-[var(--d360-orange)]/50 bg-[var(--d360-orange)]/5 text-[var(--d360-orange)] hover:border-[var(--d360-orange)]'
+                        }`}
+                        style={{ fontFamily: 'var(--font-mono)' }}
+                        title={isRecordingThis ? 'Press a key... (Esc to cancel)' : 'Click to rebind'}
+                      >
+                        {isRecordingThis ? 'Press key...' : formatBinding(currentBinding)}
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })}
     </div>
   )
 }

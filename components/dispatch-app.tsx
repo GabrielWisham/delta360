@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { useStore } from '@/lib/store'
+import { useStore, eventMatchesBinding } from '@/lib/store'
 import { resumeAudio } from '@/lib/sounds'
 import { LoginScreen } from './login-screen'
 import { Header } from './header'
@@ -42,6 +42,57 @@ export function DispatchApp() {
     return () => window.removeEventListener('d360:show-tutorial', handler)
   }, [])
 
+  // ── Centralized keyboard shortcut dispatcher ──
+  // All configurable shortcuts go through eventMatchesBinding so the
+  // key bindings set in Settings > Keys are respected.
+  useEffect(() => {
+    function handleShortcut(e: KeyboardEvent) {
+      // Skip when focus is inside an input / textarea / contenteditable
+      const tag = (e.target as HTMLElement).tagName
+      const editable = (e.target as HTMLElement).isContentEditable
+      const inInput = tag === 'INPUT' || tag === 'TEXTAREA' || editable
+
+      // --- Panels (single-key, skip when in input) ---
+      if (!inInput) {
+        if (eventMatchesBinding(e, store.getShortcutBinding('openSearch'))) {
+          e.preventDefault(); store.setSearchOpen(true); return
+        }
+        if (eventMatchesBinding(e, store.getShortcutBinding('openClipboard'))) {
+          e.preventDefault(); store.setClipboardOpen(!store.clipboardOpen); return
+        }
+        if (eventMatchesBinding(e, store.getShortcutBinding('openSettings'))) {
+          e.preventDefault(); store.setConfigOpen(!store.configOpen); return
+        }
+        if (eventMatchesBinding(e, store.getShortcutBinding('openContacts'))) {
+          e.preventDefault(); store.setContactsOpen(!store.contactsOpen); return
+        }
+        if (eventMatchesBinding(e, store.getShortcutBinding('openMsgBuilder'))) {
+          e.preventDefault(); store.setMsgBuilderOpen(!store.msgBuilderOpen); return
+        }
+        if (eventMatchesBinding(e, store.getShortcutBinding('openOrderSearch'))) {
+          e.preventDefault(); store.setOrderSearchOpen(!store.orderSearchOpen); return
+        }
+        if (eventMatchesBinding(e, store.getShortcutBinding('toggleSidebar'))) {
+          e.preventDefault(); store.toggleSidebar(); return
+        }
+      }
+
+      // --- View toggles (modifier keys, always active) ---
+      if (eventMatchesBinding(e, store.getShortcutBinding('toggleCompact'))) {
+        e.preventDefault(); store.toggleCompact(); return
+      }
+      if (eventMatchesBinding(e, store.getShortcutBinding('togglePortrait'))) {
+        e.preventDefault(); store.togglePortraitMode(); return
+      }
+      if (eventMatchesBinding(e, store.getShortcutBinding('toggleMute'))) {
+        e.preventDefault(); store.toggleGlobalMute(); return
+      }
+    }
+
+    window.addEventListener('keydown', handleShortcut)
+    return () => window.removeEventListener('keydown', handleShortcut)
+  }, [store])
+
   // Resume AudioContext on very first user interaction
   useEffect(() => {
     function handleInteraction() {
@@ -64,7 +115,7 @@ export function DispatchApp() {
 
   // Determine how many panels to show
   const secondaryPanels = [store.panels[1], store.panels[2]].filter(Boolean)
-  const maxSecondary = store.sidebarCollapsed ? 2 : 1
+  const maxSecondary = store.portraitMode ? 2 : store.sidebarCollapsed ? 2 : 1
   const visibleSecondary = secondaryPanels.slice(0, maxSecondary)
 
   return (
@@ -78,10 +129,14 @@ export function DispatchApp() {
           {/* Sticky notes bar */}
           <StickyNotes />
 
-          {/* Panel area -- horizontal on landscape/desktop, vertical on portrait/mobile */}
-          <div className="flex max-sm:flex-col flex-1 min-h-0 overflow-hidden">
+          {/* Panel area -- horizontal in landscape, vertical in portrait mode */}
+          <div className={`flex flex-1 min-h-0 overflow-hidden ${store.portraitMode ? 'flex-col' : 'max-sm:flex-col'}`}>
             {/* Primary panel (always visible) */}
-            <div className={`flex flex-col min-h-0 min-w-0 border-r max-sm:border-r-0 max-sm:border-b border-border relative ${visibleSecondary.length > 0 ? 'flex-1 max-sm:flex-[2]' : 'flex-1'}`}>
+            <div className={`flex flex-col min-h-0 min-w-0 relative ${
+              store.portraitMode
+                ? 'flex-1 border-b border-border'
+                : `border-r max-sm:border-r-0 max-sm:border-b border-border ${visibleSecondary.length > 0 ? 'flex-1 max-sm:flex-[2]' : 'flex-1'}`
+            }`}>
               <MessageFeed panelIdx={0} />
             </div>
 
@@ -92,7 +147,11 @@ export function DispatchApp() {
               return (
                 <div
                   key={slotIdx}
-                  className="flex-1 flex flex-col min-h-0 min-w-0 border-r max-sm:border-r-0 max-sm:border-b border-border"
+                  className={`flex-1 flex flex-col min-h-0 min-w-0 border-border ${
+                    store.portraitMode
+                      ? 'border-t'
+                      : 'border-r max-sm:border-r-0 max-sm:border-b'
+                  }`}
                 >
                   <MessageFeed panelIdx={slotIdx} />
                 </div>
