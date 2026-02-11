@@ -685,6 +685,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                 const notifBody = `${senderName}: ${text}`
                 pendingSounds.push(() => { playSound('siren' as SoundName); sendDesktopNotification(notifTitle, notifBody) })
               } else if (!isSelf && !isViewingThis) {
+                console.log('[v0] GROUP SOUND PATH', { groupName: group.name, senderName, isSelf })
                 // Collect sounds from all TOGGLED streams that contain this group.
                 // Each toggled stream plays its own sound independently.
                 const matchedStreamSounds: SoundName[] = []
@@ -717,7 +718,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                 }
               }
               if (!isSelf && !isViewingThis) {
-                pendingToasts.push({ sourceKey: `group:${group.id}`, sourceName: group.name, senderName, text, messageId: lmid, viewType: 'group', viewId: group.id, originType: 'group', originId: group.id, ...(matchedAlert ? { alertWord: matchedAlert } : {}) })
+              console.log('[v0] GROUP TOAST PUSHED', { groupName: group.name, senderName, isSelf, isViewingThis })
+              pendingToasts.push({ sourceKey: `group:${group.id}`, sourceName: group.name, senderName, text, messageId: lmid, viewType: 'group', viewId: group.id, originType: 'group', originId: group.id, ...(matchedAlert ? { alertWord: matchedAlert } : {}) })
               } else if (matchedAlert && !isSelf) {
                 pendingToasts.push({ sourceKey: `group:${group.id}`, sourceName: group.name, senderName, text, messageId: lmid, viewType: 'group', viewId: group.id, originType: 'group', originId: group.id, alertWord: matchedAlert })
               }
@@ -762,12 +764,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               const notifBody = `${senderName}: ${text}`
               pendingSounds.push(() => { playSound('siren' as SoundName); sendDesktopNotification(notifTitle, notifBody) })
             } else if (!isSelf && !isViewingThis && !globalMuteRef.current && !dmMutedRef.current) {
+              console.log('[v0] DM SOUND PATH', { otherName: dm.other_user?.name, senderName, isSelf })
               const soundToPlay = dmSoundRef.current
               const notifTitle = 'Delta 360 - DM'
               const notifBody = `${senderName}: ${text}`
               pendingSounds.push(() => { playSound(soundToPlay); sendDesktopNotification(notifTitle, notifBody) })
             }
             if (!isSelf && !isViewingThis) {
+              console.log('[v0] DM TOAST PUSHED', { otherName: dm.other_user?.name, senderName, isSelf, isViewingThis })
               pendingToasts.push({ sourceKey: `dm:${otherId}`, sourceName: dm.other_user?.name || 'DM', senderName, text, messageId: lmid, viewType: 'dm', viewId: otherId, originType: 'dm', originId: otherId, ...(matchedAlert ? { alertWord: matchedAlert } : {}) })
             } else if (matchedAlert && !isSelf) {
               pendingToasts.push({ sourceKey: `dm:${otherId}`, sourceName: dm.other_user?.name || 'DM', senderName, text, messageId: lmid, viewType: 'dm', viewId: otherId, originType: 'dm', originId: otherId, alertWord: matchedAlert })
@@ -955,6 +959,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   // arrive in the exact same visual frame -- no perceptible gap.
   useLayoutEffect(() => {
     if (!pendingNotifications) return
+    console.log('[v0] DRAINING notifications', { soundCount: pendingNotifications.sounds.length, toastCount: pendingNotifications.toasts.length, toasts: pendingNotifications.toasts.map(t => ({ sourceKey: t.sourceKey, senderName: t.senderName })) })
     for (const fn of pendingNotifications.sounds) fn()
     for (const t of pendingNotifications.toasts) {
       showMsgToast(t)
