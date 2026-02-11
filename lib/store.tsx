@@ -671,6 +671,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               const sentTs = recentlySent.current[`g:${group.id}`] ?? recentlySent.current['__any__']
               const isSelf = prev.sender_id === userIdRef.current
                 || (sentTs != null && Date.now() - sentTs < 12_000)
+              console.log('[v0] GROUP notif check', { groupName: group.name, senderIdInPreview: prev.sender_id, userIdRef: userIdRef.current, sentTs, isSelf, nickname: prev.nickname })
               // Suppress notifications if the user is already viewing this group
               const isViewingThis = cv.type === 'group' && cv.id === group.id
               const senderName = prev.nickname || 'Someone'
@@ -746,6 +747,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             const sentDmTs = recentlySent.current[`d:${otherId}`] ?? recentlySent.current['__any__']
             const isSelf = (lm.sender_id || lm.user_id) === userIdRef.current
               || (sentDmTs != null && Date.now() - sentDmTs < 12_000)
+            console.log('[v0] DM notif check', { otherName: dm.other_user?.name, senderIdInLm: lm.sender_id, userIdInLm: lm.user_id, userIdRef: userIdRef.current, sentDmTs, isSelf })
             // Suppress notifications if the user is already viewing this DM
             const isViewingThis = cv.type === 'dm' && cv.id === otherId
             const senderName = lm.name || dm.other_user?.name || 'DM'
