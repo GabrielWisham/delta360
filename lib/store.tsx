@@ -176,6 +176,7 @@ interface StoreActions {
   likeMessage: (groupId: string, messageId: string) => Promise<void>
   unlikeMessage: (groupId: string, messageId: string) => Promise<void>
   deleteMessage: (groupId: string, messageId: string) => Promise<void>
+  isMessageDeleted: (id: string, text?: string | null) => boolean
   editMessageInPlace: (messageId: string, newText: string) => Promise<void>
   setEditingMessageId: (id: string | null, text?: string) => void
   getEditingText: () => string
@@ -2160,6 +2161,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     sendMessageDirect,
     likeMessage: async (gid: string, mid: string) => { try { await api.likeMessage(gid, mid) } catch {} },
     unlikeMessage: async (gid: string, mid: string) => { try { await api.unlikeMessage(gid, mid) } catch {} },
+    isMessageDeleted: (id: string, text?: string | null) => {
+      if (deletedMsgIdsRef.current.has(id)) return true
+      if (text && deletedMsgTextsRef.current.has(text)) return true
+      return false
+    },
     deleteMessage: async (conversationId: string, mid: string) => {
       // For optimistic messages, track by text so we can intercept the real server msg
       if (typeof mid === 'string' && mid.startsWith('optimistic-')) {

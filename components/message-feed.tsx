@@ -215,6 +215,8 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   // Order messages (filter out deletion placeholders from GroupMe)
   const ordered = useMemo(() => {
   const filtered = messages.filter(m => {
+    // Final gate: filter out locally deleted messages (by ID or text)
+    if (store.isMessageDeleted(m.id, m.text)) return false
     // Filter out GroupMe's server-side deletion notifications
     if (m.text && /message.*(was|has been|been) deleted/i.test(m.text)) return false
     if (m.text && /deleted.*message/i.test(m.text)) return false
