@@ -2099,26 +2099,19 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     likeMessage: async (gid: string, mid: string) => { try { await api.likeMessage(gid, mid) } catch {} },
     unlikeMessage: async (gid: string, mid: string) => { try { await api.unlikeMessage(gid, mid) } catch {} },
     deleteMessage: async (conversationId: string, mid: string) => {
-      console.log('[v0] deleteMessage called', { conversationId, mid })
       // Track this ID so polls don't bring the message back
       deletedMsgIdsRef.current.add(mid)
 
       // Optimistically mark as deleted for instant inline "Message Deleted" bubble
-      setPanelMessages(prev => {
-        console.log('[v0] deleteMessage setPanelMessages running, found msg:', prev.flat().some(m => m.id === mid))
-        return prev.map(panel =>
-          panel.map(m => m.id === mid
-            ? { ...m, text: 'Message Deleted', _deleted: true, attachments: [] } as typeof m
-            : m
-          )
+      setPanelMessages(prev => prev.map(panel =>
+        panel.map(m => m.id === mid
+          ? { ...m, text: 'Message Deleted', _deleted: true, attachments: [] } as typeof m
+          : m
         )
-      })
-      console.log('[v0] deleteMessage optimistic update done, calling API...')
+      ))
       try {
         await api.deleteMessage(conversationId, mid)
-        console.log('[v0] deleteMessage API success')
-      } catch (err) {
-        console.log('[v0] deleteMessage API error', err)
+      } catch {
         // Revert on failure
         deletedMsgIdsRef.current.delete(mid)
         showToast('Error', 'Could not delete message')
@@ -2128,11 +2121,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
     },
     editMessageInPlace: async (mid: string, newText: string) => {
-      console.log('[v0] editMessageInPlace called', { mid, newText })
       // Find the original message to get group/DM info
       const allMsgs = panelMessages.flat()
       const original = allMsgs.find(m => m.id === mid)
-      console.log('[v0] editMessageInPlace found original:', !!original, 'groupId:', original?.group_id, 'convId:', original?.conversation_id)
       if (!original) return
 
       const groupId = original.group_id || ''

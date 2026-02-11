@@ -219,7 +219,6 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     if (m._deleted) return true
     if (m.text && /message.*(was|has been|been) deleted/i.test(m.text)) return false
     if (m.text && /deleted.*message/i.test(m.text)) return false
-    if (m.event?.type === 'message.deleted') return false
     return true
   })
   const sorted = [...filtered].sort((a, b) => a.created_at - b.created_at)

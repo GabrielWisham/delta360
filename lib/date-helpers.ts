@@ -3,6 +3,8 @@
 export function formatTimestamp(ts: number): string {
   const d = new Date(ts * 1000)
   const now = new Date()
+  const diffSec = Math.floor((now.getTime() - d.getTime()) / 1000)
+  if (diffSec < 60) return 'just now'
   const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   if (d.toDateString() === now.toDateString()) return time
   const yesterday = new Date(now)
