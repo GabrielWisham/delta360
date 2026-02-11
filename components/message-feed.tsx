@@ -559,6 +559,9 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     el.style.height = clamped + 'px'
     // Only show scrollbar when content exceeds max height
     el.style.overflowY = el.scrollHeight > maxTextareaHeight ? 'auto' : 'hidden'
+    // Morph from pill to rounded rectangle as content grows
+    const singleLineHeight = 40
+    el.style.borderRadius = clamped <= singleLineHeight ? '9999px' : '1rem'
     const newH = el.offsetHeight
     // If textarea grew/shrank and input is at bottom, re-anchor scroll
     if (store.inputBottom && scrollRef.current && prevH !== newH && !userScrolledRef.current && !justSentRef.current) {
@@ -926,8 +929,8 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
           }}
           placeholder={canSend ? (replyingTo && !isSpecificView ? `Reply to ${replyingTo.name}...` : `Message ${dmRecipientName || title}...`) : 'Select a chat or reply to a message'}
           disabled={!canSend}
-          className="flex-1 text-sm bg-secondary/30 border border-border rounded-full px-4 py-2.5 resize-none text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)] disabled:opacity-50 transition-all"
-          style={{ fontFamily: 'var(--font-mono)', maxHeight: '360px', overflowY: 'hidden' }}
+          className="flex-1 text-sm bg-secondary/30 border border-border px-4 py-2.5 resize-none text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)] disabled:opacity-50"
+          style={{ fontFamily: 'var(--font-mono)', maxHeight: '360px', overflowY: 'hidden', borderRadius: '9999px', transition: 'border-radius 0.15s ease' }}
           rows={1}
         />
 
