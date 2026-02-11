@@ -212,10 +212,11 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     setTimeout(() => { programmaticScrollRef.current = false }, 800)
   }
 
-  // Order messages (filter out "This message was deleted" placeholders from GroupMe)
+  // Order messages (filter out deletion placeholders from GroupMe)
   const ordered = useMemo(() => {
   const filtered = messages.filter(m => {
-    if (m.text === 'This message was deleted') return false
+    if (m._deleted) return false
+    if (m.text && /^this message (was|has been) deleted\.?$/i.test(m.text)) return false
     return true
   })
   const sorted = [...filtered].sort((a, b) => a.created_at - b.created_at)

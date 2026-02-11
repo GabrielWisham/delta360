@@ -2082,21 +2082,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const groupId = original.group_id || ''
       const isDm = !groupId
 
-      // Optimistically update local text immediately
-      setPanelMessages(prev => prev.map(panel =>
-        panel.map(m => m.id === mid
-          ? { ...m, text: newText, _edited: true } as typeof m
-          : m
-        )
-      ))
-
-      // Track this edit so poll cycles don't overwrite it
-      editedMessagesRef.current.set(mid, { newText, originalId: mid, ts: Date.now() })
-
       try {
         // Delete old message from GroupMe
         const deleteConvId = groupId || original.conversation_id || ''
         await api.deleteMessage(deleteConvId, mid)
+
+        // Remove the old message from panel BEFORE sending the new one to prevent duplicates
+        setPanelMessages(prev => prev.map(panel =>
+          panel.filter(m => m.id !== mid)
+        ))
+        editedMessagesRef.current.delete(mid)
 
         // Send the new text with [edited] marker
         const editedText = `${newText} [edited]`
