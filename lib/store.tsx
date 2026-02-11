@@ -71,6 +71,7 @@ interface StoreState {
   compact: boolean
   inputBottom: boolean
   oldestFirst: boolean
+  portraitMode: boolean
   autoScroll: boolean
   globalMute: boolean
   feedSound: SoundName
@@ -176,6 +177,7 @@ interface StoreActions {
   toggleCompact: () => void
   toggleInputBottom: () => void
   toggleOldestFirst: () => void
+  togglePortraitMode: () => void
   setAutoScroll: (v: boolean) => void
   setJumpToUnread: (v: boolean) => void
   setPendingScrollToMsgId: (id: string | null) => void
@@ -295,6 +297,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [compact, setCompact] = useState(false)
   const [inputBottom, setInputBottom] = useState(true)
   const [oldestFirst, setOldestFirst] = useState(true)
+  const [portraitMode, setPortraitMode] = useState(false)
   const [autoScroll, setAutoScrollState] = useState(true)
   const [jumpToUnread, setJumpToUnreadState] = useState(true)
   const [pendingScrollToMsgId, setPendingScrollToMsgId] = useState<string | null>(null)
@@ -383,6 +386,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setCompact(storage.getCompact())
     setInputBottom(storage.getInputBottom())
     setOldestFirst(storage.getOldestFirst())
+    setPortraitMode(storage.getLayout() === 'portrait')
   setAutoScrollState(storage.getAutoScroll())
   setJumpToUnreadState(storage.getJumpToUnread())
   setGlobalMute(storage.getGlobalMute())
@@ -1730,6 +1734,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     compact,
     inputBottom,
     oldestFirst,
+    portraitMode,
   autoScroll,
   jumpToUnread,
   pendingScrollToMsgId,
@@ -1835,6 +1840,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       setOldestFirst(prev => {
         const next = !prev
         storage.setOldestFirst(next)
+        return next
+      })
+    },
+    togglePortraitMode: () => {
+      setPortraitMode(prev => {
+        const next = !prev
+        storage.setLayout(next ? 'portrait' : 'landscape')
         return next
       })
     },

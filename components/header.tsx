@@ -17,6 +17,8 @@ import {
   ArrowUpDown,
   ArrowDownUp,
   MousePointerClick,
+  Columns2,
+  Rows2,
   Megaphone,
   ClipboardCheck,
   Download,
@@ -195,6 +197,11 @@ export function Header() {
                 label={`Order: ${store.oldestFirst ? 'Oldest' : 'Newest'} First`}
                 Icon={ArrowDownUp}
                 onClick={() => store.toggleOldestFirst()}
+              />
+              <TrayItem
+                label={`Layout: ${store.portraitMode ? 'Portrait' : 'Landscape'}`}
+                Icon={store.portraitMode ? Rows2 : Columns2}
+                onClick={() => store.togglePortraitMode()}
               />
               <TrayItem
                 label={`Auto-Scroll: ${store.autoScroll ? 'ON' : 'OFF'}`}

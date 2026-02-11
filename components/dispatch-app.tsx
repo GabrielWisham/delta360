@@ -64,7 +64,7 @@ export function DispatchApp() {
 
   // Determine how many panels to show
   const secondaryPanels = [store.panels[1], store.panels[2]].filter(Boolean)
-  const maxSecondary = store.sidebarCollapsed ? 2 : 1
+  const maxSecondary = store.portraitMode ? 2 : store.sidebarCollapsed ? 2 : 1
   const visibleSecondary = secondaryPanels.slice(0, maxSecondary)
 
   return (
@@ -78,10 +78,14 @@ export function DispatchApp() {
           {/* Sticky notes bar */}
           <StickyNotes />
 
-          {/* Panel area -- horizontal on landscape/desktop, vertical on portrait/mobile */}
-          <div className="flex max-sm:flex-col flex-1 min-h-0 overflow-hidden">
+          {/* Panel area -- horizontal in landscape, vertical in portrait mode */}
+          <div className={`flex flex-1 min-h-0 overflow-hidden ${store.portraitMode ? 'flex-col' : 'max-sm:flex-col'}`}>
             {/* Primary panel (always visible) */}
-            <div className={`flex flex-col min-h-0 min-w-0 border-r max-sm:border-r-0 max-sm:border-b border-border relative ${visibleSecondary.length > 0 ? 'flex-1 max-sm:flex-[2]' : 'flex-1'}`}>
+            <div className={`flex flex-col min-h-0 min-w-0 relative ${
+              store.portraitMode
+                ? 'flex-1 border-b border-border'
+                : `border-r max-sm:border-r-0 max-sm:border-b border-border ${visibleSecondary.length > 0 ? 'flex-1 max-sm:flex-[2]' : 'flex-1'}`
+            }`}>
               <MessageFeed panelIdx={0} />
             </div>
 
@@ -92,7 +96,11 @@ export function DispatchApp() {
               return (
                 <div
                   key={slotIdx}
-                  className="flex-1 flex flex-col min-h-0 min-w-0 border-r max-sm:border-r-0 max-sm:border-b border-border"
+                  className={`flex-1 flex flex-col min-h-0 min-w-0 border-border ${
+                    store.portraitMode
+                      ? 'border-t'
+                      : 'border-r max-sm:border-r-0 max-sm:border-b'
+                  }`}
                 >
                   <MessageFeed panelIdx={slotIdx} />
                 </div>
