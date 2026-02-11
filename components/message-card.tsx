@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, memo } from 'react'
+import { useState, useRef, useCallback, useEffect, memo } from 'react'
 import { useStore } from '@/lib/store'
 import { formatTimestamp, getFullDate } from '@/lib/date-helpers'
 import {
@@ -179,22 +179,12 @@ export const MessageCard = memo(function MessageCard({
               <span className="text-[9px] font-bold uppercase tracking-wide" style={{ fontFamily: 'var(--font-mono)', color: accentColor }}>{msg.name}</span>
               <span className="text-[8px] text-muted-foreground/40 uppercase tracking-widest" style={{ fontFamily: 'var(--font-mono)' }}>editing</span>
             </div>
-            <textarea
-              autoFocus
+            <EditPill
               value={editText}
-              onChange={e => {
-                setEditText(e.target.value)
-                const el = e.target
-                el.style.height = 'auto'
-                const h = Math.min(el.scrollHeight, 300)
-                el.style.height = h + 'px'
-                el.style.borderRadius = h <= 40 ? '9999px' : '1rem'
-              }}
-              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitEdit() } if (e.key === 'Escape') setIsEditing(false) }}
-              className="w-full text-xs leading-relaxed bg-background/80 border border-[var(--d360-orange)]/40 px-4 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)]"
-              rows={1}
-              style={{ fontFamily: 'var(--font-mono)', overflowY: 'hidden', borderRadius: '9999px', transition: 'border-radius 0.15s ease' }}
-              ref={el => { if (el) { el.style.height = 'auto'; const h = Math.min(el.scrollHeight, 300); el.style.height = h + 'px'; el.style.borderRadius = h <= 40 ? '9999px' : '1rem' } }}
+              onChange={setEditText}
+              onSubmit={submitEdit}
+              onCancel={() => setIsEditing(false)}
+              size="compact"
             />
             <div className="flex items-center gap-1.5 px-1">
               <button onClick={submitEdit} className="text-[9px] font-medium px-2.5 py-1 rounded-full bg-[var(--d360-orange)] text-white hover:opacity-80 transition-opacity" style={{ fontFamily: 'var(--font-mono)' }}>Save</button>
@@ -368,22 +358,12 @@ export const MessageCard = memo(function MessageCard({
             <span className="text-[10px] font-bold uppercase tracking-wide" style={{ fontFamily: 'var(--font-mono)', color: accentColor }}>{msg.name}</span>
             <span className="text-[9px] text-muted-foreground/40 uppercase tracking-widest" style={{ fontFamily: 'var(--font-mono)' }}>editing</span>
           </div>
-          <textarea
-            autoFocus
+          <EditPill
             value={editText}
-            onChange={e => {
-              setEditText(e.target.value)
-              const el = e.target
-              el.style.height = 'auto'
-              const h = Math.min(el.scrollHeight, 300)
-              el.style.height = h + 'px'
-              el.style.borderRadius = h <= 44 ? '9999px' : '1rem'
-            }}
-            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitEdit() } if (e.key === 'Escape') setIsEditing(false) }}
-            className="w-full text-sm leading-6 bg-background/80 border border-[var(--d360-orange)]/40 px-5 py-2.5 resize-none focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)]"
-            rows={1}
-            style={{ fontFamily: 'var(--font-mono)', overflowY: 'hidden', borderRadius: '9999px', transition: 'border-radius 0.15s ease' }}
-            ref={el => { if (el) { el.style.height = 'auto'; const h = Math.min(el.scrollHeight, 300); el.style.height = h + 'px'; el.style.borderRadius = h <= 44 ? '9999px' : '1rem' } }}
+            onChange={setEditText}
+            onSubmit={submitEdit}
+            onCancel={() => setIsEditing(false)}
+            size="standard"
           />
           <div className="flex items-center gap-2 px-1">
             <button onClick={submitEdit} className="text-[10px] font-medium px-3 py-1 rounded-full bg-[var(--d360-orange)] text-white hover:opacity-80 transition-opacity" style={{ fontFamily: 'var(--font-mono)' }}>Save</button>
@@ -573,6 +553,65 @@ export const MessageCard = memo(function MessageCard({
     && prev.panelIdx === next.panelIdx
     && prev.showGroupTag === next.showGroupTag
 })
+
+/* ======================================= */
+/*  EditPill - glitch-free auto-sizing pill */
+/* ======================================= */
+
+function EditPill({ value, onChange, onSubmit, onCancel, size }: {
+  value: string
+  onChange: (v: string) => void
+  onSubmit: () => void
+  onCancel: () => void
+  size: 'compact' | 'standard'
+}) {
+  const ref = useRef<HTMLTextAreaElement>(null)
+  const mounted = useRef(false)
+
+  const resize = useCallback(() => {
+    const el = ref.current
+    if (!el) return
+    el.style.height = 'auto'
+    const h = Math.min(el.scrollHeight, 300)
+    el.style.height = h + 'px'
+    const threshold = size === 'compact' ? 40 : 44
+    el.style.borderRadius = h <= threshold ? '9999px' : '1rem'
+    el.style.overflowY = el.scrollHeight > 300 ? 'auto' : 'hidden'
+  }, [size])
+
+  // Size once on mount, then focus
+  useEffect(() => {
+    if (!mounted.current) {
+      mounted.current = true
+      resize()
+      ref.current?.focus()
+    }
+  }, [resize])
+
+  const isCompact = size === 'compact'
+
+  return (
+    <textarea
+      ref={ref}
+      value={value}
+      onChange={e => { onChange(e.target.value); resize() }}
+      onKeyDown={e => {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSubmit() }
+        if (e.key === 'Escape') onCancel()
+      }}
+      className={`w-full bg-background/80 border border-[var(--d360-orange)]/40 resize-none focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)] ${
+        isCompact ? 'text-xs leading-relaxed px-4 py-2' : 'text-sm leading-6 px-5 py-2.5'
+      }`}
+      rows={1}
+      style={{
+        fontFamily: 'var(--font-mono)',
+        overflowY: 'hidden',
+        borderRadius: '9999px',
+        transition: 'border-radius 0.15s ease',
+      }}
+    />
+  )
+}
 
 /* ======================================= */
 /*  Sub-components                          */
