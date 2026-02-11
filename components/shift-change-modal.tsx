@@ -491,6 +491,7 @@ export function ShiftChangeModal() {
                         {isSelected && <Check className="w-2.5 h-2.5 text-white" />}
                       </div>
                       <span className="text-foreground truncate" style={{ fontFamily: 'var(--font-mono)' }}>{d.other_user.name}</span>
+                      <input type="checkbox" className="sr-only" checked={isSelected} onChange={() => toggleDM(d.other_user.id)} />
                     </label>
                   )
                 })}
@@ -517,6 +518,7 @@ export function ShiftChangeModal() {
                     {isSelected && <Check className="w-2.5 h-2.5 text-white" />}
                   </div>
                   <span className="text-foreground truncate" style={{ fontFamily: 'var(--font-mono)' }}>{g.name}</span>
+                  <input type="checkbox" className="sr-only" checked={isSelected} onChange={() => toggleGroup(g.id)} />
                 </label>
               )
             })}
