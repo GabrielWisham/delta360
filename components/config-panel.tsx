@@ -140,7 +140,7 @@ export function ConfigPanel() {
       {/* Modal */}
       <div
         ref={panelRef}
-        className="relative w-full max-w-[560px] h-[min(88vh,800px)] max-sm:h-[100dvh] max-sm:max-w-full max-sm:rounded-none mx-4 max-sm:mx-0 rounded-xl bg-card border border-border shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+        className="relative w-full max-w-[560px] h-[min(80vh,640px)] max-sm:h-[100dvh] max-sm:max-w-full max-sm:rounded-none mx-4 max-sm:mx-0 rounded-xl bg-card border border-border shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200"
       >
         {/* Header */}
         <div className="flex items-center justify-between px-5 pt-4 pb-0">
@@ -159,15 +159,14 @@ export function ConfigPanel() {
         </div>
 
         {/* Tab bar */}
-        <div className="overflow-x-auto pt-3 pb-0 scrollbar-none" style={{ scrollbarWidth: 'none' }}>
-          <div className="flex px-5 gap-1 min-w-max" role="tablist">
+        <div className="flex px-5 pt-3 pb-0 gap-1" role="tablist">
           {TABS.map(tab => (
             <button
               key={tab.key}
               role="tab"
               aria-selected={activeTab === tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-t-lg text-[11px] uppercase tracking-widest transition-colors border-b-2 shrink-0 whitespace-nowrap ${
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-t-lg text-[11px] uppercase tracking-widest transition-colors border-b-2 ${
                 activeTab === tab.key
                   ? 'text-[var(--d360-orange)] border-[var(--d360-orange)] bg-secondary/40'
                   : 'text-muted-foreground hover:text-foreground border-transparent hover:bg-secondary/20'
@@ -178,13 +177,12 @@ export function ConfigPanel() {
               <span className="hidden sm:inline">{tab.label}</span>
             </button>
           ))}
-          </div>
         </div>
 
         <div className="border-t border-border" />
 
         {/* Tab content */}
-        <div className="flex-1 min-h-0 px-5 py-4 overflow-y-auto" role="tabpanel">
+        <div className="flex-1 min-h-0 px-5 py-4 overflow-hidden" role="tabpanel">
           {activeTab === 'streams' && (
             <StreamsTab
               streamName={streamName}
@@ -199,26 +197,42 @@ export function ConfigPanel() {
             />
           )}
           {activeTab === 'templates' && (
-            <TemplatesTab
-              templates={store.templates}
-              newTemplate={newTemplate}
-              setNewTemplate={setNewTemplate}
-              addTemplate={addTemplate}
-              removeTemplate={removeTemplate}
-            />
+            <div className="h-full overflow-y-auto">
+              <TemplatesTab
+                templates={store.templates}
+                newTemplate={newTemplate}
+                setNewTemplate={setNewTemplate}
+                addTemplate={addTemplate}
+                removeTemplate={removeTemplate}
+              />
+            </div>
           )}
           {activeTab === 'alerts' && (
-            <AlertsTab
-              alertWords={store.alertWords}
-              newAlert={newAlert}
-              setNewAlert={setNewAlert}
-              addAlertWord={addAlertWord}
-              removeAlertWord={removeAlertWord}
-            />
+            <div className="h-full overflow-y-auto">
+              <AlertsTab
+                alertWords={store.alertWords}
+                newAlert={newAlert}
+                setNewAlert={setNewAlert}
+                addAlertWord={addAlertWord}
+                removeAlertWord={removeAlertWord}
+              />
+            </div>
           )}
-          {activeTab === 'audio' && <AudioTab store={store} />}
-          {activeTab === 'shortcuts' && <ShortcutsTab store={store} />}
-          {activeTab === 'theme' && <ThemeTab store={store} />}
+          {activeTab === 'audio' && (
+            <div className="h-full overflow-y-auto">
+              <AudioTab store={store} />
+            </div>
+          )}
+          {activeTab === 'shortcuts' && (
+            <div className="h-full overflow-y-auto">
+              <ShortcutsTab store={store} />
+            </div>
+          )}
+          {activeTab === 'theme' && (
+            <div className="h-full overflow-y-auto">
+              <ThemeTab store={store} />
+            </div>
+          )}
         </div>
       </div>
     </div>
