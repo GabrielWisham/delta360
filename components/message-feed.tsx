@@ -216,7 +216,9 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   const ordered = useMemo(() => {
   const filtered = messages.filter(m => {
     if (m._deleted) return false
-    if (m.text && /^this message (was|has been) deleted\.?$/i.test(m.text)) return false
+    if (m.text && /message.*(was|has been|been) deleted/i.test(m.text)) return false
+    if (m.text && /deleted.*message/i.test(m.text)) return false
+    if (m.event?.type === 'message.deleted') return false
     return true
   })
   const sorted = [...filtered].sort((a, b) => a.created_at - b.created_at)

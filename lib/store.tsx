@@ -1162,6 +1162,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
+    // Filter out deletion notification messages before storing
+    msgs = msgs.filter(m => {
+      if (m._deleted) return false
+      if (m.text && (/message.*(was|has been|been) deleted/i.test(m.text) || /deleted.*message/i.test(m.text))) return false
+      return true
+    })
+
     // Only update panelMessages when something visible actually changed.
     setPanelMessages(prev => {
       const existing = prev[panelIdx] || []
@@ -1462,6 +1469,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         const merged = [...existing]
         const existingIds = new Set(existing.map(m => m.id))
         for (const m of newMsgs) {
+          // Skip deletion notification messages from GroupMe
+          if (m.text && (/message.*(was|has been|been) deleted/i.test(m.text) || /deleted.*message/i.test(m.text))) continue
+          if (m._deleted) continue
           if (!existingIds.has(m.id)) {
             // Check if this server message matches an optimistic one (same text, close timestamp)
             const optimisticIdx = merged.findIndex(e =>
@@ -2081,41 +2091,48 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
       const groupId = original.group_id || ''
       const isDm = !groupId
+      const editedText = `${newText} [edited]`
 
+      // 1. Optimistically swap the old message text immediately -- no flash
+      setPanelMessages(prev => prev.map(panel =>
+        panel.map(m => m.id === mid
+          ? { ...m, text: editedText, _edited: true } as typeof m
+          : m
+        )
+      ))
+      editedMessagesRef.current.set(mid, { newText: editedText, originalId: mid, ts: Date.now() })
+
+      // 2. Fire delete + resend in background
       try {
-        // Delete old message from GroupMe
         const deleteConvId = groupId || original.conversation_id || ''
         await api.deleteMessage(deleteConvId, mid)
 
-        // Remove the old message from panel BEFORE sending the new one to prevent duplicates
-        setPanelMessages(prev => prev.map(panel =>
-          panel.filter(m => m.id !== mid)
-        ))
-        editedMessagesRef.current.delete(mid)
-
-        // Send the new text with [edited] marker
-        const editedText = `${newText} [edited]`
-        if (groupId) {
-          await sendMessageDirect('group', groupId, editedText, original.attachments || [])
-        } else if (isDm) {
+        // Determine target for resend
+        let targetType: 'group' | 'dm' = 'group'
+        let targetId = groupId
+        if (isDm) {
+          targetType = 'dm'
           const otherUserId = original.recipient_id || (
             original.sender_id !== user?.id ? original.sender_id :
             original.user_id !== user?.id ? original.user_id : ''
           ) || ''
-          const dmTarget = original.conversation_id
+          targetId = original.conversation_id
             ? original.conversation_id.split('+').find((id: string) => id !== user?.id) || otherUserId
             : otherUserId
-          if (dmTarget) {
-            await sendMessageDirect('dm', dmTarget, editedText, original.attachments || [])
-          }
+        }
+
+        if (targetId) {
+          // Remove the old message right before sending so the new optimistic insert replaces it
+          setPanelMessages(prev => prev.map(panel =>
+            panel.filter(m => m.id !== mid)
+          ))
+          editedMessagesRef.current.delete(mid)
+          await sendMessageDirect(targetType, targetId, editedText, original.attachments || [])
         }
       } catch {
         showToast('Error', 'Could not save edit')
       } finally {
-        // Clean up after a delay to let the poll catch the new message
-        setTimeout(() => {
-          editedMessagesRef.current.delete(mid)
-        }, 15_000)
+        setTimeout(() => { editedMessagesRef.current.delete(mid) }, 15_000)
       }
     },
     toggleTheme: () => {
