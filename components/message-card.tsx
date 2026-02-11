@@ -106,8 +106,8 @@ export const MessageCard = memo(function MessageCard({
 
   function handleDelete() {
     if (!confirmDelete) { setConfirmDelete(true); return }
-    // For DMs, use conversation_id or construct it; for groups use group_id
     const conversationId = msg.group_id || msg.conversation_id || ''
+    console.log('[v0] handleDelete firing', { conversationId, msgId: msg.id, text: msg.text?.substring(0, 30) })
     store.deleteMessage(conversationId, msg.id)
     setConfirmDelete(false)
   }

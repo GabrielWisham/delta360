@@ -2099,16 +2099,21 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     likeMessage: async (gid: string, mid: string) => { try { await api.likeMessage(gid, mid) } catch {} },
     unlikeMessage: async (gid: string, mid: string) => { try { await api.unlikeMessage(gid, mid) } catch {} },
     deleteMessage: async (conversationId: string, mid: string) => {
+      console.log('[v0] store.deleteMessage called', { conversationId, mid })
       // Track this ID so polls don't bring the message back
       deletedMsgIdsRef.current.add(mid)
 
       // Optimistically mark as deleted for instant inline "Message Deleted" bubble
-      setPanelMessages(prev => prev.map(panel =>
-        panel.map(m => m.id === mid
-          ? { ...m, text: 'Message Deleted', _deleted: true, attachments: [] } as typeof m
-          : m
+      setPanelMessages(prev => {
+        const found = prev.flat().some(m => m.id === mid)
+        console.log('[v0] store.deleteMessage setPanelMessages, found msg:', found, 'panels:', prev.map(p => p.length))
+        return prev.map(panel =>
+          panel.map(m => m.id === mid
+            ? { ...m, text: 'Message Deleted', _deleted: true, attachments: [] } as typeof m
+            : m
+          )
         )
-      ))
+      })
       try {
         await api.deleteMessage(conversationId, mid)
       } catch {
