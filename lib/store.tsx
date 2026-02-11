@@ -382,6 +382,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const editedMessagesRef = useRef<Map<string, { newText: string; originalId: string; ts: number }>>(new Map())
   // Track locally deleted message IDs so poll cycles don't bring them back
   const deletedMsgIdsRef = useRef<Set<string>>(new Set())
+  // Track deleted message texts so we can match real server msgs for optimistic deletes
+  const deletedMsgTextsRef = useRef<Set<string>>(new Set())
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false)
   const [sortMode, setSortModeState] = useState<'recent' | 'heat'>('recent')
@@ -1201,10 +1203,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
         for (const o of optimistic) {
           if ((now - o.created_at) >= 10) continue
-          const realMsg = msgs.find(s => s.text === o.text && Math.abs(s.created_at - o.created_at) < 15)
+          // If the optimistic msg was locally deleted, match any server msg with the same timestamp range
+          // (its text was changed to "Message Deleted" so we can't match by text)
+          const realMsg = o._deleted
+            ? msgs.find(s => Math.abs(s.created_at - o.created_at) < 5 && s.sender_id === o.sender_id)
+            : msgs.find(s => s.text === o.text && Math.abs(s.created_at - o.created_at) < 15)
           if (realMsg) {
             matchedServerIds.add(realMsg.id)
             matchedOptimisticIds.add(o.id)
+            // Transfer deletion to the real message ID
+            if (o._deleted) {
+              deletedMsgIdsRef.current.add(realMsg.id)
+            }
             if (editingMessageId === o.id) {
               queueMicrotask(() => _setEditingMessageId(realMsg.id))
             }
@@ -1236,10 +1246,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           })
         : msgs
       // Re-apply _deleted flag for messages the poll brought back before the server processed the delete
-      if (deleted.size > 0) {
-        finalMsgs = finalMsgs.map(m =>
-          deleted.has(m.id) ? { ...m, text: 'Message Deleted', _deleted: true, attachments: [] } as typeof m : m
-        )
+      const deletedTexts = deletedMsgTextsRef.current
+      if (deleted.size > 0 || deletedTexts.size > 0) {
+        finalMsgs = finalMsgs.map(m => {
+          if (deleted.has(m.id)) return { ...m, text: 'Message Deleted', _deleted: true, attachments: [] } as typeof m
+          if (m.text && deletedTexts.has(m.text)) return { ...m, text: 'Message Deleted', _deleted: true, attachments: [] } as typeof m
+          return m
+        })
       }
 
       const next = [...prev]
@@ -1513,10 +1526,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             })
           : merged
         // Re-apply _deleted flag for locally deleted messages
-        if (deleted.size > 0) {
-          protected_ = protected_.map(m =>
-            deleted.has(m.id) ? { ...m, text: 'Message Deleted', _deleted: true, attachments: [] } as typeof m : m
-          )
+        const deletedTexts = deletedMsgTextsRef.current
+        if (deleted.size > 0 || deletedTexts.size > 0) {
+          protected_ = protected_.map(m => {
+            if (deleted.has(m.id)) return { ...m, text: 'Message Deleted', _deleted: true, attachments: [] } as typeof m
+            if (m.text && deletedTexts.has(m.text)) return { ...m, text: 'Message Deleted', _deleted: true, attachments: [] } as typeof m
+            return m
+          })
         }
         const trimmed = protected_.length > 80 ? protected_.slice(protected_.length - 80) : protected_
         mergedResult = trimmed
@@ -2097,6 +2113,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     deleteMessage: async (conversationId: string, mid: string) => {
       // Can't delete optimistic messages from GroupMe -- they don't exist on the server yet
       if (typeof mid === 'string' && mid.startsWith('optimistic-')) {
+        // Find the original text before marking deleted, so we can match the real server msg later
+        const optimisticMsg = panelMessages.flat().find(m => m.id === mid)
+        if (optimisticMsg?.text) {
+          // Track by original text so when the real server msg arrives, we delete it too
+          deletedMsgTextsRef.current.add(optimisticMsg.text)
+          setTimeout(() => { deletedMsgTextsRef.current.delete(optimisticMsg.text!) }, 30_000)
+        }
         // Show "Message Deleted" bubble locally
         setPanelMessages(prev => prev.map(panel =>
           panel.map(m => m.id === mid
