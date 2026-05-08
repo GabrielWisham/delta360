@@ -978,7 +978,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
           ['--board-muted' as string]: boardMutedColor,
           color: boardTextColor,
         } : store.animatedGradient ? {
-          animationDuration: `${store.gradientSpeed}s`,
+          ['--color-shift-speed' as string]: `${store.gradientSpeed}s`,
         } : undefined}
       >
         {messages.length > 0 ? (
