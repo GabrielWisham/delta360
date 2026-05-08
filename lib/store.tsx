@@ -899,12 +899,20 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const showMsgToast = useCallback((toast: Omit<MsgToast, 'id' | 'ts'>) => {
     if (toastMutedRef.current.has(toast.sourceKey)) return
-    const id = ++msgToastIdRef.current
-    const entry: MsgToast = { ...toast, id, ts: Date.now() }
-    setMsgToasts(prev => [...prev.slice(-6), entry])
-    setTimeout(() => {
-      setMsgToasts(prev => prev.filter(t => t.id !== id))
-    }, 10000)
+    // Deduplicate by messageId to prevent the same message from showing multiple toasts
+    // when race conditions occur between pollLoop iterations
+    setMsgToasts(prev => {
+      if (toast.messageId && prev.some(t => t.messageId === toast.messageId)) {
+        return prev // Already showing a toast for this message
+      }
+      const id = ++msgToastIdRef.current
+      const entry: MsgToast = { ...toast, id, ts: Date.now() }
+      const next = [...prev.slice(-6), entry]
+      setTimeout(() => {
+        setMsgToasts(p => p.filter(t => t.id !== id))
+      }, 10000)
+      return next
+    })
   }, [])
   showMsgToastRef.current = showMsgToast
 
