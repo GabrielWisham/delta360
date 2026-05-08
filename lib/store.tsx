@@ -631,8 +631,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       return
     }
     pollInProgressRef.current = true
-    // Debug: log tracker state at start of poll
-    console.log(`[v0] Poll starting. Tracker seeded: ${trackerSeeded.current}, tracker keys: ${Object.keys(lastMsgTracker.current).length}`)
+
     try {
       const [g, d] = await Promise.all([api.getGroups(), api.getDMChats()])
       setGroups(g)
@@ -665,12 +664,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           // Only show notifications for truly recent messages (within last 60 seconds)
           // This prevents stale localStorage data from triggering old message notifications
           const preview = group.messages?.preview
-          const msgTimestamp = preview?.created_at ? preview.created_at * 1000 : 0
+          const msgTimestamp = group.messages?.last_message_created_at ? group.messages.last_message_created_at * 1000 : 0
           const isRecent = msgTimestamp > 0 && (Date.now() - msgTimestamp) < 60_000
-          // Debug: log when we detect a "new" message
-          if (hasNewMessage) {
-            console.log(`[v0] New msg detected in ${group.name}: prev=${prevId} new=${lmid} recent=${isRecent} age=${msgTimestamp > 0 ? Math.round((Date.now() - msgTimestamp) / 1000) : 'unknown'}s`)
-          }
           if (hasNewMessage) {
             if ((cv.type === 'group' && cv.id === group.id) || cv.type === 'stream') {
               needsFeedRefresh = true
@@ -849,7 +844,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         // Persist tracker to localStorage so it survives page refreshes
         storage.setLastMsgTracker(lastMsgTracker.current)
         trackerSeeded.current = true
-        console.log(`[v0] Tracker seeded with ${Object.keys(lastMsgTracker.current).length} entries`)
         // Silently refresh the active feed to catch any messages that arrived
         // between the initial load and this first poll cycle.
         const cv = currentViewRef.current
