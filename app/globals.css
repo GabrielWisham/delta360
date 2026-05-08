@@ -231,4 +231,19 @@ select option {
   animation: gradient-shift 20s ease-in-out infinite;
 }
 
+/* Random full-spectrum color cycling animation */
+@keyframes gradient-random {
+  0% { filter: hue-rotate(0deg) saturate(1.2); }
+  16.67% { filter: hue-rotate(60deg) saturate(1.3); }
+  33.33% { filter: hue-rotate(120deg) saturate(1.2); }
+  50% { filter: hue-rotate(180deg) saturate(1.3); }
+  66.67% { filter: hue-rotate(240deg) saturate(1.2); }
+  83.33% { filter: hue-rotate(300deg) saturate(1.3); }
+  100% { filter: hue-rotate(360deg) saturate(1.2); }
+}
+
+.animate-gradient-random {
+  animation: gradient-random 20s linear infinite;
+}
+
 

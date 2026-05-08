@@ -161,6 +161,10 @@ export const storage = {
   // Gradient animation speed (duration in seconds)
   getGradientSpeed: () => { const v = getString('gm_v3_gradspeed'); return v ? parseInt(v, 10) : 20 },
   setGradientSpeed: (v: number) => setString('gm_v3_gradspeed', String(v)),
+  
+  // Random gradient color mode
+  getRandomGradient: () => getString('gm_v3_randgrad') === '1',
+  setRandomGradient: (v: boolean) => setString('gm_v3_randgrad', v ? '1' : '0'),
 
   // Global mute
   getGlobalMute: () => getString('gm_v3_gmute') === '1',
