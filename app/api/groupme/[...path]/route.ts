@@ -123,8 +123,6 @@ export async function POST(
 
     if (!res.ok) {
       const text = await res.text().catch(() => '')
-      console.error(`[GroupMe API] POST /${fullPath} failed with ${res.status}:`, text)
-      console.error(`[GroupMe API] Request body was:`, body)
       return NextResponse.json(
         { error: `GroupMe API error ${res.status}`, detail: text },
         { status: res.status }
