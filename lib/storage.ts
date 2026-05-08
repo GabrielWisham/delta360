@@ -153,6 +153,10 @@ export const storage = {
   // Board gradient colors [r,g,b] for start and end
   getBoardGradient: () => get<{ start: [number, number, number]; end: [number, number, number]; angle: number } | null>('gm_v3_boardgrad', null),
   setBoardGradient: (v: { start: [number, number, number]; end: [number, number, number]; angle: number } | null) => set('gm_v3_boardgrad', v),
+  
+  // Animated gradient toggle
+  getAnimatedGradient: () => getString('gm_v3_animgrad') === '1',
+  setAnimatedGradient: (v: boolean) => setString('gm_v3_animgrad', v ? '1' : '0'),
 
   // Global mute
   getGlobalMute: () => getString('gm_v3_gmute') === '1',

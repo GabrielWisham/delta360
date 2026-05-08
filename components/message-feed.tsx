@@ -971,7 +971,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className={`overflow-y-auto overflow-x-hidden px-3 pt-2 pb-4 flex flex-col min-h-0 flex-1 ${store.compact ? 'gap-0.5' : 'gap-1.5'} ${!viewReady ? 'opacity-0 pointer-events-none' : ''}`}
+        className={`overflow-y-auto overflow-x-hidden px-3 pt-2 pb-4 flex flex-col min-h-0 flex-1 ${store.compact ? 'gap-0.5' : 'gap-1.5'} ${!viewReady ? 'opacity-0 pointer-events-none' : ''} ${store.boardGradient && store.animatedGradient ? 'animate-gradient-shift' : ''}`}
         style={store.boardGradient ? {
           background: `linear-gradient(${store.boardGradient.angle}deg, rgb(${store.boardGradient.start.join(',')}), rgb(${store.boardGradient.end.join(',')}))`,
           ['--board-text' as string]: boardTextColor,

@@ -932,6 +932,32 @@ function ThemeTab({ store }: { store: ReturnType<typeof useStore> }) {
         />
       </div>
 
+      {/* Animated gradient toggle */}
+      <div className="flex items-center justify-between pt-2 border-t border-border">
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[10px] uppercase tracking-widest text-foreground" style={{ fontFamily: 'var(--font-mono)' }}>
+            Color Shift
+          </span>
+          <span className="text-[9px] text-muted-foreground" style={{ fontFamily: 'var(--font-mono)' }}>
+            Subtle animated hue rotation
+          </span>
+        </div>
+        <button
+          onClick={() => store.setAnimatedGradient(!store.animatedGradient)}
+          className={`relative w-10 h-5 rounded-full transition-colors ${
+            store.animatedGradient 
+              ? 'bg-[var(--d360-orange)]' 
+              : 'bg-secondary'
+          }`}
+        >
+          <span 
+            className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+              store.animatedGradient ? 'translate-x-5' : 'translate-x-0.5'
+            }`} 
+          />
+        </button>
+      </div>
+
       {/* Dark/Light toggle + Reset */}
       <div className="flex items-center gap-2 pt-2 border-t border-border">
         <button

@@ -211,4 +211,24 @@ select option {
   animation-duration: 200ms;
 }
 
+/* Subtle color-shifting gradient animation */
+@keyframes gradient-shift {
+  0%, 100% { 
+    filter: hue-rotate(0deg) saturate(1);
+  }
+  25% { 
+    filter: hue-rotate(15deg) saturate(1.1);
+  }
+  50% { 
+    filter: hue-rotate(0deg) saturate(1.05);
+  }
+  75% { 
+    filter: hue-rotate(-15deg) saturate(1.1);
+  }
+}
+
+.animate-gradient-shift {
+  animation: gradient-shift 20s ease-in-out infinite;
+}
+
 
