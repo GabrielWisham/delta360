@@ -211,39 +211,33 @@ select option {
   animation-duration: 200ms;
 }
 
-/* Subtle color-shifting gradient animation */
-@keyframes gradient-shift {
+/* Smooth color-shifting gradient animation */
+@keyframes color-shift {
   0%, 100% { 
-    filter: hue-rotate(0deg) saturate(1);
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   }
-  25% { 
-    filter: hue-rotate(15deg) saturate(1.1);
+  14% { 
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
   }
-  50% { 
-    filter: hue-rotate(0deg) saturate(1.05);
+  28% { 
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
   }
-  75% { 
-    filter: hue-rotate(-15deg) saturate(1.1);
+  42% { 
+    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+  }
+  56% { 
+    background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+  }
+  70% { 
+    background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+  }
+  84% { 
+    background: linear-gradient(135deg, #5ee7df 0%, #b490ca 100%);
   }
 }
 
-.animate-gradient-shift {
-  animation: gradient-shift 20s ease-in-out infinite;
-}
-
-/* Random full-spectrum color cycling animation */
-@keyframes gradient-random {
-  0% { filter: hue-rotate(0deg) saturate(1.2); }
-  16.67% { filter: hue-rotate(60deg) saturate(1.3); }
-  33.33% { filter: hue-rotate(120deg) saturate(1.2); }
-  50% { filter: hue-rotate(180deg) saturate(1.3); }
-  66.67% { filter: hue-rotate(240deg) saturate(1.2); }
-  83.33% { filter: hue-rotate(300deg) saturate(1.3); }
-  100% { filter: hue-rotate(360deg) saturate(1.2); }
-}
-
-.animate-gradient-random {
-  animation: gradient-random 20s linear infinite;
+.animate-color-shift {
+  animation: color-shift 20s ease-in-out infinite;
 }
 
 
