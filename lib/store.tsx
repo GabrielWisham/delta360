@@ -458,6 +458,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const showMsgToastRef = useRef<(toast: Omit<MsgToast, 'id' | 'ts'>) => void>(() => {})
   const isLoggingInRef = useRef(false)
   const userIdRef = useRef<string | null>(null)
+  // Guard against overlapping poll cycles when API responses are slow
+  const pollInProgressRef = useRef(false)
   // Track recently-sent targets so pollLoop skips notifications for own messages.
   // Keyed by tracker key (e.g. "g:123", "d:456"), value is timestamp of last send.
   const recentlySent = useRef<Record<string, number>>({})
@@ -623,6 +625,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function pollLoop() {
+    // Prevent overlapping polls when API responses are slow (>4s)
+    if (pollInProgressRef.current) {
+      pollTimerRef.current = setTimeout(pollLoop, 4000)
+      return
+    }
+    pollInProgressRef.current = true
     try {
       const [g, d] = await Promise.all([api.getGroups(), api.getDMChats()])
       setGroups(g)
@@ -837,6 +845,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       setIsConnected(true)
     } catch {
       setIsConnected(false)
+    } finally {
+      pollInProgressRef.current = false
     }
     pollTimerRef.current = setTimeout(pollLoop, 4000)
   }
