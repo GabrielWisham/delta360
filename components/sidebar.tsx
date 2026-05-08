@@ -506,11 +506,11 @@ export function Sidebar() {
       )}
       <aside
         className={`
-          flex flex-col border-r border-border overflow-y-auto overflow-x-hidden transition-all duration-300 ease-in-out shrink-0
+          flex flex-col overflow-y-auto overflow-x-hidden transition-all duration-300 ease-in-out shrink-0 rounded-2xl border border-border/50 shadow-sm
           ${store.sidebarMobileOpen
-            ? 'fixed inset-y-0 left-0 z-40 w-[300px] shadow-2xl translate-x-0'
-            : 'fixed inset-y-0 left-0 z-40 w-[300px] shadow-2xl -translate-x-full md:translate-x-0 md:static md:shadow-none'}
-          ${isDesktopHidden ? 'md:w-0 md:border-r-0 md:overflow-hidden' : 'md:w-[300px]'}
+            ? 'fixed inset-y-2 left-2 z-40 w-[300px] shadow-2xl translate-x-0'
+            : 'fixed inset-y-2 left-2 z-40 w-[300px] shadow-2xl -translate-x-[calc(100%+1rem)] md:translate-x-0 md:static md:shadow-sm'}
+          ${isDesktopHidden ? 'md:w-0 md:border-0 md:overflow-hidden' : 'md:w-[300px]'}
         `}
         style={{ background: 'var(--d360-sidebar-bg)' }}
       >
@@ -524,7 +524,7 @@ export function Sidebar() {
               placeholder="Search chats..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-secondary/40 border border-border rounded-lg pl-9 pr-8 py-2 text-sm font-mono text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)] focus:border-[var(--d360-orange)] transition-colors"
+              className="w-full bg-secondary/40 border border-border/50 rounded-xl pl-9 pr-8 py-2.5 text-sm font-mono text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)] focus:border-[var(--d360-orange)] transition-colors"
             />
             {searchQuery && (
               <button

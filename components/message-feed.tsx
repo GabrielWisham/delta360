@@ -704,7 +704,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   const canSend = isSpecificView || !!replyingTo
 
   const inputSection = (
-    <div className={`${store.compact ? 'px-3 py-2' : 'px-4 py-3'} border-t border-border/50 bg-card/80 backdrop-blur-sm relative z-20 overflow-visible rounded-b-2xl`}>
+    <div className={`${store.compact ? 'mx-2 mb-2 px-3 py-2' : 'mx-3 mb-3 px-4 py-3'} bg-secondary/40 backdrop-blur-sm relative z-20 overflow-visible rounded-2xl border border-border/30 shadow-sm`}>
       {/* Per-chat alert words panel */}
       {showChatAlerts && isSpecificView && chatId && (
         <div className="mb-2 p-2.5 rounded-lg border border-border bg-secondary/20">
