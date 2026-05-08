@@ -703,8 +703,8 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   const isSpecificView = view?.type === 'group' || view?.type === 'dm' || view?.type === 'stream'
   const canSend = isSpecificView || !!replyingTo
 
-  const inputSection = (
-    <div className={`${store.compact ? 'mx-2 mb-2 px-3 py-2' : 'mx-3 mb-3 px-4 py-3'} bg-secondary/40 backdrop-blur-sm relative z-20 overflow-visible rounded-2xl border border-border/30 shadow-sm`}>
+  const inputSection = (position: 'top' | 'bottom') => (
+    <div className={`${store.compact ? 'mx-2 px-3 py-2' : 'mx-3 px-4 py-3'} ${position === 'top' ? 'mt-3 mb-1' : 'mb-3 mt-1'} bg-secondary/40 backdrop-blur-sm relative z-20 overflow-visible rounded-2xl border border-border/30 shadow-sm`}>
       {/* Per-chat alert words panel */}
       {showChatAlerts && isSpecificView && chatId && (
         <div className="mb-2 p-2.5 rounded-lg border border-border bg-secondary/20">
@@ -971,7 +971,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
       </div>
 
       {/* Input (top or bottom) */}
-      {!store.inputBottom && inputSection}
+      {!store.inputBottom && inputSection('top')}
 
       {/* Loading spinner -- overlay on top of scroll container while loading */}
       {!viewReady && (
@@ -1124,7 +1124,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
       </div>
 
       {/* Input (bottom) */}
-      {store.inputBottom && inputSection}
+      {store.inputBottom && inputSection('bottom')}
 
       {/* Day cue badge */}
       {dayCue && (
