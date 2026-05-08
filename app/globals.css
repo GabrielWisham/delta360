@@ -211,19 +211,54 @@ select option {
   animation-duration: 200ms;
 }
 
-/* Smooth color-shifting animation using hue rotation on a colorful base gradient */
+/* Register custom properties for smooth color interpolation */
+@property --color-1 {
+  syntax: '<color>';
+  inherits: false;
+  initial-value: #667eea;
+}
+
+@property --color-2 {
+  syntax: '<color>';
+  inherits: false;
+  initial-value: #764ba2;
+}
+
+/* Smooth color-shifting animation */
 @keyframes color-shift {
-  0% { 
-    filter: hue-rotate(0deg);
+  0%, 100% { 
+    --color-1: #667eea;
+    --color-2: #764ba2;
   }
-  100% { 
-    filter: hue-rotate(360deg);
+  14% { 
+    --color-1: #f093fb;
+    --color-2: #f5576c;
+  }
+  28% { 
+    --color-1: #4facfe;
+    --color-2: #00f2fe;
+  }
+  42% { 
+    --color-1: #43e97b;
+    --color-2: #38f9d7;
+  }
+  56% { 
+    --color-1: #fa709a;
+    --color-2: #fee140;
+  }
+  70% { 
+    --color-1: #a18cd1;
+    --color-2: #fbc2eb;
+  }
+  84% { 
+    --color-1: #5ee7df;
+    --color-2: #b490ca;
   }
 }
 
 .animate-color-shift {
-  background: linear-gradient(135deg, #667eea 0%, #f093fb 50%, #4facfe 100%) !important;
-  animation: color-shift var(--color-shift-speed, 20s) linear infinite;
+  background: linear-gradient(135deg, var(--color-1), var(--color-2)) !important;
+  animation: color-shift var(--color-shift-speed, 20s) ease-in-out infinite;
 }
 
 
