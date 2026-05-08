@@ -928,18 +928,21 @@ function ThemeTab({ store }: { store: ReturnType<typeof useStore> }) {
           max={360}
           value={angle}
           onChange={e => apply(start, end, Number(e.target.value))}
-          className="w-full h-1.5 rounded-full appearance-none bg-secondary/50 accent-[var(--d360-orange)]"
+          autoComplete="off"
+          data-form-type="other"
+          data-lpignore="true"
+          className="w-full h-1.5 rounded-full appearance-none bg-secondary/50 cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[var(--d360-orange)] [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-[var(--d360-orange)] [&::-moz-range-thumb]:border-0"
         />
       </div>
 
-      {/* Animated gradient toggle */}
+      {/* Color Shift toggle */}
       <div className="flex items-center justify-between pt-2 border-t border-border">
         <div className="flex flex-col gap-0.5">
           <span className="text-[10px] uppercase tracking-widest text-foreground" style={{ fontFamily: 'var(--font-mono)' }}>
             Color Shift
           </span>
           <span className="text-[9px] text-muted-foreground" style={{ fontFamily: 'var(--font-mono)' }}>
-            Subtle animated hue rotation
+            Animated color cycling
           </span>
         </div>
         <button
@@ -958,7 +961,7 @@ function ThemeTab({ store }: { store: ReturnType<typeof useStore> }) {
         </button>
       </div>
 
-      {/* Speed slider - only show when animated gradient is enabled */}
+      {/* Speed slider - only show when color shift is enabled */}
       {store.animatedGradient && (
         <div className="flex flex-col gap-2 pt-2">
           <div className="flex items-center justify-between">
@@ -984,26 +987,6 @@ function ThemeTab({ store }: { store: ReturnType<typeof useStore> }) {
               className="flex-1 h-1.5 bg-secondary rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[var(--d360-orange)] [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-[var(--d360-orange)] [&::-moz-range-thumb]:border-0"
             />
             <span className="text-[9px] text-muted-foreground shrink-0">Slow</span>
-          </div>
-          {/* Random color mode toggle */}
-          <div className="flex items-center justify-between pt-1">
-            <span className="text-[10px] uppercase tracking-widest text-muted-foreground" style={{ fontFamily: 'var(--font-mono)' }}>
-              Random Colors
-            </span>
-            <button
-              onClick={() => store.setRandomGradient(!store.randomGradient)}
-              className={`relative w-8 h-4 rounded-full transition-colors shrink-0 ${
-                store.randomGradient 
-                  ? 'bg-[var(--d360-orange)]' 
-                  : 'bg-secondary'
-              }`}
-            >
-              <span 
-                className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform ${
-                  store.randomGradient ? 'translate-x-[14px]' : 'translate-x-0'
-                }`} 
-              />
-            </button>
           </div>
         </div>
       )}
@@ -1050,8 +1033,10 @@ function RGBSliders({ rgb, onChange }: { rgb: RGB; onChange: (v: RGB) => void })
               next[i] = Number(e.target.value)
               onChange(next)
             }}
-            className="flex-1 h-1 rounded-full appearance-none bg-secondary/50"
-            style={{ accentColor: colors[i] }}
+            autoComplete="off"
+            data-form-type="other"
+            data-lpignore="true"
+            className={`flex-1 h-1 rounded-full appearance-none bg-secondary/50 cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:rounded-full [&::-moz-range-thumb]:w-2.5 [&::-moz-range-thumb]:h-2.5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 ${i === 0 ? '[&::-webkit-slider-thumb]:bg-red-500 [&::-moz-range-thumb]:bg-red-500' : i === 1 ? '[&::-webkit-slider-thumb]:bg-green-500 [&::-moz-range-thumb]:bg-green-500' : '[&::-webkit-slider-thumb]:bg-blue-500 [&::-moz-range-thumb]:bg-blue-500'}`}
           />
           <span className="text-[9px] w-6 text-right text-muted-foreground tabular-nums" style={{ fontFamily: 'var(--font-mono)' }}>
             {rgb[i]}
