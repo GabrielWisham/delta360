@@ -704,7 +704,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   const canSend = isSpecificView || !!replyingTo
 
   const inputSection = (
-    <div className={`${store.compact ? 'px-2 py-1.5' : 'px-3 py-2'} border-b border-border bg-card relative z-20 overflow-visible`}>
+    <div className={`${store.compact ? 'mx-2 mb-2 px-3 py-2' : 'mx-3 mb-3 px-4 py-3'} bg-secondary/40 backdrop-blur-sm relative z-20 overflow-visible rounded-2xl border border-border/30 shadow-sm`}>
       {/* Per-chat alert words panel */}
       {showChatAlerts && isSpecificView && chatId && (
         <div className="mb-2 p-2.5 rounded-lg border border-border bg-secondary/20">
@@ -763,7 +763,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
       {/* Pending image preview */}
       {store.pendingImage && (
         <div className="flex items-center gap-2 mb-2">
-          <img src={store.pendingImage} alt="Pending" className="w-12 h-12 rounded-lg object-cover border border-border" />
+          <img src={store.pendingImage} alt="Pending" className="w-12 h-12 rounded-xl object-cover border border-border/50 shadow-sm" />
           <button
             onClick={() => store.setPendingImage(null)}
             className="text-[10px] text-destructive hover:underline"
@@ -795,7 +795,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
         const isAggregate = view?.type === 'all' || view?.type === 'dms' || view?.type === 'stream' || view?.type === 'unified_streams'
         const replyGroupName = replyingTo.group_id ? store.groups.find(g => g.id === replyingTo.group_id)?.name : null
         return (
-        <div className="flex items-center gap-2 mb-2 px-2 py-1.5 rounded-lg border-l-3 border-l-[var(--d360-orange)] bg-secondary/30 border border-border">
+        <div className="flex items-center gap-2 mb-2 px-3 py-2 rounded-xl border-l-4 border-l-[var(--d360-orange)] bg-secondary/30 border border-border/50">
           <Reply className="w-3.5 h-3.5 text-[var(--d360-orange)] shrink-0 rotate-180" />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5">
@@ -871,9 +871,28 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
           onKeyDown={e => {
             if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); if (textareaRef.current) { textareaRef.current.style.height = 'auto' } }
           }}
+          onPaste={e => {
+            const items = e.clipboardData?.items
+            if (!items) return
+            for (const item of items) {
+              if (item.type.startsWith('image/')) {
+                e.preventDefault()
+                const file = item.getAsFile()
+                if (file) {
+                  const reader = new FileReader()
+                  reader.onload = (ev) => {
+                    const dataUrl = ev.target?.result as string
+                    if (dataUrl) store.setPendingImage(dataUrl)
+                  }
+                  reader.readAsDataURL(file)
+                }
+                break
+              }
+            }
+          }}
   placeholder={canSend ? (replyingTo && !isSpecificView ? `Reply to ${replyingTo.name}...` : `Message ${dmRecipientName || title}...`) : 'Select a chat or reply to a message'}
   disabled={!canSend}
-          className="flex-1 text-sm bg-secondary/30 border border-border rounded-lg px-3 py-2 resize-none text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)] disabled:opacity-50 transition-all"
+            className="flex-1 text-sm bg-secondary/30 border border-border/50 rounded-2xl px-4 py-2.5 resize-none text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)] disabled:opacity-50 transition-all"
           style={{ fontFamily: 'var(--font-mono)', maxHeight: '160px', overflow: 'auto' }}
           rows={1}
         />
@@ -889,7 +908,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
 
           {/* Emoji picker overlay -- inside ref so outside-click detection works */}
           {mainEmojiOpen && (
-            <div className={`absolute right-0 rounded-xl p-3 grid grid-cols-6 gap-1.5 shadow-xl bg-card border border-border ${
+            <div className={`absolute right-0 rounded-2xl p-3 grid grid-cols-6 gap-1.5 shadow-xl bg-card border border-border ${
               store.inputBottom ? 'bottom-full mb-2' : 'top-full mt-2'
             }`} style={{ zIndex: 9999, minWidth: '232px' }}>
               {EMOJIS.map(e => (
@@ -927,7 +946,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     <div className="flex flex-col h-full min-h-0 relative">
       {/* Panel header */}
       <div
-        className={`flex items-center gap-2 px-3 py-2 border-b border-border cursor-pointer ${
+        className={`flex items-center gap-2 px-4 py-2.5 border-b border-border/50 cursor-pointer rounded-t-2xl ${
           panelIdx === store.activePanelIdx
             ? 'border-b-2 border-b-[var(--d360-yellow)]'
             : ''
@@ -978,7 +997,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
           ['--board-muted' as string]: boardMutedColor,
           color: boardTextColor,
         } : store.animatedGradient ? {
-          ['--color-shift-speed' as string]: `${store.gradientSpeed}s`,
+          animationDuration: `${store.gradientSpeed}s`,
         } : undefined}
       >
         {messages.length > 0 ? (

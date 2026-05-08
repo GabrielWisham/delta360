@@ -122,7 +122,7 @@ export function DispatchApp() {
     <div className="flex flex-col h-screen overflow-hidden">
       <Header />
 
-      <div className="flex flex-1 min-h-0 overflow-hidden">
+      <div className="flex flex-1 min-h-0 overflow-hidden p-2 gap-2">
         <Sidebar />
 
         <main className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
@@ -130,12 +130,10 @@ export function DispatchApp() {
           <StickyNotes />
 
           {/* Panel area -- horizontal in landscape, vertical in portrait mode */}
-          <div className={`flex flex-1 min-h-0 overflow-hidden ${store.portraitMode ? 'flex-col' : 'max-sm:flex-col'}`}>
+          <div className={`flex flex-1 min-h-0 overflow-hidden gap-2 ${store.portraitMode ? 'flex-col' : 'max-sm:flex-col'}`}>
             {/* Primary panel (always visible) */}
-            <div className={`flex flex-col min-h-0 min-w-0 relative ${
-              store.portraitMode
-                ? 'flex-1 border-b border-border'
-                : `border-r max-sm:border-r-0 max-sm:border-b border-border ${visibleSecondary.length > 0 ? 'flex-1 max-sm:flex-[2]' : 'flex-1'}`
+            <div className={`flex flex-col min-h-0 min-w-0 relative rounded-2xl overflow-hidden bg-card border border-border/50 shadow-sm ${
+              visibleSecondary.length > 0 ? 'flex-1 max-sm:flex-[2]' : 'flex-1'
             }`}>
               <MessageFeed panelIdx={0} />
             </div>
@@ -147,11 +145,7 @@ export function DispatchApp() {
               return (
                 <div
                   key={slotIdx}
-                  className={`flex-1 flex flex-col min-h-0 min-w-0 border-border ${
-                    store.portraitMode
-                      ? 'border-t'
-                      : 'border-r max-sm:border-r-0 max-sm:border-b'
-                  }`}
+                  className="flex-1 flex flex-col min-h-0 min-w-0 rounded-2xl overflow-hidden bg-card border border-border/50 shadow-sm"
                 >
                   <MessageFeed panelIdx={slotIdx} />
                 </div>

@@ -220,9 +220,7 @@ export const MessageCard = memo(function MessageCard({
 
           <div
             data-bubble
-            className={`rounded-2xl px-3.5 py-2 transition-shadow ${
-              isSelf ? 'rounded-tr-sm' : 'rounded-tl-sm'
-            } ${isPinned ? 'ring-1 ring-[var(--d360-yellow)]/40' : ''}`}
+            className={`rounded-3xl px-4 py-2.5 transition-shadow shadow-sm ${isPinned ? 'ring-1 ring-[var(--d360-yellow)]/40' : ''}`}
             style={isSelf
               ? { background: 'var(--d360-bubble-self-bg)', borderWidth: 1, borderStyle: 'solid', borderColor: 'var(--d360-bubble-self-border)' }
               : { background: `color-mix(in srgb, ${accentColor} var(--d360-bubble-other-mix), transparent)`, borderWidth: 1, borderStyle: 'solid', borderColor: 'var(--d360-bubble-other-border)' }
@@ -390,9 +388,7 @@ export const MessageCard = memo(function MessageCard({
 
         <div
           data-bubble
-          className={`rounded-2xl px-4 py-2.5 transition-shadow ${
-            isSelf ? 'rounded-tr-sm' : 'rounded-tl-sm'
-          } ${isPinned ? 'ring-1 ring-[var(--d360-yellow)]/40' : ''}`}
+          className={`rounded-3xl px-4 py-2.5 transition-shadow shadow-sm ${isPinned ? 'ring-1 ring-[var(--d360-yellow)]/40' : ''}`}
           style={isSelf
             ? { background: 'var(--d360-bubble-self-bg)', borderWidth: 1, borderStyle: 'solid', borderColor: 'var(--d360-bubble-self-border)' }
             : { background: `color-mix(in srgb, ${accentColor} var(--d360-bubble-other-mix), transparent)`, borderWidth: 1, borderStyle: 'solid', borderColor: 'var(--d360-bubble-other-border)' }
