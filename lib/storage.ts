@@ -193,4 +193,8 @@ export const storage = {
   // Keyboard shortcut overrides (only stores user-customized bindings)
   getShortcuts: () => get<Record<string, string>>('gm_v3_shortcuts', {}),
   setShortcuts: (v: Record<string, string>) => set('gm_v3_shortcuts', v),
+
+  // Last message tracker (persists across page refreshes to prevent duplicate notifications)
+  getLastMsgTracker: () => get<Record<string, string>>('gm_v3_msgtracker', {}),
+  setLastMsgTracker: (v: Record<string, string>) => set('gm_v3_msgtracker', v),
 }
