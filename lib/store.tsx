@@ -627,7 +627,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   async function pollLoop() {
     // Prevent overlapping polls when API responses are slow (>4s)
     if (pollInProgressRef.current) {
-      pollTimerRef.current = setTimeout(pollLoop, 15000)
+      pollTimerRef.current = setTimeout(pollLoop, 8000)
       return
     }
     pollInProgressRef.current = true
@@ -865,7 +865,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     } finally {
       pollInProgressRef.current = false
     }
-    pollTimerRef.current = setTimeout(pollLoop, 15000)
+    pollTimerRef.current = setTimeout(pollLoop, 8000)
   }
 
   async function pollDispatchStatus(gid: string) {
@@ -1602,9 +1602,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       // the deferred one, causing duplicate renders and scroll jumps.
     }
     try {
+      console.log('[v0] sendMessage: type=', type, 'id=', id, 'text=', text?.slice(0, 20))
       if (type === 'group' && id) {
         await api.sendGroupMessage(id, text, attachments)
       } else if (type === 'dm' && id) {
+        console.log('[v0] Calling api.sendDM with recipientId:', id)
         await api.sendDM(id, text, attachments)
       }
       setPendingImage(null)
