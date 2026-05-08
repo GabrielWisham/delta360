@@ -1017,6 +1017,26 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const isFresh = Date.now() - cached.ts < CACHE_TTL
       if (isFresh && !bypassCache) {
         setPanelMessages(prev => {
+          const existing = prev[panelIdx] || []
+          // Preserve optimistic messages when using cache
+          const optimistic = existing.filter(
+            m => typeof m.id === 'string' && m.id.startsWith('optimistic-')
+          )
+          if (optimistic.length > 0) {
+            const serverIds = new Set(cached.msgs.map(m => m.id))
+            const now = Math.floor(Date.now() / 1000)
+            const pending = optimistic.filter(o =>
+              !serverIds.has(o.id) && (now - o.created_at) < 10
+              && !cached.msgs.some(s => s.text === o.text && Math.abs(s.created_at - o.created_at) < 15)
+            )
+            if (pending.length > 0) {
+              const merged = [...cached.msgs, ...pending]
+              merged.sort((a, b) => a.created_at - b.created_at)
+              const next = [...prev]
+              next[panelIdx] = merged
+              return next
+            }
+          }
           const next = [...prev]
           next[panelIdx] = cached.msgs
           return next
@@ -1156,7 +1176,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         const now = Math.floor(Date.now() / 1000)
         const pending = optimistic.filter(o =>
           !serverIds.has(o.id) && (now - o.created_at) < 10
-          // Also check if a server msg has the same text (real version arrived)
           && !msgs.some(s => s.text === o.text && Math.abs(s.created_at - o.created_at) < 15)
         )
         if (pending.length > 0) {
