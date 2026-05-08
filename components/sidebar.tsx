@@ -231,10 +231,30 @@ function AddMemberModal({ groupId, onClose }: { groupId: string; onClose: () => 
   )
 }
 
+/* ===== Search Icon ===== */
+function SearchIcon({ className = '' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+  )
+}
+function XIcon({ className = '' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  )
+}
+
 /* ===== Main Sidebar ===== */
 export function Sidebar() {
   const store = useStore()
   const now = Math.floor(Date.now() / 1000)
+
+  /* Chat search */
+  const [searchQuery, setSearchQuery] = useState('')
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
   /* Section-level drag */
   const [dragIdx, setDragIdx] = useState<number | null>(null)
@@ -279,6 +299,13 @@ export function Sidebar() {
   const pinnedItems = useMemo(() => sortedGroups.filter(i => pinnedIds.has(i.id)), [sortedGroups, pinnedIds])
   const active = useMemo(() => sortedGroups.filter(i => (now - i.ts) < FOUR_HOURS && !pinnedIds.has(i.id)), [sortedGroups, now, pinnedIds])
   const inactive = useMemo(() => sortedGroups.filter(i => (now - i.ts) >= FOUR_HOURS && !pinnedIds.has(i.id)), [sortedGroups, now, pinnedIds])
+
+  /* Filtered results when searching */
+  const searchResults = useMemo(() => {
+    if (!searchQuery.trim()) return []
+    const q = searchQuery.toLowerCase()
+    return sortedGroups.filter(i => i.name.toLowerCase().includes(q))
+  }, [sortedGroups, searchQuery])
 
   const pendingDMs = useMemo(() => {
     return store.dmChats.filter(d => {
@@ -487,8 +514,59 @@ export function Sidebar() {
         `}
         style={{ background: 'var(--d360-sidebar-bg)' }}
       >
+        {/* Search Bar */}
+        <div className="p-3 pb-0">
+          <div className="relative">
+            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50 pointer-events-none" />
+            <input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Search chats..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-secondary/40 border border-border rounded-lg pl-9 pr-8 py-2 text-sm font-mono text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-[var(--d360-orange)] focus:border-[var(--d360-orange)] transition-colors"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => { setSearchQuery(''); searchInputRef.current?.focus() }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground/50 hover:text-foreground transition-colors"
+              >
+                <XIcon className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        </div>
+
         <div className="p-3 flex flex-col gap-1">
-          {store.sectionOrder.map((sectionKey, idx) => {
+          {/* Search Results */}
+          {searchQuery.trim() && (
+            <div className="mb-2">
+              <div className="flex items-center h-7 gap-1">
+                <span className="text-[10px] uppercase tracking-[0.2em] text-[var(--d360-orange)] font-bold font-mono">
+                  Results ({searchResults.length})
+                </span>
+              </div>
+              {searchResults.length > 0 ? (
+                <div className="flex flex-col gap-0.5">
+                  {searchResults.map(item => (
+                    <ChatCard
+                      key={item.id}
+                      item={item}
+                      store={store}
+                      onClick={(e) => { handleClick(item.type, item.id, e); setSearchQuery('') }}
+                      menuOpenId={menuOpenId}
+                      setMenuOpenId={setMenuOpenId}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[11px] text-muted-foreground px-2 py-2 font-mono">No chats found</p>
+              )}
+            </div>
+          )}
+
+          {/* Normal sections (hidden when searching) */}
+          {!searchQuery.trim() && store.sectionOrder.map((sectionKey, idx) => {
             const sec = sections[sectionKey]
             if (!sec) return null
             const isCollapsed = collapsedSections[sectionKey] ?? false
@@ -537,8 +615,8 @@ export function Sidebar() {
             )
           })}
 
-          {/* Bottom drop zone for dragging to last position */}
-          {dragIdx !== null && (
+          {/* Bottom drop zone for dragging to last position (hidden when searching) */}
+          {!searchQuery.trim() && dragIdx !== null && (
             <div
               onDragOver={(e) => { e.preventDefault(); setDragOverIdx(store.sectionOrder.length) }}
               onDrop={() => {
