@@ -32,10 +32,6 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
 
   const view = panelIdx === 0 ? store.currentView : store.panels[panelIdx]
   const messages = store.panelMessages[panelIdx] || []
-  const hasOptimistic = messages.some(m => typeof m.id === 'string' && m.id.startsWith('optimistic-'))
-  if (hasOptimistic || messages.length > 0) {
-    console.log('[v0] MessageFeed render: msgs=', messages.length, 'hasOptimistic=', hasOptimistic, 'lastId=', messages[messages.length - 1]?.id?.slice(0, 20))
-  }
   const [viewLoaded, setViewLoaded] = useState(false)
   const [viewReady, setViewReady] = useState(true) // false during view transition until scroll positioned
 

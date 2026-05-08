@@ -1003,11 +1003,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const loadMessages = useCallback(async (panelIdx: number, bypassCache?: boolean, isViewSwitch?: boolean) => {
     // After sending, suppress poll-driven refreshes but allow explicit view switches
-    if (!isViewSwitch && Date.now() < suppressRefreshUntilRef.current) {
-      console.log('[v0] loadMessages suppressed, remaining:', suppressRefreshUntilRef.current - Date.now(), 'ms')
-      return
-    }
-    console.log('[v0] loadMessages running, panelIdx:', panelIdx, 'isViewSwitch:', isViewSwitch)
+    if (!isViewSwitch && Date.now() < suppressRefreshUntilRef.current) return
     const view = panelIdx === 0 ? currentView : panels[panelIdx]
     if (!view) return
     const { type, id } = view
@@ -1034,7 +1030,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               && !cached.msgs.some(s => s.text === o.text && Math.abs(s.created_at - o.created_at) < 15)
             )
             if (pending.length > 0) {
-              console.log('[v0] cache path: preserving', pending.length, 'optimistic messages')
               const merged = [...cached.msgs, ...pending]
               merged.sort((a, b) => a.created_at - b.created_at)
               const next = [...prev]
@@ -1176,18 +1171,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const optimistic = existing.filter(
         m => typeof m.id === 'string' && m.id.startsWith('optimistic-')
       )
-      console.log('[v0] setPanelMessages: existing msgs:', existing.length, 'new msgs:', msgs.length, 'optimistic:', optimistic.length)
       if (optimistic.length > 0) {
         const serverIds = new Set(msgs.map(m => m.id))
         const now = Math.floor(Date.now() / 1000)
-        const pending = optimistic.filter(o => {
-          const notInServer = !serverIds.has(o.id)
-          const notTooOld = (now - o.created_at) < 10
-          const realVersionArrived = msgs.some(s => s.text === o.text && Math.abs(s.created_at - o.created_at) < 15)
-          console.log('[v0] optimistic check:', { text: o.text?.slice(0, 20), notInServer, notTooOld, realVersionArrived })
-          return notInServer && notTooOld && !realVersionArrived
-        })
-        console.log('[v0] pending optimistic to preserve:', pending.length)
+        const pending = optimistic.filter(o =>
+          !serverIds.has(o.id) && (now - o.created_at) < 10
+          && !msgs.some(s => s.text === o.text && Math.abs(s.created_at - o.created_at) < 15)
+        )
         if (pending.length > 0) {
           const merged = [...msgs, ...pending]
           merged.sort((a, b) => a.created_at - b.created_at)
@@ -1583,7 +1573,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
     // Optimistic insert so the message appears instantly
     const optimisticId = `optimistic-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-    console.log('[v0] sendMessage: creating optimistic msg', optimisticId)
     if (user && id) {
       const optimisticMsg: GroupMeMessage = {
         id: optimisticId,
