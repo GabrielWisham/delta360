@@ -1,24 +1,25 @@
 @import "tailwindcss";
 
 @theme {
-  --color-background: hsl(222 25% 10%);
-  --color-foreground: hsl(210 20% 95%);
-  --color-card: hsl(222 22% 14%);
-  --color-card-foreground: hsl(210 20% 95%);
-  --color-popover: hsl(222 22% 13%);
-  --color-popover-foreground: hsl(210 20% 95%);
+  /* Dark theme - richer, warmer tones */
+  --color-background: hsl(225 30% 8%);
+  --color-foreground: hsl(220 15% 92%);
+  --color-card: hsl(225 25% 12%);
+  --color-card-foreground: hsl(220 15% 92%);
+  --color-popover: hsl(225 25% 11%);
+  --color-popover-foreground: hsl(220 15% 92%);
   --color-primary: hsl(24 100% 50%);
   --color-primary-foreground: hsl(0 0% 100%);
-  --color-secondary: hsl(222 18% 18%);
-  --color-secondary-foreground: hsl(210 15% 85%);
-  --color-muted: hsl(222 16% 18%);
-  --color-muted-foreground: hsl(215 12% 58%);
+  --color-secondary: hsl(225 20% 16%);
+  --color-secondary-foreground: hsl(220 12% 82%);
+  --color-muted: hsl(225 18% 15%);
+  --color-muted-foreground: hsl(220 10% 55%);
   --color-accent: hsl(24 95% 52%);
   --color-accent-foreground: hsl(0 0% 100%);
-  --color-destructive: hsl(0 80% 58%);
+  --color-destructive: hsl(0 75% 55%);
   --color-destructive-foreground: hsl(0 0% 100%);
-  --color-border: hsl(222 16% 22%);
-  --color-input: hsl(222 16% 22%);
+  --color-border: hsl(225 15% 20%);
+  --color-input: hsl(225 15% 20%);
   --color-ring: hsl(24 100% 50%);
   --radius: 1rem;
 
@@ -60,7 +61,7 @@
   --d360-purple: #a78bfa;
   --d360-gradient: linear-gradient(135deg, #ff6a00, #ff9800);
   --d360-glass: rgba(255, 255, 255, 0.05);
-  --d360-sidebar-bg: hsl(222 25% 9%);
+  --d360-sidebar-bg: hsl(225 28% 10%);
   /* Bubble fills */
   --d360-bubble-self-bg: rgba(255, 106, 0, 0.12);
   --d360-bubble-self-border: rgba(255, 106, 0, 0.15);
@@ -70,7 +71,7 @@
 }
 
 [data-theme="light"] {
-  --d360-sidebar-bg: hsl(228 14% 96%);
+  --d360-sidebar-bg: hsl(225 18% 95%);
   --d360-glass: rgba(0, 0, 0, 0.03);
   --d360-orange-glow: rgba(255, 106, 0, 0.08);
   --d360-cyan-glow: rgba(34, 211, 238, 0.06);
@@ -83,25 +84,26 @@
 }
 
 [data-theme="light"] {
-  --color-background: hsl(225 20% 95%);
-  --color-foreground: hsl(222 47% 11%);
-  --color-card: hsl(0 0% 100%);
-  --color-card-foreground: hsl(222 47% 11%);
-  --color-popover: hsl(0 0% 100%);
-  --color-popover-foreground: hsl(222 47% 11%);
-  --color-primary: hsl(24 100% 50%);
+  /* Light theme - softer, warmer off-whites */
+  --color-background: hsl(220 20% 94%);
+  --color-foreground: hsl(225 35% 18%);
+  --color-card: hsl(225 20% 98%);
+  --color-card-foreground: hsl(225 35% 18%);
+  --color-popover: hsl(225 20% 97%);
+  --color-popover-foreground: hsl(225 35% 18%);
+  --color-primary: hsl(24 100% 48%);
   --color-primary-foreground: hsl(0 0% 100%);
-  --color-secondary: hsl(220 14% 92%);
-  --color-secondary-foreground: hsl(222 47% 15%);
-  --color-muted: hsl(220 14% 92%);
-  --color-muted-foreground: hsl(220 8% 46%);
-  --color-accent: hsl(24 100% 50%);
+  --color-secondary: hsl(220 18% 90%);
+  --color-secondary-foreground: hsl(225 30% 22%);
+  --color-muted: hsl(220 15% 91%);
+  --color-muted-foreground: hsl(220 10% 42%);
+  --color-accent: hsl(24 95% 50%);
   --color-accent-foreground: hsl(0 0% 100%);
-  --color-destructive: hsl(0 84% 60%);
+  --color-destructive: hsl(0 75% 55%);
   --color-destructive-foreground: hsl(0 0% 100%);
-  --color-border: hsl(220 13% 87%);
-  --color-input: hsl(220 13% 87%);
-  --color-ring: hsl(24 100% 50%);
+  --color-border: hsl(220 15% 85%);
+  --color-input: hsl(220 15% 85%);
+  --color-ring: hsl(24 100% 48%);
 }
 
 /* ===== Glass morphism ===== */
@@ -128,11 +130,15 @@ select option {
   color: hsl(222 47% 11%);
 }
 
-/* ===== Scrollbar ===== */
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: hsl(220 8% 56% / 0.3); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: hsl(220 8% 56% / 0.5); }
+  /* ===== Scrollbar ===== */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: hsl(220 10% 40% / 0.2); border-radius: 10px; }
+  ::-webkit-scrollbar-thumb:hover { background: hsl(220 10% 50% / 0.35); }
+  
+  /* Light theme scrollbar */
+  [data-theme="light"] ::-webkit-scrollbar-thumb { background: hsl(220 10% 50% / 0.2); }
+  [data-theme="light"] ::-webkit-scrollbar-thumb:hover { background: hsl(220 10% 40% / 0.35); }
 
 /* Utility: hide scrollbar but keep scroll */
 .scrollbar-none { scrollbar-width: none; -ms-overflow-style: none; }

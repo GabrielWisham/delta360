@@ -763,7 +763,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
       {/* Pending image preview */}
       {store.pendingImage && (
         <div className="flex items-center gap-2 mb-2">
-          <img src={store.pendingImage} alt="Pending" className="w-12 h-12 rounded-lg object-cover border border-border" />
+          <img src={store.pendingImage} alt="Pending" className="w-12 h-12 rounded-xl object-cover border border-border/50 shadow-sm" />
           <button
             onClick={() => store.setPendingImage(null)}
             className="text-[10px] text-destructive hover:underline"
@@ -870,6 +870,25 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
           onChange={e => setMainInput(e.target.value)}
           onKeyDown={e => {
             if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); if (textareaRef.current) { textareaRef.current.style.height = 'auto' } }
+          }}
+          onPaste={e => {
+            const items = e.clipboardData?.items
+            if (!items) return
+            for (const item of items) {
+              if (item.type.startsWith('image/')) {
+                e.preventDefault()
+                const file = item.getAsFile()
+                if (file) {
+                  const reader = new FileReader()
+                  reader.onload = (ev) => {
+                    const dataUrl = ev.target?.result as string
+                    if (dataUrl) store.setPendingImage(dataUrl)
+                  }
+                  reader.readAsDataURL(file)
+                }
+                break
+              }
+            }
           }}
   placeholder={canSend ? (replyingTo && !isSpecificView ? `Reply to ${replyingTo.name}...` : `Message ${dmRecipientName || title}...`) : 'Select a chat or reply to a message'}
   disabled={!canSend}
