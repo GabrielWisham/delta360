@@ -258,7 +258,9 @@ select option {
 
 .animate-color-shift {
   background: linear-gradient(135deg, var(--color-1), var(--color-2)) !important;
-  animation: color-shift var(--color-shift-speed, 20s) ease-in-out infinite;
+  animation-name: color-shift;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
 }
 
 
