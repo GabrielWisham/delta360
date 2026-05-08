@@ -451,8 +451,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const likeTracker = useRef<Record<string, Set<string>>>({})
   const likeTrackerSeeded = useRef(false)
   // Track last_message_id per group/DM for instant notifications from pollLoop
-  const lastMsgTracker = useRef<Record<string, string>>({})
-  const trackerSeeded = useRef(false)
+  // Load from localStorage to persist across page refreshes and prevent duplicate notifications
+  const lastMsgTracker = useRef<Record<string, string>>(storage.getLastMsgTracker())
+  const trackerSeeded = useRef(Object.keys(lastMsgTracker.current).length > 0)
   // Ref for showMsgToast so pollLoop (defined before the useCallback) can access it
   const showMsgToastRef = useRef<(toast: Omit<MsgToast, 'id' | 'ts'>) => void>(() => {})
   const isLoggingInRef = useRef(false)
@@ -720,6 +721,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           }
           lastMsgTracker.current[`g:${group.id}`] = lmid
         }
+        // Persist tracker to localStorage after processing groups
+        storage.setLastMsgTracker(lastMsgTracker.current)
         // Check DMs for new messages
         const approvedNow = approvedRef.current
         for (const dm of d) {
@@ -769,6 +772,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           }
           lastMsgTracker.current[`d:${otherId}`] = lmid
         }
+        // Persist tracker to localStorage after processing DMs
+        storage.setLastMsgTracker(lastMsgTracker.current)
         // Pass the notification payload INTO the refresh functions so that
         // setPanelMessages + setPendingNotifications happen in the same synchronous
         // block. React batches state updates within a single synchronous call,
@@ -811,6 +816,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           const otherId = dm.other_user?.id || ''
           if (lm) lastMsgTracker.current[`d:${otherId}`] = lm.id || `${lm.created_at}`
         }
+        // Persist tracker to localStorage so it survives page refreshes
+        storage.setLastMsgTracker(lastMsgTracker.current)
         trackerSeeded.current = true
         // Silently refresh the active feed to catch any messages that arrived
         // between the initial load and this first poll cycle.
