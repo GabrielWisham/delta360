@@ -117,7 +117,7 @@ class GroupMeAPI {
       body: JSON.stringify({
         direct_message: {
           source_guid: `d360_${Date.now()}${Math.random().toString(36).slice(2)}`,
-          recipient_id: recipientId,
+          recipient_id: String(recipientId),
           text,
           attachments,
         },
