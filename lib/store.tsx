@@ -627,7 +627,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   async function pollLoop() {
     // Prevent overlapping polls when API responses are slow (>4s)
     if (pollInProgressRef.current) {
-      pollTimerRef.current = setTimeout(pollLoop, 4000)
+      pollTimerRef.current = setTimeout(pollLoop, 8000)
       return
     }
     pollInProgressRef.current = true
@@ -848,7 +848,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     } finally {
       pollInProgressRef.current = false
     }
-    pollTimerRef.current = setTimeout(pollLoop, 4000)
+    pollTimerRef.current = setTimeout(pollLoop, 8000)
   }
 
   async function pollDispatchStatus(gid: string) {

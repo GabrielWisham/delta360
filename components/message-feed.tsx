@@ -29,7 +29,6 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   const [newChatAlert, setNewChatAlert] = useState('')
   const mainEmojiRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const view = panelIdx === 0 ? store.currentView : store.panels[panelIdx]
   const messages = store.panelMessages[panelIdx] || []
@@ -72,16 +71,11 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view?.type, view?.id, panelIdx, store.feedRefreshTick])
 
-  // Polling (unified_streams is excluded - its own effect handles loading)
-  useEffect(() => {
-    if (!view || view.type === 'unified_streams') return
-    if (pollRef.current) clearInterval(pollRef.current)
-    pollRef.current = setInterval(() => {
-      loadMsgRef.current(panelIdx)
-    }, 4000)
-    return () => { if (pollRef.current) clearInterval(pollRef.current) }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view?.type, view?.id, panelIdx])
+  // NOTE: Per-panel polling removed -- the global pollLoop in store.tsx
+  // handles new message detection and triggers feedRefreshTick, which the
+  // view-change effect above responds to. Duplicate polling was causing
+  // excessive API requests and rate limiting (429 errors), leading to
+  // messages appearing, disappearing, and reappearing.
 
   // Mark seen on load
   useEffect(() => {
