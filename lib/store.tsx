@@ -1036,11 +1036,17 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           )
           if (optimistic.length > 0) {
             const serverIds = new Set(cached.msgs.map(m => m.id))
+            const serverGuids = new Set(cached.msgs.map(m => m.source_guid).filter(Boolean))
             const now = Math.floor(Date.now() / 1000)
-            const pending = optimistic.filter(o =>
-              !serverIds.has(o.id) && (now - o.created_at) < 10
-              && !cached.msgs.some(s => s.text === o.text && Math.abs(s.created_at - o.created_at) < 15)
-            )
+            const pending = optimistic.filter(o => {
+              if (serverIds.has(o.id)) return false
+              if (o.source_guid && serverGuids.has(o.source_guid)) return false
+              if ((now - o.created_at) >= 10) return false
+              const hasMatchingMsg = cached.msgs.some(s => 
+                s.text === o.text && Math.abs(s.created_at - o.created_at) < 20
+              )
+              return !hasMatchingMsg
+            })
             if (pending.length > 0) {
               const merged = [...cached.msgs, ...pending]
               merged.sort((a, b) => a.created_at - b.created_at)
@@ -1185,11 +1191,21 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       )
       if (optimistic.length > 0) {
         const serverIds = new Set(msgs.map(m => m.id))
+        const serverGuids = new Set(msgs.map(m => m.source_guid).filter(Boolean))
         const now = Math.floor(Date.now() / 1000)
-        const pending = optimistic.filter(o =>
-          !serverIds.has(o.id) && (now - o.created_at) < 10
-          && !msgs.some(s => s.text === o.text && Math.abs(s.created_at - o.created_at) < 15)
-        )
+        const pending = optimistic.filter(o => {
+          // Skip if server already has this ID
+          if (serverIds.has(o.id)) return false
+          // Skip if server has matching source_guid (optimistic messages use their ID as guid)
+          if (o.source_guid && serverGuids.has(o.source_guid)) return false
+          // Skip if too old (> 10 seconds)
+          if ((now - o.created_at) >= 10) return false
+          // Skip if server has a message with same text and similar timestamp
+          const hasMatchingMsg = msgs.some(s => 
+            s.text === o.text && Math.abs(s.created_at - o.created_at) < 20
+          )
+          return !hasMatchingMsg
+        })
         if (pending.length > 0) {
           const merged = [...msgs, ...pending]
           merged.sort((a, b) => a.created_at - b.created_at)
