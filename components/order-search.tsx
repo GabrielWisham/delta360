@@ -163,7 +163,7 @@ export function OrderSearch() {
     >
       <div className="absolute inset-0 bg-black/60" />
 
-      <div className="relative w-full max-w-[520px] max-sm:max-w-full mx-4 max-sm:mx-0 rounded-xl max-sm:rounded-none bg-card border border-border shadow-2xl flex flex-col max-h-[80vh] max-sm:max-h-[100dvh] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div className="relative w-full max-w-[520px] max-sm:max-w-full mx-4 max-sm:mx-0 rounded-2xl max-sm:rounded-none bg-card border border-border shadow-2xl flex flex-col max-h-[80vh] max-sm:max-h-[100dvh] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
           <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'var(--d360-gradient)' }}>

@@ -69,7 +69,7 @@ export function FloatingClipboard() {
   return (
     <div
       ref={containerRef}
-      className="fixed z-50 w-[280px] rounded-xl overflow-hidden shadow-2xl"
+      className="fixed z-50 w-[280px] rounded-2xl overflow-hidden shadow-2xl"
       style={{ left: pos.x, top: pos.y }}
     >
       {/* Header */}

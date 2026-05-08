@@ -13,7 +13,7 @@ export function Lightbox() {
       <img
         src={lightboxUrl}
         alt="Full size"
-        className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg"
+        className="max-w-[90vw] max-h-[90vh] object-contain rounded-xl"
         onClick={e => e.stopPropagation()}
 
       />

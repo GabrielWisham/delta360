@@ -20,7 +20,7 @@
   --color-border: hsl(222 16% 22%);
   --color-input: hsl(222 16% 22%);
   --color-ring: hsl(24 100% 50%);
-  --radius: 0.625rem;
+  --radius: 1rem;
 
   --font-sans: var(--font-outfit), system-ui, sans-serif;
   --font-mono: var(--font-jetbrains), monospace;

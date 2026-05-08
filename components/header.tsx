@@ -158,7 +158,7 @@ export function Header() {
         <div className="relative" ref={toolsRef}>
           <TrayButton label="Tools" open={toolsOpen} onClick={() => { setToolsOpen(!toolsOpen); setViewOpen(false); setActionsOpen(false) }} />
           {toolsOpen && (
-            <div className="absolute top-full left-0 mt-1 rounded-lg p-2 min-w-[220px] flex flex-col gap-0.5 z-[60] shadow-xl bg-card border border-border" role="menu">
+            <div className="absolute top-full left-0 mt-1 rounded-xl p-2 min-w-[220px] flex flex-col gap-0.5 z-[60] shadow-xl bg-card border border-border" role="menu">
               {ALL_TOOLS.filter(t => ['config','search','members','contacts','clipboard','stickies','msgbuilder','ordersearch'].includes(t.id)).map(tool => (
                 <PinnableItem
                   key={tool.id}
@@ -177,7 +177,7 @@ export function Header() {
         <div className="relative" ref={viewRef}>
           <TrayButton label="View" open={viewOpen} onClick={() => { setViewOpen(!viewOpen); setToolsOpen(false); setActionsOpen(false) }} />
           {viewOpen && (
-            <div className="absolute top-full left-0 mt-1 rounded-lg p-2 min-w-[200px] flex flex-col gap-1 z-[60] shadow-xl bg-card border border-border" role="menu">
+            <div className="absolute top-full left-0 mt-1 rounded-xl p-2 min-w-[200px] flex flex-col gap-1 z-[60] shadow-xl bg-card border border-border" role="menu">
               <TrayItem
                 label={`Theme: ${store.theme === 'dark' ? 'Dark' : 'Light'}`}
                 Icon={store.theme === 'dark' ? Moon : Sun}
@@ -216,7 +216,7 @@ export function Header() {
         <div className="relative" ref={actionsRef}>
           <TrayButton label="Actions" open={actionsOpen} onClick={() => { setActionsOpen(!actionsOpen); setToolsOpen(false); setViewOpen(false) }} />
           {actionsOpen && (
-            <div className="absolute top-full left-0 mt-1 rounded-lg p-2 min-w-[220px] flex flex-col gap-0.5 z-[60] shadow-xl bg-card border border-border" role="menu">
+            <div className="absolute top-full left-0 mt-1 rounded-xl p-2 min-w-[220px] flex flex-col gap-0.5 z-[60] shadow-xl bg-card border border-border" role="menu">
               {ALL_TOOLS.filter(t => ['broadcast','shiftchange'].includes(t.id)).map(tool => (
                 <PinnableItem
                   key={tool.id}
@@ -300,7 +300,7 @@ export function Header() {
           <span className="hidden sm:inline uppercase tracking-wider text-muted-foreground">{currentStatus.label}</span>
         </button>
         {statusOpen && (
-          <div className="absolute top-full right-0 mt-1 rounded-lg p-1 min-w-[140px] z-[60] shadow-xl bg-card border border-border">
+          <div className="absolute top-full right-0 mt-1 rounded-xl p-1 min-w-[140px] z-[60] shadow-xl bg-card border border-border">
             {STATUS_OPTIONS.map(s => (
               <button
                 key={s.value}

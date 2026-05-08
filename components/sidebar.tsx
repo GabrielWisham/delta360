@@ -197,7 +197,7 @@ function AddMemberModal({ groupId, onClose }: { groupId: string; onClose: () => 
 
   return createPortal(
     <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50">
-      <div ref={ref} className="bg-card border border-border rounded-xl shadow-2xl p-5 w-[340px] max-w-[90vw]">
+      <div ref={ref} className="bg-card border border-border rounded-2xl shadow-2xl p-5 w-[340px] max-w-[90vw]">
         <h3 className="text-sm font-bold font-mono text-foreground mb-3">Add Member to Group</h3>
         <div className="flex flex-col gap-3">
           <div>
@@ -860,7 +860,7 @@ function StreamItem({ name, stream, store, isActive, gripRef, menuOpenId, setMen
         {menu.open && typeof document !== 'undefined' && createPortal(
           <div
             ref={menu.menuRef}
-            className="fixed bg-card border border-border rounded-lg shadow-2xl py-1 min-w-[180px]"
+            className="fixed bg-card border border-border rounded-xl shadow-2xl py-1 min-w-[180px]"
             style={{ top: menu.pos.top, left: menu.pos.left, zIndex: 9999 }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -894,7 +894,7 @@ function StreamItem({ name, stream, store, isActive, gripRef, menuOpenId, setMen
       {showMembers && popoverPos && typeof document !== 'undefined' && createPortal(
         <div
           ref={popoverRef}
-          className="fixed bg-card border border-border rounded-xl shadow-2xl p-4 min-w-[250px] max-w-[320px]"
+          className="fixed bg-card border border-border rounded-2xl shadow-2xl p-4 min-w-[250px] max-w-[320px]"
           style={{ top: popoverPos.top, left: popoverPos.left, zIndex: 9999 }}
         >
           <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono mb-2.5 flex items-center gap-2">
@@ -1097,7 +1097,7 @@ function ChatCard({ item, store, onClick, isPinned = false, isInactive = false, 
           {menu.open && typeof document !== 'undefined' && createPortal(
             <div
               ref={menu.menuRef}
-              className="fixed bg-card border border-border rounded-lg shadow-2xl py-1 min-w-[200px]"
+              className="fixed bg-card border border-border rounded-xl shadow-2xl py-1 min-w-[200px]"
               style={{ top: menu.pos.top, left: menu.pos.left, zIndex: 9999 }}
               onClick={(e) => e.stopPropagation()}
             >
