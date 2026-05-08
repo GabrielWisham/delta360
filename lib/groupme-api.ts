@@ -111,17 +111,19 @@ class GroupMeAPI {
   }
 
   async sendDM(recipientId: string, text: string, attachments: GroupMeMessage['attachments'] = []) {
+    const body = {
+      direct_message: {
+        source_guid: `d360_${Date.now()}${Math.random().toString(36).slice(2)}`,
+        recipient_id: String(recipientId),
+        text,
+        attachments,
+      },
+    }
+    console.log('[v0] sendDM request body:', JSON.stringify(body))
     return this.request('/direct_messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        direct_message: {
-          source_guid: `d360_${Date.now()}${Math.random().toString(36).slice(2)}`,
-          recipient_id: recipientId,
-          text,
-          attachments,
-        },
-      }),
+      body: JSON.stringify(body),
     })
   }
 
