@@ -83,6 +83,7 @@ interface StoreState {
   allNotif: boolean
   boardGradient: { start: [number, number, number]; end: [number, number, number]; angle: number } | null
   animatedGradient: boolean
+  gradientSpeed: number // animation duration in seconds (5-60)
   // Tracking
   lastSeen: Record<string, number>
   approved: Record<string, boolean>
@@ -198,6 +199,7 @@ interface StoreActions {
   setAllNotif: (v: boolean) => void
   setBoardGradient: (v: { start: [number, number, number]; end: [number, number, number]; angle: number } | null) => void
   setAnimatedGradient: (v: boolean) => void
+  setGradientSpeed: (v: number) => void
   loadMoreMessages: (panelIdx: number) => Promise<number>
   loadingMore: boolean
   markSeen: (id: string) => void
@@ -400,6 +402,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [allNotif, setAllNotifState] = useState(false)
   const [boardGradient, setBoardGradientState] = useState<{ start: [number, number, number]; end: [number, number, number]; angle: number } | null>(null)
   const [animatedGradient, setAnimatedGradientState] = useState(false)
+  const [gradientSpeed, setGradientSpeedState] = useState(20) // default 20 seconds
   const [shortcutOverrides, setShortcutOverrides] = useState<Record<string, string>>({})
   const [lastSeen, setLastSeen] = useState<Record<string, number>>({})
   const [approved, setApproved] = useState<Record<string, boolean>>({})
@@ -486,6 +489,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setAllNotifState(storage.getAllNotif())
   setBoardGradientState(storage.getBoardGradient())
   setAnimatedGradientState(storage.getAnimatedGradient())
+  setGradientSpeedState(storage.getGradientSpeed())
   setLastSeen(storage.getLastSeen())
     setApproved(storage.getApproved())
     setPinnedMessages(storage.getPinned())
@@ -1955,6 +1959,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     allNotif,
     boardGradient,
     animatedGradient,
+    gradientSpeed,
     lastSeen,
     approved,
     pinnedMessages,
@@ -2091,6 +2096,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setAllNotif: (v: boolean) => { setAllNotifState(v); storage.setAllNotif(v) },
   setBoardGradient: (v: { start: [number, number, number]; end: [number, number, number]; angle: number } | null) => { setBoardGradientState(v); storage.setBoardGradient(v) },
   setAnimatedGradient: (v: boolean) => { setAnimatedGradientState(v); storage.setAnimatedGradient(v) },
+  setGradientSpeed: (v: number) => { setGradientSpeedState(v); storage.setGradientSpeed(v) },
   markSeen,
     isUnread,
     approveDM,

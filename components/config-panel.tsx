@@ -958,6 +958,33 @@ function ThemeTab({ store }: { store: ReturnType<typeof useStore> }) {
         </button>
       </div>
 
+      {/* Speed slider - only show when animated gradient is enabled */}
+      {store.animatedGradient && (
+        <div className="flex flex-col gap-2 pt-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] uppercase tracking-widest text-muted-foreground" style={{ fontFamily: 'var(--font-mono)' }}>
+              Speed
+            </span>
+            <span className="text-[10px] text-muted-foreground" style={{ fontFamily: 'var(--font-mono)' }}>
+              {store.gradientSpeed}s
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[9px] text-muted-foreground">Fast</span>
+            <input
+              type="range"
+              min="5"
+              max="60"
+              step="5"
+              value={store.gradientSpeed}
+              onChange={(e) => store.setGradientSpeed(Number(e.target.value))}
+              className="flex-1 h-1.5 bg-secondary rounded-full appearance-none cursor-pointer accent-[var(--d360-orange)]"
+            />
+            <span className="text-[9px] text-muted-foreground">Slow</span>
+          </div>
+        </div>
+      )}
+
       {/* Dark/Light toggle + Reset */}
       <div className="flex items-center gap-2 pt-2 border-t border-border">
         <button

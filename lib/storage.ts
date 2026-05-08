@@ -157,6 +157,10 @@ export const storage = {
   // Animated gradient toggle
   getAnimatedGradient: () => getString('gm_v3_animgrad') === '1',
   setAnimatedGradient: (v: boolean) => setString('gm_v3_animgrad', v ? '1' : '0'),
+  
+  // Gradient animation speed (duration in seconds)
+  getGradientSpeed: () => { const v = getString('gm_v3_gradspeed'); return v ? parseInt(v, 10) : 20 },
+  setGradientSpeed: (v: number) => setString('gm_v3_gradspeed', String(v)),
 
   // Global mute
   getGlobalMute: () => getString('gm_v3_gmute') === '1',
