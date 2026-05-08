@@ -159,21 +159,21 @@ export function ConfigPanel() {
         </div>
 
         {/* Tab bar */}
-        <div className="flex px-5 pt-3 pb-0 gap-1" role="tablist">
+        <div className="flex justify-center px-3 pt-3 pb-0 gap-0.5 overflow-x-auto scrollbar-none" role="tablist">
           {TABS.map(tab => (
             <button
               key={tab.key}
               role="tab"
               aria-selected={activeTab === tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-t-lg text-[11px] uppercase tracking-widest transition-colors border-b-2 ${
+              className={`flex items-center gap-1 px-2.5 py-2 rounded-t-lg text-[10px] uppercase tracking-widest transition-colors border-b-2 shrink-0 ${
                 activeTab === tab.key
                   ? 'text-[var(--d360-orange)] border-[var(--d360-orange)] bg-secondary/40'
                   : 'text-muted-foreground hover:text-foreground border-transparent hover:bg-secondary/20'
               }`}
               style={{ fontFamily: 'var(--font-mono)' }}
             >
-              <tab.Icon className="w-3.5 h-3.5" />
+              <tab.Icon className="w-3.5 h-3.5 shrink-0" />
               <span className="hidden sm:inline">{tab.label}</span>
             </button>
           ))}
@@ -928,9 +928,68 @@ function ThemeTab({ store }: { store: ReturnType<typeof useStore> }) {
           max={360}
           value={angle}
           onChange={e => apply(start, end, Number(e.target.value))}
-          className="w-full h-1.5 rounded-full appearance-none bg-secondary/50 accent-[var(--d360-orange)]"
+          autoComplete="off"
+          data-form-type="other"
+          data-lpignore="true"
+          className="w-full h-1.5 rounded-full appearance-none bg-secondary/50 cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[var(--d360-orange)] [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-[var(--d360-orange)] [&::-moz-range-thumb]:border-0"
         />
       </div>
+
+      {/* Color Shift toggle */}
+      <div className="flex items-center justify-between pt-2 border-t border-border">
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[10px] uppercase tracking-widest text-foreground" style={{ fontFamily: 'var(--font-mono)' }}>
+            Color Shift
+          </span>
+          <span className="text-[9px] text-muted-foreground" style={{ fontFamily: 'var(--font-mono)' }}>
+            Animated color cycling
+          </span>
+        </div>
+        <button
+          onClick={() => store.setAnimatedGradient(!store.animatedGradient)}
+          className={`relative w-10 h-5 rounded-full transition-colors shrink-0 ${
+            store.animatedGradient 
+              ? 'bg-[var(--d360-orange)]' 
+              : 'bg-secondary'
+          }`}
+        >
+          <span 
+            className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+              store.animatedGradient ? 'translate-x-[18px]' : 'translate-x-0'
+            }`} 
+          />
+        </button>
+      </div>
+
+      {/* Speed slider - only show when color shift is enabled */}
+      {store.animatedGradient && (
+        <div className="flex flex-col gap-2 pt-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] uppercase tracking-widest text-muted-foreground" style={{ fontFamily: 'var(--font-mono)' }}>
+              Speed
+            </span>
+            <span className="text-[10px] text-muted-foreground" style={{ fontFamily: 'var(--font-mono)' }}>
+              {store.gradientSpeed}s
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[9px] text-muted-foreground shrink-0">Fast</span>
+            <input
+              type="range"
+              min="5"
+              max="60"
+              step="5"
+              value={store.gradientSpeed}
+              onChange={(e) => store.setGradientSpeed(Number(e.target.value))}
+              autoComplete="off"
+              data-form-type="other"
+              data-lpignore="true"
+              className="flex-1 h-1.5 bg-secondary rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[var(--d360-orange)] [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-[var(--d360-orange)] [&::-moz-range-thumb]:border-0"
+            />
+            <span className="text-[9px] text-muted-foreground shrink-0">Slow</span>
+          </div>
+        </div>
+      )}
 
       {/* Dark/Light toggle + Reset */}
       <div className="flex items-center gap-2 pt-2 border-t border-border">
@@ -974,8 +1033,10 @@ function RGBSliders({ rgb, onChange }: { rgb: RGB; onChange: (v: RGB) => void })
               next[i] = Number(e.target.value)
               onChange(next)
             }}
-            className="flex-1 h-1 rounded-full appearance-none bg-secondary/50"
-            style={{ accentColor: colors[i] }}
+            autoComplete="off"
+            data-form-type="other"
+            data-lpignore="true"
+            className={`flex-1 h-1 rounded-full appearance-none bg-secondary/50 cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:rounded-full [&::-moz-range-thumb]:w-2.5 [&::-moz-range-thumb]:h-2.5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 ${i === 0 ? '[&::-webkit-slider-thumb]:bg-red-500 [&::-moz-range-thumb]:bg-red-500' : i === 1 ? '[&::-webkit-slider-thumb]:bg-green-500 [&::-moz-range-thumb]:bg-green-500' : '[&::-webkit-slider-thumb]:bg-blue-500 [&::-moz-range-thumb]:bg-blue-500'}`}
           />
           <span className="text-[9px] w-6 text-right text-muted-foreground tabular-nums" style={{ fontFamily: 'var(--font-mono)' }}>
             {rgb[i]}

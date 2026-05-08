@@ -865,7 +865,7 @@ function StreamItem({ name, stream, store, isActive, gripRef, menuOpenId, setMen
             onClick={(e) => e.stopPropagation()}
           >
             <button onClick={openEditStream} className="w-full text-left px-3 py-2 text-xs text-foreground/80 hover:bg-secondary/60 font-mono flex items-center gap-2">
-              <EditIcon className="w-3.5 h-3.5" /> Edit stream
+              <EditIcon className="w-3.5 h-3.5" /> Edit groups
             </button>
             <button onClick={openMemberPopover} className="w-full text-left px-3 py-2 text-xs text-foreground/80 hover:bg-secondary/60 font-mono flex items-center gap-2">
               <InfoIcon className="w-3.5 h-3.5" /> View groups
@@ -894,21 +894,43 @@ function StreamItem({ name, stream, store, isActive, gripRef, menuOpenId, setMen
       {showMembers && popoverPos && typeof document !== 'undefined' && createPortal(
         <div
           ref={popoverRef}
-          className="fixed bg-card border border-border rounded-xl shadow-2xl p-4 min-w-[220px] max-w-[300px]"
+          className="fixed bg-card border border-border rounded-xl shadow-2xl p-4 min-w-[250px] max-w-[320px]"
           style={{ top: popoverPos.top, left: popoverPos.left, zIndex: 9999 }}
         >
           <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono mb-2.5 flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-[var(--d360-orange)]" />
             Groups in {displayName}
           </div>
-          <div className="flex flex-col gap-2">
-            {groupNames.map((gn: string, i: number) => (
-              <div key={i} className="flex items-center gap-2.5 text-xs text-foreground/90 font-mono">
-                <div className="w-1.5 h-1.5 rounded-full bg-[var(--d360-orange)]/60 shrink-0" />
-                <span className="truncate">{gn}</span>
-              </div>
-            ))}
+          <div className="flex flex-col gap-1.5 max-h-[300px] overflow-y-auto">
+            {stream.ids.map((gid: string, i: number) => {
+              const g = store.groups.find((gr: { id: string }) => gr.id === gid)
+              const gn = g ? g.name : gid
+              return (
+                <div key={i} className="flex items-center gap-2 text-xs text-foreground/90 font-mono group/item">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[var(--d360-orange)]/60 shrink-0" />
+                  <span className="truncate flex-1">{gn}</span>
+                  {stream.ids.length > 1 && (
+                    <button
+                      onClick={() => {
+                        const newIds = stream.ids.filter((id: string) => id !== gid)
+                        store.saveStream(name, newIds, stream.sound as SoundName)
+                      }}
+                      className="opacity-0 group-hover/item:opacity-100 p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all"
+                      title="Remove from stream"
+                    >
+                      <XIcon className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+              )
+            })}
           </div>
+          <button
+            onClick={openEditStream}
+            className="mt-3 w-full text-[10px] uppercase tracking-widest text-[var(--d360-orange)] hover:text-[var(--d360-orange)]/80 font-mono font-semibold text-center py-2 border border-[var(--d360-orange)]/30 rounded-lg hover:bg-[var(--d360-orange)]/5 transition-colors"
+          >
+            + Add / Edit Groups
+          </button>
         </div>,
         document.body
       )}
