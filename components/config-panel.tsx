@@ -159,7 +159,7 @@ export function ConfigPanel() {
         </div>
 
         {/* Tab bar */}
-        <div className="flex px-3 pt-3 pb-0 gap-0.5 overflow-x-auto scrollbar-none" role="tablist">
+        <div className="flex justify-center px-3 pt-3 pb-0 gap-0.5 overflow-x-auto scrollbar-none" role="tablist">
           {TABS.map(tab => (
             <button
               key={tab.key}
