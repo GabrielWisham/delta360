@@ -458,6 +458,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const showMsgToastRef = useRef<(toast: Omit<MsgToast, 'id' | 'ts'>) => void>(() => {})
   const isLoggingInRef = useRef(false)
   const userIdRef = useRef<string | null>(null)
+  // Guard against overlapping poll cycles when API responses are slow
+  const pollInProgressRef = useRef(false)
   // Track recently-sent targets so pollLoop skips notifications for own messages.
   // Keyed by tracker key (e.g. "g:123", "d:456"), value is timestamp of last send.
   const recentlySent = useRef<Record<string, number>>({})
@@ -623,6 +625,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function pollLoop() {
+    // Prevent overlapping polls when API responses are slow (>4s)
+    if (pollInProgressRef.current) {
+      pollTimerRef.current = setTimeout(pollLoop, 8000)
+      return
+    }
+    pollInProgressRef.current = true
+    // Debug: log tracker state at start of poll
+    console.log(`[v0] Poll starting. Tracker seeded: ${trackerSeeded.current}, tracker keys: ${Object.keys(lastMsgTracker.current).length}`)
     try {
       const [g, d] = await Promise.all([api.getGroups(), api.getDMChats()])
       setGroups(g)
@@ -650,7 +660,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           const lmid = group.messages?.last_message_id
           if (!lmid) continue
           const prevId = lastMsgTracker.current[`g:${group.id}`]
-          if (prevId && prevId !== lmid) {
+          // Check if there's a new message (ID changed)
+          const hasNewMessage = prevId && prevId !== lmid
+          // Only show notifications for truly recent messages (within last 60 seconds)
+          // This prevents stale localStorage data from triggering old message notifications
+          const preview = group.messages?.preview
+          const msgTimestamp = preview?.created_at ? preview.created_at * 1000 : 0
+          const isRecent = msgTimestamp > 0 && (Date.now() - msgTimestamp) < 60_000
+          // Debug: log when we detect a "new" message
+          if (hasNewMessage) {
+            console.log(`[v0] New msg detected in ${group.name}: prev=${prevId} new=${lmid} recent=${isRecent} age=${msgTimestamp > 0 ? Math.round((Date.now() - msgTimestamp) / 1000) : 'unknown'}s`)
+          }
+          if (hasNewMessage) {
             if ((cv.type === 'group' && cv.id === group.id) || cv.type === 'stream') {
               needsFeedRefresh = true
             }
@@ -661,7 +682,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               needsUnifiedRefresh = true
               changedGroupIds.push(group.id)
             }
-            if (group.messages?.preview) {
+            // Only show toast/sound notifications for recent messages
+            if (preview && isRecent) {
               const prev = group.messages.preview
               // sender_id is optional in the preview -- fall back to recentlySent
               // tracker to suppress notifications for the user's own messages.
@@ -732,7 +754,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           if (approvedNow[otherId] === false) continue
           const lmid = lm.id || `${lm.created_at}`
           const prevId = lastMsgTracker.current[`d:${otherId}`]
-          if (prevId && prevId !== lmid) {
+          // Check if there's a new message (ID changed)
+          const hasNewDmMessage = prevId && prevId !== lmid
+          // Only show notifications for truly recent messages (within last 60 seconds)
+          const dmMsgTimestamp = lm.created_at ? lm.created_at * 1000 : 0
+          const isDmRecent = dmMsgTimestamp > 0 && (Date.now() - dmMsgTimestamp) < 60_000
+          if (hasNewDmMessage) {
             if (cv.type === 'dms' || (cv.type === 'dm' && cv.id === otherId)) {
               needsFeedRefresh = true
             }
@@ -742,32 +769,35 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             if (cv.type === 'unified_streams') {
               needsUnifiedRefresh = true
             }
-            const sentDmTs = recentlySent.current[`d:${otherId}`] ?? recentlySent.current['__any__']
-            const isSelf = (lm.sender_id || lm.user_id) === userIdRef.current
-              || (sentDmTs != null && Date.now() - sentDmTs < 12_000)
-            // Suppress notifications if the user is already viewing this DM
-            const isViewingThis = cv.type === 'dm' && cv.id === otherId
-            const senderName = lm.name || dm.other_user?.name || 'DM'
-            const text = lm.text || '(attachment)'
-            // Check alert words (global + per-chat). DM chat alert key is
-            // just otherId (matching the view.id used in the config UI).
-            const matchedAlert = findAlertWord(text, alertWordsRef.current, chatAlertWordsRef.current[otherId])
-            if (matchedAlert && !isSelf && !globalMuteRef.current) {
-              // Alert word match gets highest priority -- siren sound, overrides
-              // mute and "viewing this" suppression.
-              const notifTitle = `ALERT: "${matchedAlert}" - DM`
-              const notifBody = `${senderName}: ${text}`
-              pendingSounds.push(() => { playSound('siren' as SoundName); sendDesktopNotification(notifTitle, notifBody) })
-            } else if (!isSelf && !isViewingThis && !globalMuteRef.current && !dmMutedRef.current) {
-              const soundToPlay = dmSoundRef.current
-              const notifTitle = 'Delta 360 - DM'
-              const notifBody = `${senderName}: ${text}`
-              pendingSounds.push(() => { playSound(soundToPlay); sendDesktopNotification(notifTitle, notifBody) })
-            }
-            if (!isSelf && !isViewingThis) {
-              pendingToasts.push({ sourceKey: `dm:${otherId}`, sourceName: dm.other_user?.name || 'DM', senderName, text, messageId: lmid, viewType: 'dm', viewId: otherId, originType: 'dm', originId: otherId, ...(matchedAlert ? { alertWord: matchedAlert } : {}) })
-            } else if (matchedAlert && !isSelf) {
-              pendingToasts.push({ sourceKey: `dm:${otherId}`, sourceName: dm.other_user?.name || 'DM', senderName, text, messageId: lmid, viewType: 'dm', viewId: otherId, originType: 'dm', originId: otherId, alertWord: matchedAlert })
+            // Only show toast/sound notifications for recent messages
+            if (isDmRecent) {
+              const sentDmTs = recentlySent.current[`d:${otherId}`] ?? recentlySent.current['__any__']
+              const isSelf = (lm.sender_id || lm.user_id) === userIdRef.current
+                || (sentDmTs != null && Date.now() - sentDmTs < 12_000)
+              // Suppress notifications if the user is already viewing this DM
+              const isViewingThis = cv.type === 'dm' && cv.id === otherId
+              const senderName = lm.name || dm.other_user?.name || 'DM'
+              const text = lm.text || '(attachment)'
+              // Check alert words (global + per-chat). DM chat alert key is
+              // just otherId (matching the view.id used in the config UI).
+              const matchedAlert = findAlertWord(text, alertWordsRef.current, chatAlertWordsRef.current[otherId])
+              if (matchedAlert && !isSelf && !globalMuteRef.current) {
+                // Alert word match gets highest priority -- siren sound, overrides
+                // mute and "viewing this" suppression.
+                const notifTitle = `ALERT: "${matchedAlert}" - DM`
+                const notifBody = `${senderName}: ${text}`
+                pendingSounds.push(() => { playSound('siren' as SoundName); sendDesktopNotification(notifTitle, notifBody) })
+              } else if (!isSelf && !isViewingThis && !globalMuteRef.current && !dmMutedRef.current) {
+                const soundToPlay = dmSoundRef.current
+                const notifTitle = 'Delta 360 - DM'
+                const notifBody = `${senderName}: ${text}`
+                pendingSounds.push(() => { playSound(soundToPlay); sendDesktopNotification(notifTitle, notifBody) })
+              }
+              if (!isSelf && !isViewingThis) {
+                pendingToasts.push({ sourceKey: `dm:${otherId}`, sourceName: dm.other_user?.name || 'DM', senderName, text, messageId: lmid, viewType: 'dm', viewId: otherId, originType: 'dm', originId: otherId, ...(matchedAlert ? { alertWord: matchedAlert } : {}) })
+              } else if (matchedAlert && !isSelf) {
+                pendingToasts.push({ sourceKey: `dm:${otherId}`, sourceName: dm.other_user?.name || 'DM', senderName, text, messageId: lmid, viewType: 'dm', viewId: otherId, originType: 'dm', originId: otherId, alertWord: matchedAlert })
+              }
             }
           }
           lastMsgTracker.current[`d:${otherId}`] = lmid
@@ -819,6 +849,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         // Persist tracker to localStorage so it survives page refreshes
         storage.setLastMsgTracker(lastMsgTracker.current)
         trackerSeeded.current = true
+        console.log(`[v0] Tracker seeded with ${Object.keys(lastMsgTracker.current).length} entries`)
         // Silently refresh the active feed to catch any messages that arrived
         // between the initial load and this first poll cycle.
         const cv = currentViewRef.current
@@ -837,8 +868,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       setIsConnected(true)
     } catch {
       setIsConnected(false)
+    } finally {
+      pollInProgressRef.current = false
     }
-    pollTimerRef.current = setTimeout(pollLoop, 4000)
+    pollTimerRef.current = setTimeout(pollLoop, 8000)
   }
 
   async function pollDispatchStatus(gid: string) {
