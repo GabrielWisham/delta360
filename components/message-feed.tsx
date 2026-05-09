@@ -700,7 +700,8 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     return null
   }, [view?.type, view?.id, store.dmChats, store.groups])
 
-  const isSpecificView = view?.type === 'group' || view?.type === 'dm' || view?.type === 'stream'
+  // Only group and dm views allow sending without a reply context
+  const isSpecificView = view?.type === 'group' || view?.type === 'dm'
   const canSend = isSpecificView || !!replyingTo
 
   const inputSection = (position: 'top' | 'bottom') => (
