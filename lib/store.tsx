@@ -1380,10 +1380,23 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     // Start from the full fresh fetch, then add any extra messages that
     // exist in current state but aren't in the fresh fetch (e.g. from a
     // concurrent patchUnifiedStreams that committed after our fetch started).
+    // BUT filter out optimistic messages that now have matching server messages.
     setPanelMessages(prev => {
       const freshIds = new Set(ready.map(m => m.id))
       const existing = prev[0] || []
-      const extras = existing.filter(m => !freshIds.has(m.id))
+      const now = Math.floor(Date.now() / 1000)
+      // Filter extras: keep non-optimistic, or optimistic messages that haven't been
+      // replaced by a server message with same text and similar timestamp
+      const extras = existing.filter(m => {
+        if (freshIds.has(m.id)) return false
+        // If it's not an optimistic message, keep it
+        if (typeof m.id !== 'string' || !m.id.startsWith('optimistic-')) return true
+        // If optimistic message is too old (> 15s), drop it
+        if ((now - m.created_at) >= 15) return false
+        // Check if server has a matching message (same text + similar time)
+        const hasMatch = ready.some(s => s.text === m.text && Math.abs(s.created_at - m.created_at) < 30)
+        return !hasMatch
+      })
       let merged = [...ready, ...extras]
       merged.sort((a, b) => a.created_at - b.created_at)
       if (merged.length > 60) merged = merged.slice(merged.length - 60)
@@ -1406,11 +1419,19 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         if (r && 'messages' in r) newMsgs.push(...(r.messages || []))
       })
       if (newMsgs.length === 0) return
+      const now = Math.floor(Date.now() / 1000)
       // Merge new messages into existing panelMessages[0]
       setPanelMessages(prev => {
         const existing = prev[0] || []
-        const merged = [...existing]
-        const existingIds = new Set(existing.map(m => m.id))
+        // First, filter out optimistic messages that have matching server messages
+        const filtered = existing.filter(m => {
+          if (typeof m.id !== 'string' || !m.id.startsWith('optimistic-')) return true
+          if ((now - m.created_at) >= 15) return false
+          const hasMatch = newMsgs.some(s => s.text === m.text && Math.abs(s.created_at - m.created_at) < 30)
+          return !hasMatch
+        })
+        const merged = [...filtered]
+        const existingIds = new Set(filtered.map(m => m.id))
         for (const m of newMsgs) {
           if (!existingIds.has(m.id)) {
             merged.push(m)
@@ -1448,10 +1469,20 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       })
       if (newMsgs.length === 0) return
       let mergedResult: GroupMeMessage[] = []
+      const now = Math.floor(Date.now() / 1000)
       setPanelMessages(prev => {
         const existing = prev[0] || []
-        const merged = [...existing]
-        const existingIds = new Set(existing.map(m => m.id))
+        // First, filter out optimistic messages that have matching server messages
+        const filtered = existing.filter(m => {
+          if (typeof m.id !== 'string' || !m.id.startsWith('optimistic-')) return true
+          // Drop optimistic if too old
+          if ((now - m.created_at) >= 15) return false
+          // Drop optimistic if server has matching message
+          const hasMatch = newMsgs.some(s => s.text === m.text && Math.abs(s.created_at - m.created_at) < 30)
+          return !hasMatch
+        })
+        const merged = [...filtered]
+        const existingIds = new Set(filtered.map(m => m.id))
         for (const m of newMsgs) {
           if (!existingIds.has(m.id)) {
             merged.push(m)
