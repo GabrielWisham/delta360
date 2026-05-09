@@ -69,16 +69,17 @@ export function ConfigPanel() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store.editingStream])
 
-  // Reset fields on fresh open
+  // Reset fields on fresh open (but not if we're editing a stream)
   const wasOpen = useRef(false)
   useEffect(() => {
-    if (!wasOpen.current) {
+    if (!wasOpen.current && !store.editingStream) {
       setStreamName('')
       setStreamSound('radar')
       setSelectedGroups(new Set())
       setIsEditing(false)
     }
     wasOpen.current = true
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Close on escape
