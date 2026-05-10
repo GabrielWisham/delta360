@@ -99,7 +99,10 @@ export const MessageCard = memo(function MessageCard({
 
   async function handleDelete() {
     if (!confirmDelete) { setConfirmDelete(true); return }
-    await store.deleteMessage(msg.group_id || '', msg.id)
+    // For groups use group_id, for DMs use conversation_id
+    const conversationId = msg.group_id || msg.conversation_id || ''
+    if (!conversationId) return
+    await store.deleteMessage(conversationId, msg.id)
     setConfirmDelete(false)
   }
 
@@ -116,13 +119,16 @@ export const MessageCard = memo(function MessageCard({
     }
     const newText = `${trimmed} [edited]`
     const groupId = msg.group_id || ''
+    // For groups use group_id, for DMs use conversation_id
+    const conversationId = msg.group_id || msg.conversation_id || ''
     // For DMs, find the other user's ID (the recipient)
     const otherUserId = msg.recipient_id || (
       msg.sender_id !== store.user?.id ? msg.sender_id :
       msg.user_id !== store.user?.id ? msg.user_id : ''
     ) || ''
     // Delete old, send new
-    await store.deleteMessage(groupId, msg.id)
+    if (!conversationId) return
+    await store.deleteMessage(conversationId, msg.id)
     if (groupId) {
       await store.sendMessageDirect('group', groupId, newText, msg.attachments || [])
     } else if (otherUserId) {
