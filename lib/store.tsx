@@ -2064,20 +2064,33 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     likeMessage: async (gid: string, mid: string) => { try { await api.likeMessage(gid, mid) } catch {} },
     unlikeMessage: async (gid: string, mid: string) => { try { await api.unlikeMessage(gid, mid) } catch {} },
     deleteMessage: async (gid: string, mid: string) => {
+      console.log('[v0] deleteMessage called', { gid, mid, midType: typeof mid })
       // Optimistically replace the message with a deleted placeholder immediately
       let originalMessages: GroupMeMessage[][] | null = null
+      // Convert mid to string for comparison (API may return numbers)
+      const midStr = String(mid)
       setPanelMessages(prev => {
         originalMessages = prev
-        return prev.map(panel =>
-          panel.map(m => m.id === mid
-            ? { ...m, text: 'This message has been deleted.', attachments: [], _deleted: true } as typeof m
-            : m
-          )
+        let foundCount = 0
+        const updated = prev.map((panel, pIdx) =>
+          panel.map(m => {
+            // Compare as strings to handle type mismatches
+            if (String(m.id) === midStr) {
+              foundCount++
+              console.log('[v0] Found message to delete in panel', { mid: midStr, panelIdx: pIdx })
+              return { ...m, text: 'This message has been deleted.', attachments: [], _deleted: true } as typeof m
+            }
+            return m
+          })
         )
+        console.log('[v0] setPanelMessages updated, foundCount:', foundCount)
+        return updated
       })
       try {
         await api.deleteMessage(gid, mid)
-      } catch {
+        console.log('[v0] API delete successful')
+      } catch (e) {
+        console.log('[v0] API delete failed', e)
         // Revert on error
         if (originalMessages) setPanelMessages(originalMessages)
         showToast('Error', 'Could not delete message')
