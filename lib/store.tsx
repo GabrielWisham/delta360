@@ -2064,17 +2064,22 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     likeMessage: async (gid: string, mid: string) => { try { await api.likeMessage(gid, mid) } catch {} },
     unlikeMessage: async (gid: string, mid: string) => { try { await api.unlikeMessage(gid, mid) } catch {} },
     deleteMessage: async (gid: string, mid: string) => {
-      try {
-        await api.deleteMessage(gid, mid)
-        // Optimistically replace the message with a deleted placeholder
-        setPanelMessages(prev => prev.map(panel =>
+      // Optimistically replace the message with a deleted placeholder immediately
+      let originalMessages: GroupMeMessage[][] | null = null
+      setPanelMessages(prev => {
+        originalMessages = prev
+        return prev.map(panel =>
           panel.map(m => m.id === mid
             ? { ...m, text: 'This message has been deleted.', attachments: [], _deleted: true } as typeof m
             : m
           )
-        ))
-        setPendingScrollToMsgId(mid)
+        )
+      })
+      try {
+        await api.deleteMessage(gid, mid)
       } catch {
+        // Revert on error
+        if (originalMessages) setPanelMessages(originalMessages)
         showToast('Error', 'Could not delete message')
       }
     },
