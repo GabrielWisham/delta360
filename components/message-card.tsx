@@ -98,16 +98,23 @@ export const MessageCard = memo(function MessageCard({
         : 'var(--d360-cyan)'
 
   async function handleDelete() {
+    console.log('[v0] handleDelete called', { confirmDelete, msgId: msg.id, group_id: msg.group_id, conversation_id: msg.conversation_id })
     if (!confirmDelete) { setConfirmDelete(true); return }
     // For optimistic messages, just remove locally (no server call needed)
     if (typeof msg.id === 'string' && msg.id.startsWith('optimistic-')) {
+      console.log('[v0] Removing optimistic message')
       store.removeOptimisticMessage(msg.id)
       setConfirmDelete(false)
       return
     }
     // For groups use group_id, for DMs use conversation_id
     const conversationId = msg.group_id || msg.conversation_id || ''
-    if (!conversationId) return
+    console.log('[v0] conversationId:', conversationId)
+    if (!conversationId) {
+      console.log('[v0] No conversationId, cannot delete')
+      return
+    }
+    console.log('[v0] Calling store.deleteMessage')
     await store.deleteMessage(conversationId, msg.id)
     setConfirmDelete(false)
   }
