@@ -99,7 +99,16 @@ export const MessageCard = memo(function MessageCard({
 
   async function handleDelete() {
     if (!confirmDelete) { setConfirmDelete(true); return }
-    await store.deleteMessage(msg.group_id || '', msg.id)
+    // For optimistic messages, just remove locally (no server call needed)
+    if (typeof msg.id === 'string' && msg.id.startsWith('optimistic-')) {
+      store.removeOptimisticMessage(msg.id)
+      setConfirmDelete(false)
+      return
+    }
+    // For groups use group_id, for DMs use conversation_id
+    const conversationId = msg.group_id || msg.conversation_id || ''
+    if (!conversationId) return
+    await store.deleteMessage(conversationId, msg.id)
     setConfirmDelete(false)
   }
 
@@ -116,13 +125,16 @@ export const MessageCard = memo(function MessageCard({
     }
     const newText = `${trimmed} [edited]`
     const groupId = msg.group_id || ''
+    // For groups use group_id, for DMs use conversation_id
+    const conversationId = msg.group_id || msg.conversation_id || ''
     // For DMs, find the other user's ID (the recipient)
     const otherUserId = msg.recipient_id || (
       msg.sender_id !== store.user?.id ? msg.sender_id :
       msg.user_id !== store.user?.id ? msg.user_id : ''
     ) || ''
     // Delete old, send new
-    await store.deleteMessage(groupId, msg.id)
+    if (!conversationId) return
+    await store.deleteMessage(conversationId, msg.id)
     if (groupId) {
       await store.sendMessageDirect('group', groupId, newText, msg.attachments || [])
     } else if (otherUserId) {
@@ -163,13 +175,13 @@ export const MessageCard = memo(function MessageCard({
   /* ======================================= */
   /*  COMPACT MODE                            */
   /* ======================================= */
-  // Deleted message: render a subtle system-style bubble
+  // Deleted message: render a subtle system-style bubble with smooth transition
   if (msg._deleted) {
     return (
       <div
         id={`msg-${msg.id}`}
         data-msg-id={msg.id}
-        className="flex justify-center py-1.5 px-2"
+        className="flex justify-center py-1.5 px-2 animate-in fade-in duration-300"
       >
         <span
           className="text-[10px] text-muted-foreground/60 italic px-3 py-1 rounded-full bg-muted/30 border border-border/30"

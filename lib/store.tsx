@@ -178,6 +178,7 @@ interface StoreActions {
   likeMessage: (groupId: string, messageId: string) => Promise<void>
   unlikeMessage: (groupId: string, messageId: string) => Promise<void>
   deleteMessage: (groupId: string, messageId: string) => Promise<void>
+  removeOptimisticMessage: (messageId: string) => void
   toggleTheme: () => void
   toggleCompact: () => void
   toggleInputBottom: () => void
@@ -1667,10 +1668,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         await api.sendDM(id, text, attachments)
       }
       setPendingImage(null)
-      // No eager refetch -- the optimistic message is already displayed and
-      // the regular poll cycle (~4s) will reconcile with the server, swapping
-      // out the optimistic ID for the real one. Eager refetches cause a full
-      // array replace that visually "reloads" every message card.
+      // Trigger a refresh after a short delay to get the confirmed message ID
+      setTimeout(() => {
+        setFeedRefreshTick(t => t + 1)
+      }, 500)
     } catch {
       // Remove optimistic message on failure
       setPanelMessages(prev => {
@@ -1723,7 +1724,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         await api.sendDM(targetId, text, attachments)
       }
       setPendingImage(null)
-      // No eager refetch -- poll cycle reconciles naturally
+      // Trigger a refresh after a short delay to get the confirmed message ID
+      setTimeout(() => {
+        setFeedRefreshTick(t => t + 1)
+      }, 500)
     } catch {
       setPanelMessages(prev => {
         const next = [...prev]
@@ -2064,19 +2068,33 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     likeMessage: async (gid: string, mid: string) => { try { await api.likeMessage(gid, mid) } catch {} },
     unlikeMessage: async (gid: string, mid: string) => { try { await api.unlikeMessage(gid, mid) } catch {} },
     deleteMessage: async (gid: string, mid: string) => {
+      // Optimistically replace the message with a deleted placeholder immediately
+      let originalMessages: GroupMeMessage[][] | null = null
+      // Convert mid to string for comparison (API may return numbers)
+      const midStr = String(mid)
+      setPanelMessages(prev => {
+        originalMessages = prev
+        return prev.map(panel =>
+          panel.map(m => {
+            // Compare as strings to handle type mismatches
+            if (String(m.id) === midStr) {
+              return { ...m, text: 'This message has been deleted.', attachments: [], _deleted: true } as typeof m
+            }
+            return m
+          })
+        )
+      })
       try {
         await api.deleteMessage(gid, mid)
-        // Optimistically replace the message with a deleted placeholder
-        setPanelMessages(prev => prev.map(panel =>
-          panel.map(m => m.id === mid
-            ? { ...m, text: 'This message has been deleted.', attachments: [], _deleted: true } as typeof m
-            : m
-          )
-        ))
-        setPendingScrollToMsgId(mid)
       } catch {
+        // Revert on error
+        if (originalMessages) setPanelMessages(originalMessages)
         showToast('Error', 'Could not delete message')
       }
+    },
+    removeOptimisticMessage: (mid: string) => {
+      // Remove an optimistic message locally (no API call needed)
+      setPanelMessages(prev => prev.map(panel => panel.filter(m => m.id !== mid)))
     },
     toggleTheme: () => {
       setTheme(prev => {

@@ -216,6 +216,9 @@ select option {
 .duration-200 {
   animation-duration: 200ms;
 }
+.duration-300 {
+  animation-duration: 300ms;
+}
 
 /* Register custom properties for smooth color interpolation */
 @property --color-1 {
