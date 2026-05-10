@@ -1667,10 +1667,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         await api.sendDM(id, text, attachments)
       }
       setPendingImage(null)
-      // No eager refetch -- the optimistic message is already displayed and
-      // the regular poll cycle (~4s) will reconcile with the server, swapping
-      // out the optimistic ID for the real one. Eager refetches cause a full
-      // array replace that visually "reloads" every message card.
+      // Trigger a refresh after a short delay to get the confirmed message ID
+      setTimeout(() => {
+        setFeedRefreshTick(t => t + 1)
+      }, 500)
     } catch {
       // Remove optimistic message on failure
       setPanelMessages(prev => {
@@ -1723,7 +1723,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         await api.sendDM(targetId, text, attachments)
       }
       setPendingImage(null)
-      // No eager refetch -- poll cycle reconciles naturally
+      // Trigger a refresh after a short delay to get the confirmed message ID
+      setTimeout(() => {
+        setFeedRefreshTick(t => t + 1)
+      }, 500)
     } catch {
       setPanelMessages(prev => {
         const next = [...prev]
@@ -2064,33 +2067,25 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     likeMessage: async (gid: string, mid: string) => { try { await api.likeMessage(gid, mid) } catch {} },
     unlikeMessage: async (gid: string, mid: string) => { try { await api.unlikeMessage(gid, mid) } catch {} },
     deleteMessage: async (gid: string, mid: string) => {
-      console.log('[v0] deleteMessage called', { gid, mid, midType: typeof mid })
       // Optimistically replace the message with a deleted placeholder immediately
       let originalMessages: GroupMeMessage[][] | null = null
       // Convert mid to string for comparison (API may return numbers)
       const midStr = String(mid)
       setPanelMessages(prev => {
         originalMessages = prev
-        let foundCount = 0
-        const updated = prev.map((panel, pIdx) =>
+        return prev.map(panel =>
           panel.map(m => {
             // Compare as strings to handle type mismatches
             if (String(m.id) === midStr) {
-              foundCount++
-              console.log('[v0] Found message to delete in panel', { mid: midStr, panelIdx: pIdx })
               return { ...m, text: 'This message has been deleted.', attachments: [], _deleted: true } as typeof m
             }
             return m
           })
         )
-        console.log('[v0] setPanelMessages updated, foundCount:', foundCount)
-        return updated
       })
       try {
         await api.deleteMessage(gid, mid)
-        console.log('[v0] API delete successful')
-      } catch (e) {
-        console.log('[v0] API delete failed', e)
+      } catch {
         // Revert on error
         if (originalMessages) setPanelMessages(originalMessages)
         showToast('Error', 'Could not delete message')
