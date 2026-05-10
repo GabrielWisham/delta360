@@ -178,6 +178,7 @@ interface StoreActions {
   likeMessage: (groupId: string, messageId: string) => Promise<void>
   unlikeMessage: (groupId: string, messageId: string) => Promise<void>
   deleteMessage: (groupId: string, messageId: string) => Promise<void>
+  removeOptimisticMessage: (messageId: string) => void
   toggleTheme: () => void
   toggleCompact: () => void
   toggleInputBottom: () => void
@@ -2090,6 +2091,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         if (originalMessages) setPanelMessages(originalMessages)
         showToast('Error', 'Could not delete message')
       }
+    },
+    removeOptimisticMessage: (mid: string) => {
+      // Remove an optimistic message locally (no API call needed)
+      setPanelMessages(prev => prev.map(panel => panel.filter(m => m.id !== mid)))
     },
     toggleTheme: () => {
       setTheme(prev => {

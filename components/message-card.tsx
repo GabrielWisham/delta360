@@ -49,7 +49,6 @@ export const MessageCard = memo(function MessageCard({
   replyNameMap?: Map<string, string>
 }) {
   const store = useStore()
-  const isOptimistic = typeof msg.id === 'string' && msg.id.startsWith('optimistic-')
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [editText, setEditText] = useState('')
@@ -100,8 +99,9 @@ export const MessageCard = memo(function MessageCard({
 
   async function handleDelete() {
     if (!confirmDelete) { setConfirmDelete(true); return }
-    // Can't delete optimistic messages (not yet confirmed by server)
+    // For optimistic messages, just remove locally (no server call needed)
     if (typeof msg.id === 'string' && msg.id.startsWith('optimistic-')) {
+      store.removeOptimisticMessage(msg.id)
       setConfirmDelete(false)
       return
     }
@@ -353,7 +353,7 @@ export const MessageCard = memo(function MessageCard({
               <CompactAction Icon={Pin} title="Pin" active={isPinned} onClick={() => store.togglePinMessage(msg.id)} />
               <CompactAction Icon={Forward} title="Forward" onClick={() => store.setForwardMsg({ id: msg.id, name: msg.name, text: msg.text || '', groupId: msg.group_id })} />
               {isSelf && <CompactAction Icon={Pencil} title="Edit" onClick={startEdit} />}
-              {isSelf && !isOptimistic && <CompactAction Icon={Trash2} title={confirmDelete ? 'Confirm?' : 'Delete'} danger active={confirmDelete} onClick={handleDelete} />}
+              {isSelf && <CompactAction Icon={Trash2} title={confirmDelete ? 'Confirm?' : 'Delete'} danger active={confirmDelete} onClick={handleDelete} />}
             </div>
           </div>
         </div>
@@ -530,7 +530,7 @@ export const MessageCard = memo(function MessageCard({
               <CompactAction Icon={Pin} title="Pin" active={isPinned} onClick={() => store.togglePinMessage(msg.id)} />
               <CompactAction Icon={Forward} title="Forward" onClick={() => store.setForwardMsg({ id: msg.id, name: msg.name, text: msg.text || '', groupId: msg.group_id })} />
               {isSelf && <CompactAction Icon={Pencil} title="Edit" onClick={startEdit} />}
-              {isSelf && !isOptimistic && <CompactAction Icon={Trash2} title={confirmDelete ? 'Confirm?' : 'Delete'} danger active={confirmDelete} onClick={handleDelete} />}
+              {isSelf && <CompactAction Icon={Trash2} title={confirmDelete ? 'Confirm?' : 'Delete'} danger active={confirmDelete} onClick={handleDelete} />}
             </div>
           </div>
       </div>
