@@ -621,6 +621,7 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     } else {
       // Fire-and-forget: sendMessage inserts an optimistic message synchronously
       // via setPanelMessages before the await, so the message appears immediately.
+      console.log('[v0] non-aggregate send path', { panelIdx, textToSend, attachmentsLen: attachments.length })
       store.sendMessage(panelIdx, textToSend, attachments)
     }
   }
