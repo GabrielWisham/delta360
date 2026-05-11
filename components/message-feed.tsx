@@ -590,11 +590,13 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     setNewMsgCount(0)
     snapshotMsgCountRef.current = 0
 
-    // If replying from an aggregate view (all, dms, stream, unified_streams),
-    // route the message directly to the replied-to message's group or DM
-    const isAggregate = view?.type === 'all' || view?.type === 'dms' || view?.type === 'stream' || view?.type === 'unified_streams'
+  // If replying from an aggregate view (all, dms, stream, unified_streams),
+  // route the message directly to the replied-to message's group or DM
+  const isAggregate = view?.type === 'all' || view?.type === 'dms' || view?.type === 'stream' || view?.type === 'unified_streams'
+  console.log('[v0] handleSend', { isAggregate, viewType: view?.type, replyRef: !!replyRef, replyGroupId: replyRef?.group_id })
   if (replyRef && isAggregate) {
   const groupId = replyRef.group_id
+  console.log('[v0] aggregate reply path', { groupId })
   if (groupId) {
   store.sendMessageDirect('group', groupId, textToSend, attachments)
   } else {
