@@ -621,7 +621,11 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     } else {
       // Fire-and-forget: sendMessage inserts an optimistic message synchronously
       // via setPanelMessages before the await, so the message appears immediately.
-      console.log('[v0] non-aggregate send path', { panelIdx, textToSend, attachmentsLen: attachments.length })
+      console.log('[v0] non-aggregate send path', { panelIdx, viewType: view?.type, viewId: view?.id, textToSend, attachmentsLen: attachments.length })
+      if (view?.type === 'dm') {
+        const chat = store.dmChats.find(d => d.other_user?.id === view.id)
+        console.log('[v0] DM chat lookup', { viewId: view.id, foundChat: !!chat, other_user_id: chat?.other_user?.id, conversation_id: chat?.last_message?.conversation_id })
+      }
       store.sendMessage(panelIdx, textToSend, attachments)
     }
   }
