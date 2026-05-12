@@ -1662,9 +1662,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       // the deferred one, causing duplicate renders and scroll jumps.
     }
     try {
+      console.log('[v0] sendMessage - type:', type, 'id:', id, 'panelIdx:', panelIdx)
       if (type === 'group' && id) {
         await api.sendGroupMessage(id, text, attachments)
       } else if (type === 'dm' && id) {
+        console.log('[v0] Sending DM to id:', id)
         await api.sendDM(id, text, attachments)
       }
       setPendingImage(null)
