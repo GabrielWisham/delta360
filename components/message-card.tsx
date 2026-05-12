@@ -105,9 +105,20 @@ export const MessageCard = memo(function MessageCard({
       setConfirmDelete(false)
       return
     }
-    // For groups use group_id, for DMs use conversation_id
-    const conversationId = msg.group_id || msg.conversation_id || ''
-    if (!conversationId) return
+    // For groups use group_id, for DMs use conversation_id (or construct it)
+    let conversationId = msg.group_id || msg.conversation_id || ''
+    // If no conversation_id for a DM, construct it from sender_id and recipient_id
+    // The format is "{smallerId}+{largerId}" sorted alphabetically
+    if (!conversationId && isDm) {
+      const ids = [msg.sender_id || msg.user_id || '', msg.recipient_id || ''].filter(Boolean).sort()
+      if (ids.length === 2) {
+        conversationId = `${ids[0]}+${ids[1]}`
+      }
+    }
+    if (!conversationId) {
+      console.log('[v0] Delete failed - no conversationId. msg:', { id: msg.id, group_id: msg.group_id, conversation_id: msg.conversation_id, sender_id: msg.sender_id, recipient_id: msg.recipient_id, user_id: msg.user_id })
+      return
+    }
     await store.deleteMessage(conversationId, msg.id)
     setConfirmDelete(false)
   }
