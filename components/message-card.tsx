@@ -115,12 +115,10 @@ export const MessageCard = memo(function MessageCard({
         conversationId = `${ids[0]}+${ids[1]}`
       }
     }
-    if (!conversationId) {
-      console.log('[v0] Delete failed - no conversationId. msg:', { id: msg.id, group_id: msg.group_id, conversation_id: msg.conversation_id, sender_id: msg.sender_id, recipient_id: msg.recipient_id, user_id: msg.user_id })
-      return
-    }
-    await store.deleteMessage(conversationId, msg.id)
+    if (!conversationId) return
+    // Reset confirm state immediately for snappy UI, don't wait for API
     setConfirmDelete(false)
+    store.deleteMessage(conversationId, msg.id)
   }
 
   function startEdit() {
