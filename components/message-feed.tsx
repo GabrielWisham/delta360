@@ -590,42 +590,35 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     setNewMsgCount(0)
     snapshotMsgCountRef.current = 0
 
-  // If replying from an aggregate view (all, dms, stream, unified_streams),
-  // route the message directly to the replied-to message's group or DM
-  const isAggregate = view?.type === 'all' || view?.type === 'dms' || view?.type === 'stream' || view?.type === 'unified_streams'
-  console.log('[v0] handleSend', { isAggregate, viewType: view?.type, replyRef: !!replyRef, replyGroupId: replyRef?.group_id })
-  if (replyRef && isAggregate) {
-  const groupId = replyRef.group_id
-  console.log('[v0] aggregate reply path', { groupId })
-  if (groupId) {
-  store.sendMessageDirect('group', groupId, textToSend, attachments)
-  } else {
-  // For DMs: find the other user. If the sender is us, use recipient_id or
-  // extract from conversation_id. If the sender is someone else, reply to them.
-  const senderId = replyRef.sender_id || replyRef.user_id
-  const isSelfMsg = senderId === store.user?.id
-  let dmTarget = ''
-  if (isSelfMsg) {
-    // We sent this message -- find the other user from conversation_id or recipient_id
-    dmTarget = replyRef.recipient_id || ''
-    if (!dmTarget && replyRef.conversation_id) {
-      dmTarget = replyRef.conversation_id.split('+').find(id => id !== store.user?.id) || ''
-    }
-  } else {
-    dmTarget = senderId || ''
-  }
-  if (dmTarget) {
-    store.sendMessageDirect('dm', dmTarget, textToSend, attachments)
-  }
-  }
+    // If replying from an aggregate view (all, dms, stream, unified_streams),
+    // route the message directly to the replied-to message's group or DM
+    const isAggregate = view?.type === 'all' || view?.type === 'dms' || view?.type === 'stream' || view?.type === 'unified_streams'
+    if (replyRef && isAggregate) {
+      const groupId = replyRef.group_id
+      if (groupId) {
+        store.sendMessageDirect('group', groupId, textToSend, attachments)
+      } else {
+        // For DMs: find the other user. If the sender is us, use recipient_id or
+        // extract from conversation_id. If the sender is someone else, reply to them.
+        const senderId = replyRef.sender_id || replyRef.user_id
+        const isSelfMsg = senderId === store.user?.id
+        let dmTarget = ''
+        if (isSelfMsg) {
+          // We sent this message -- find the other user from conversation_id or recipient_id
+          dmTarget = replyRef.recipient_id || ''
+          if (!dmTarget && replyRef.conversation_id) {
+            dmTarget = replyRef.conversation_id.split('+').find(id => id !== store.user?.id) || ''
+          }
+        } else {
+          dmTarget = senderId || ''
+        }
+        if (dmTarget) {
+          store.sendMessageDirect('dm', dmTarget, textToSend, attachments)
+        }
+      }
     } else {
       // Fire-and-forget: sendMessage inserts an optimistic message synchronously
       // via setPanelMessages before the await, so the message appears immediately.
-      console.log('[v0] non-aggregate send path', { panelIdx, viewType: view?.type, viewId: view?.id, textToSend, attachmentsLen: attachments.length })
-      if (view?.type === 'dm') {
-        const chat = store.dmChats.find(d => d.other_user?.id === view.id)
-        console.log('[v0] DM chat lookup', { viewId: view.id, foundChat: !!chat, other_user_id: chat?.other_user?.id, conversation_id: chat?.last_message?.conversation_id })
-      }
       store.sendMessage(panelIdx, textToSend, attachments)
     }
   }
