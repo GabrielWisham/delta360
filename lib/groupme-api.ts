@@ -129,7 +129,6 @@ class GroupMeAPI {
       })
       if (!res.ok) {
         const errorText = await res.text().catch(() => '')
-        console.log('[v0] sendDM failed', res.status, errorText)
         throw new Error(`sendDM failed ${res.status}: ${errorText}`)
       }
       const data = await res.json()
