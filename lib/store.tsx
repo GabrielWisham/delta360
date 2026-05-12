@@ -1672,14 +1672,20 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       setTimeout(() => {
         setFeedRefreshTick(t => t + 1)
       }, 500)
-    } catch {
+    } catch (err) {
       // Remove optimistic message on failure
       setPanelMessages(prev => {
         const next = [...prev]
         next[panelIdx] = (next[panelIdx] || []).filter(m => m.id !== optimisticId)
         return next
       })
-      showToast('Error', 'Failed to send message')
+      // Check if this is the GroupMe API DM restriction
+      const errMsg = err instanceof Error ? err.message : ''
+      if (type === 'dm' && errMsg.includes('not available via the Developer API')) {
+        showToast('DM Unavailable', 'GroupMe has disabled sending DMs via third-party apps. Please use the GroupMe app directly.')
+      } else {
+        showToast('Error', 'Failed to send message')
+      }
     }
   }, [currentView, panels, showToast, user, oldestFirst])
 
@@ -1728,13 +1734,19 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       setTimeout(() => {
         setFeedRefreshTick(t => t + 1)
       }, 500)
-    } catch {
+    } catch (err) {
       setPanelMessages(prev => {
         const next = [...prev]
         next[0] = (next[0] || []).filter(m => m.id !== optimisticId)
         return next
       })
-      showToast('Error', 'Failed to send message')
+      // Check if this is the GroupMe API DM restriction
+      const errMsg = err instanceof Error ? err.message : ''
+      if (targetType === 'dm' && errMsg.includes('not available via the Developer API')) {
+        showToast('DM Unavailable', 'GroupMe has disabled sending DMs via third-party apps. Please use the GroupMe app directly.')
+      } else {
+        showToast('Error', 'Failed to send message')
+      }
     }
   }, [showToast, user, oldestFirst])
 

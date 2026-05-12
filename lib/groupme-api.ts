@@ -111,17 +111,28 @@ class GroupMeAPI {
   }
 
   async sendDM(recipientId: string, text: string, attachments: GroupMeMessage['attachments'] = []) {
-    return this.request('/direct_messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    if (!this.token) throw new Error('No token set')
+    return this.enqueue(async () => {
+      const body = JSON.stringify({
         direct_message: {
           source_guid: `d360_${Date.now()}${Math.random().toString(36).slice(2)}`,
           recipient_id: String(recipientId),
           text,
           attachments,
         },
-      }),
+      })
+      const url = `${PROXY_BASE}/direct_messages?token=${this.token}`
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+      })
+      if (!res.ok) {
+        const errorText = await res.text().catch(() => '')
+        throw new Error(`sendDM failed ${res.status}: ${errorText}`)
+      }
+      const data = await res.json()
+      return data.response
     })
   }
 
