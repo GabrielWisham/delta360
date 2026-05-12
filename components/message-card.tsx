@@ -119,6 +119,15 @@ export const MessageCard = memo(function MessageCard({
         conversationId = `${ids[0]}+${ids[1]}`
       }
     }
+    console.log('[v0] executeDelete - isDm:', isDm, 'conversationId:', conversationId, 'msg fields:', { 
+      group_id: msg.group_id, 
+      conversation_id: msg.conversation_id, 
+      sender_id: msg.sender_id, 
+      user_id: msg.user_id, 
+      recipient_id: msg.recipient_id,
+      chat_id: (msg as any).chat_id,
+      other_user: (msg as any).other_user
+    })
     if (!conversationId) return
     // Close dialog immediately for snappy UI, don't wait for API
     setConfirmDelete(false)
