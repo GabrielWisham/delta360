@@ -22,7 +22,10 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
   const needsSendScrollRef = useRef(false)
   const prevMsgCountRef = useRef(0)
   const snapshotMsgCountRef = useRef(0) // msg count when user scrolled away
-  const [mainInput, setMainInput] = useState('')
+  // Per-chat draft messages -- like GroupMe, each chat remembers its in-progress
+  // message so switching views and returning preserves what you were typing.
+  // Keyed by viewKey (e.g. "group:123", "dm:456", "all:", "unified_streams:").
+  const [drafts, setDrafts] = useState<Record<string, string>>({})
   const [mainEmojiOpen, setMainEmojiOpen] = useState(false)
   const [replyingTo, setReplyingTo] = useState<GroupMeMessage | null>(null)
   const [showChatAlerts, setShowChatAlerts] = useState(false)
@@ -45,6 +48,24 @@ export function MessageFeed({ panelIdx }: { panelIdx: number }) {
     if (viewReady) setViewReady(false)
     if (viewLoaded) setViewLoaded(false)
   }
+  // Current draft for this view. Empty string for views without a key.
+  const draftKey = viewKey || ''
+  const mainInput = drafts[draftKey] || ''
+  const setMainInput = useCallback((val: string | ((prev: string) => string)) => {
+    setDrafts(prev => {
+      const current = prev[draftKey] || ''
+      const next = typeof val === 'function' ? (val as (p: string) => string)(current) : val
+      if (next === current) return prev
+      // Drop the entry entirely when cleared so the map doesn't grow unbounded.
+      if (next === '') {
+        if (!(draftKey in prev)) return prev
+        const { [draftKey]: _omit, ...rest } = prev
+        return rest
+      }
+      return { ...prev, [draftKey]: next }
+    })
+  }, [draftKey])
+
   const title = view ? store.getPanelTitle(view.type, view.id) : '--'
   const showGroupTag = view?.type === 'all' || view?.type === 'dms' || view?.type === 'stream' || view?.type === 'unified_streams'
 
