@@ -34,7 +34,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" data-theme="dark" suppressHydrationWarning>
+    <html lang="en" data-theme="light" suppressHydrationWarning>
       <body className={`${outfit.variable} ${jetbrains.variable} antialiased`}>
         <StoreProvider>{children}</StoreProvider>
       </body>

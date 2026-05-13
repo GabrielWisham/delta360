@@ -81,7 +81,7 @@ export const storage = {
   setAlertWords: (v: string[]) => set('gm_v3_alerts', v),
 
   // Theme
-  getTheme: () => getString('gm_v3_theme', 'dark') as 'dark' | 'light',
+  getTheme: () => getString('gm_v3_theme', 'light') as 'dark' | 'light',
   setTheme: (v: string) => setString('gm_v3_theme', v),
 
   // Compact mode

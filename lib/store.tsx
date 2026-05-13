@@ -380,7 +380,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [panelMessages, setPanelMessages] = useState<GroupMeMessage[][]>([[], [], []])
   const [streams, setStreams] = useState<StreamsMap>({})
   const [streamToggles, setStreamToggles] = useState<Set<string>>(new Set())
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark')
+  const [theme, setTheme] = useState<'dark' | 'light'>('light')
   const [compact, setCompact] = useState(false)
   const [inputBottom, setInputBottom] = useState(true)
   const [oldestFirst, setOldestFirst] = useState(true)
