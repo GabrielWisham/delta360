@@ -299,9 +299,9 @@ export const SHORTCUT_DEFS: ShortcutDef[] = [
   { action: 'openContacts',    label: 'Open Contacts',      category: 'Panels',     defaultKey: 'k' },
   { action: 'openMsgBuilder',  label: 'Message Builder',    category: 'Panels',     defaultKey: 'b' },
   { action: 'openOrderSearch', label: 'Order Search',       category: 'Panels',     defaultKey: 'o' },
-  { action: 'toggleCompact',   label: 'Toggle Compact',     category: 'View',       defaultKey: 'Shift+C' },
-  { action: 'togglePortrait',  label: 'Toggle Portrait',    category: 'View',       defaultKey: 'Shift+P' },
-  { action: 'toggleMute',      label: 'Toggle Mute',        category: 'View',       defaultKey: 'Shift+M' },
+  { action: 'toggleCompact',   label: 'Toggle Compact',     category: 'View',       defaultKey: 'Alt+C' },
+  { action: 'togglePortrait',  label: 'Toggle Portrait',    category: 'View',       defaultKey: 'Alt+P' },
+  { action: 'toggleMute',      label: 'Toggle Mute',        category: 'View',       defaultKey: 'Alt+M' },
   { action: 'toggleSidebar',   label: 'Toggle Sidebar',     category: 'View',       defaultKey: '[' },
 ]
 
