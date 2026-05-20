@@ -1547,7 +1547,21 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, [currentView.type, isLoggedIn, refreshUnifiedStreams])
 
   const switchView = useCallback((type: ViewState['type'], id: string | null) => {
-    setCurrentView({ type, id })
+    // No-op if already on this view -- otherwise clearing panelMessages below
+    // would wipe the feed without retriggering the load effect (which depends
+    // on view.type/view.id), leaving the user staring at "No messages".
+    let isSameView = false
+    setCurrentView(prev => {
+      if (prev.type === type && prev.id === id) {
+        isSameView = true
+        return prev
+      }
+      return { type, id }
+    })
+    if (isSameView) {
+      setSidebarMobileOpen(false)
+      return
+    }
     if (id) {
       setLastSeen(prev => {
         const next = { ...prev, [id]: Math.floor(Date.now() / 1000) }
