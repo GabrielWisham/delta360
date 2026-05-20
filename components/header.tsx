@@ -128,7 +128,10 @@ export function Header() {
       {/* Hamburger / sidebar toggle */}
       <button
         onClick={() => {
-          if (window.innerWidth < 640) store.toggleSidebarMobile()
+          // Portrait mode treats the sidebar as a slide-over drawer at every
+          // width, so use the mobile-drawer toggle. Otherwise small viewports
+          // also use the drawer; desktop landscape pins/unpins the sidebar.
+          if (store.portraitMode || window.innerWidth < 640) store.toggleSidebarMobile()
           else store.toggleSidebar()
         }}
         className="p-2 rounded hover:bg-secondary/60 text-foreground"

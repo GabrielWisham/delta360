@@ -328,6 +328,11 @@ export function Sidebar() {
   }
 
   const isDesktopHidden = store.sidebarCollapsed && typeof window !== 'undefined' && window.innerWidth > 600
+  // In portrait mode the sidebar behaves like the mobile drawer regardless of
+  // viewport width: it stays full-width and readable, and slides in/out from
+  // the left over the content instead of being pinned to the side. Avoids the
+  // "shrinks to a useless icon strip" UX on tall/narrow screens.
+  const portraitDrawer = store.portraitMode
 
   /* Section drag handlers - only initiated from grip icon */
   function onSectionDragStart(e: React.DragEvent, idx: number) {
@@ -501,16 +506,23 @@ export function Sidebar() {
 
   return (
     <>
-      {store.sidebarMobileOpen && (
-        <div className="fixed inset-0 bg-black/40 z-30 md:hidden" onClick={() => store.toggleSidebarMobile()} />
+      {(store.sidebarMobileOpen || (portraitDrawer && store.sidebarMobileOpen)) && (
+        <div
+          className={`fixed inset-0 bg-black/40 z-30 ${portraitDrawer ? '' : 'md:hidden'}`}
+          onClick={() => store.toggleSidebarMobile()}
+        />
       )}
       <aside
         className={`
           flex flex-col overflow-y-auto overflow-x-hidden transition-all duration-300 ease-in-out shrink-0 rounded-2xl border border-border/50 shadow-sm
-          ${store.sidebarMobileOpen
-            ? 'fixed inset-y-2 left-2 z-40 w-[300px] shadow-2xl translate-x-0'
-            : 'fixed inset-y-2 left-2 z-40 w-[300px] shadow-2xl -translate-x-[calc(100%+1rem)] md:translate-x-0 md:static md:shadow-sm'}
-          ${isDesktopHidden ? 'md:w-0 md:border-0 md:overflow-hidden' : 'md:w-[300px]'}
+          ${portraitDrawer
+            ? (store.sidebarMobileOpen
+                ? 'fixed inset-y-2 left-2 z-40 w-[min(340px,85vw)] shadow-2xl translate-x-0'
+                : 'fixed inset-y-2 left-2 z-40 w-[min(340px,85vw)] shadow-2xl -translate-x-[calc(100%+1rem)]')
+            : (store.sidebarMobileOpen
+              ? 'fixed inset-y-2 left-2 z-40 w-[300px] shadow-2xl translate-x-0'
+              : 'fixed inset-y-2 left-2 z-40 w-[300px] shadow-2xl -translate-x-[calc(100%+1rem)] md:translate-x-0 md:static md:shadow-sm')}
+          ${!portraitDrawer && (isDesktopHidden ? 'md:w-0 md:border-0 md:overflow-hidden' : 'md:w-[300px]')}
         `}
         style={{ background: 'var(--d360-sidebar-bg)' }}
       >
